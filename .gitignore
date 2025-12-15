@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Soma user instance (private — created by `soma init`)
+# STATE.md is tracked (architecture truth). Everything else is personal.
+.soma/identity.md
+.soma/memory/
+.soma/sessions/
+.soma/preloads/
+.soma/skills/
+.soma/extensions/
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+**/secrets/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test
+coverage/
+
+# Sub-projects (separate repos)
+website/
+_reference-site/
+
+# Symlinks to personal content
+media
+
+# Soma local memory
+.soma/
+
+# Git worktrees (feature branches checked out side-by-side)
+.worktrees/
