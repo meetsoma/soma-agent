@@ -1,6 +1,6 @@
 ---
 type: plan
-status: draft
+status: active
 created: 2026-03-10
 updated: 2026-03-09
 tags: [architecture, protocols, heat-tracking, system-prompt, plugin, enterprise]
@@ -88,42 +88,45 @@ This is a v2 feature. v1 ships with `.soma/` hardcoded. But the architecture acc
 ---
 type: protocol
 name: frontmatter-standard
-version: 1.0.0
 status: active
-created: 2026-03-10
-author: Curtis Mercier
-license: MIT
-tags: [frontmatter, documentation, standards]
+updated: 2026-03-10
 heat-default: warm
-
-# The compressed version injected at warm temperature
+tags: [frontmatter, documentation, standards]
 breadcrumb: "All .md files get YAML frontmatter: type, status, created, updated. 8 statuses: draft/active/stable/stale/archived/deprecated/blocked/review."
 ---
 
 # Frontmatter Standard Protocol
 
+## TL;DR
+- Every `.md` file gets YAML frontmatter: `type`, `status`, `created`, `updated` (required)
+- 12 types: plan · spec · note · index · memory · muscle · protocol · decision · log · template · identity · config
+- 8 statuses: draft · active · stable · stale · archived · deprecated · blocked · review
+- Agent-loaded files keep full frontmatter on disk for tooling; only breadcrumb/TL;DR/body injected into prompt
+
 ## Rule
-
-Every Markdown document in a Soma-managed workspace MUST have YAML frontmatter with at minimum:
-
-- `type` — what kind of document (plan, spec, note, index, memory, etc.)
-- `status` — lifecycle state (draft, active, stable, stale, archived, deprecated, blocked, review)
-- `created` — ISO date
-- `updated` — ISO date
+...dense rules...
 
 ## When to Apply
+...trigger conditions...
 
-- Creating any new `.md` file
-- Editing a file that's missing frontmatter (add it)
-- Reviewing documents (check for stale status)
-
-## Examples
-
-...full examples, edge cases, detailed rules...
+<!-- v1.0.0 | created: 2026-03-10 | MIT | Curtis Mercier | upstream: curtismercier/protocols/atlas/ -->
 ```
 
-Key frontmatter fields:
-- **`breadcrumb`** — the compressed one-liner that gets injected at warm temperature. This is what makes it token-efficient. The full doc might be 200 lines; the breadcrumb is 1-2 sentences.
+### Frontmatter tiers
+
+**In the YAML block** — fields consumed by runtime code OR tooling:
+- `type`, `status`, `updated` — `soma-scan.sh` filters, staleness checks
+- `tags` — `soma-scan.sh --related` search
+- `name`, `heat-default`, `breadcrumb`, `scope`, `tier` — protocol loader in `core/protocols.ts`
+
+**In trailing HTML comment** — human reference, not consumed:
+- `version`, `created`, `author`, `license`, `upstream`
+
+### Body loading tiers
+
+- **`breadcrumb`** — 1-2 sentence compressed version, injected at warm temperature
+- **`## TL;DR`** — 3-7 dense bullets, first thing loaded when agent reads deeper. Search/inhale scripts extract this section. Protocols use `## TL;DR` (visible heading). Muscles use `<!-- digest:start/end -->` (invisible, agent-facing)
+- **Full body** — complete rules, only injected for hot protocols or on explicit read
 - **`heat-default`** — starting temperature when first discovered. Core protocols can start `warm` or `hot`. Community ones start `cold`.
 
 ---

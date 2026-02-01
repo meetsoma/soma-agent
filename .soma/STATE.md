@@ -2,7 +2,7 @@
 type: state
 method: atlas
 project: soma
-updated: 2026-03-10
+updated: 2026-03-09
 status: active
 rule: Update this file whenever architecture, memory structure, or extension behavior changes.
 ---
@@ -10,76 +10,132 @@ rule: Update this file whenever architecture, memory structure, or extension beh
 # Soma — Architecture State
 
 > **ATLAS** — Single source of truth for how Soma works right now.
-> Method docs: `$VAULT_PATH/agents/core/muscles/atlas.md`
 
 ## What Soma Is
 
-An AI coding agent with self-growing memory. Built on Pi (0.56.2) with custom `piConfig.configDir: ".soma"`. Identity is discovered through use, not pre-configured.
+An AI coding agent with self-growing memory. Built on Pi (0.57.1) with custom `piConfig.configDir: ".soma"`. Identity is discovered through use, not pre-configured.
 
 ## Public Identity
 
 | Layer | Value |
 |-------|-------|
 | GitHub org | `github.com/meetsoma` |
-| Main repo | `meetsoma/soma` |
+| Main repo | `meetsoma/agent` (private), `meetsoma/cli` (public) |
 | npm package | `@gravicity.ai/soma` |
-| npm org/scope | `@gravicity.ai` |
 | CLI command | `soma` |
 | Website | `soma.gravicity.ai` |
-| Install | `npm i -g @gravicity.ai/soma` |
 | License | MIT |
 | Made by | Gravicity (gravicity.ai) |
 
 ## System Diagram
 
 ```
-┌─────────────────────────────────────────────────┐
-│  soma (CLI)                                      │
-│  Built on: Pi 0.57.1 (via soma-cli package)      │
-│  configDir: .soma                                │
-│                                                  │
-│  ~/.soma/agent/                                  │
-│  ├── settings.json   (compaction off, quiet)     │
-│  ├── extensions/     (soma-boot, header, status) │
-│  ├── skills/                                     │
-│  └── sessions/       (Pi session JSONL)          │
-│                                                  │
-│  ~/Gravicity/products/soma/ (meetsoma/soma)       │
-│  ├── extensions/     (source — symlinked global) │
-│  │   ├── soma-boot.ts                            │
-│  │   ├── soma-header.ts                          │
-│  │   └── soma-statusline.ts                      │
-│  ├── docs/           (living docs for website)   │
-│  │   ├── how-it-works.md                         │
-│  │   ├── getting-started.md                      │
-│  │   ├── memory-layout.md                        │
-│  │   └── extending.md                            │
-│  ├── .soma/          (project instance)          │
-│  │   ├── identity.md    (who she is)             │
-│  │   ├── STATE.md       (YOU ARE HERE)           │
-│  │   ├── memory/                                 │
-│  │   │   ├── muscles/                            │
-│  │   │   │   └── svg-logo-design.md              │
-│  │   │   └── preload-next.md  (continuation)     │
-│  │   └── skills/          (project-level skills) │
-│  └── logos/                                      │
-│      ├── concepts/        (5 initial concepts)   │
-│      └── iterations/      (36 SVG iterations)    │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│  soma (CLI)                                          │
+│  Built on: Pi 0.57.1 (via soma-cli package)          │
+│  configDir: .soma                                    │
+│                                                      │
+│  Core Modules (products/soma/agent/core/)             │
+│  ├── discovery.ts    — find .soma/ dirs, walk chain  │
+│  ├── identity.ts     — load + layer identity files   │
+│  ├── preload.ts      — session resumption            │
+│  ├── protocols.ts    — discovery, heat, injection    │
+│  ├── muscles.ts      — muscle discovery, loading,    │
+│  │                      heat, digest, token budget   │
+│  ├── settings.ts     — read + merge settings.json   │
+│  │                      from soma chain              │
+│  ├── init.ts         — scaffold new .soma/           │
+│  ├── utils.ts        — safeRead, fmtDuration         │
+│  └── index.ts        — public API re-exports         │
+│                                                      │
+│  Extensions (products/soma/agent/extensions/)          │
+│  ├── soma-boot.ts       — identity, preload, protos, │
+│  │                        muscles, scripts, heat     │
+│  ├── soma-header.ts     — branded σῶμα header        │
+│  └── soma-statusline.ts — footer + context monitor   │
+│                                                      │
+│  ~/.soma/agent/                                      │
+│  ├── settings.json   (compaction off, quiet)         │
+│  ├── extensions/     (symlinks → agent/extensions/)  │
+│  ├── core/           (symlink → agent/core/)         │
+│  ├── skills/                                         │
+│  └── sessions/       (Pi session JSONL)              │
+│                                                      │
+│  Project Instance: CWD/.soma/                         │
+│  ├── identity.md     — who the agent is here         │
+│  ├── STATE.md        — YOU ARE HERE                  │
+│  ├── protocols/      — operational protocol files    │
+│  │   ├── breath-cycle.md      (hot)                  │
+│  │   ├── heat-tracking.md     (hot)                  │
+│  │   ├── frontmatter-standard.md (warm)              │
+│  │   ├── git-identity.md      (warm)                 │
+│  │   ├── _template.md         (skipped)              │
+│  │   ├── README.md            (skipped)              │
+│  │   └── drafts/              (not scanned)          │
+│  ├── scripts/        — dev tooling (not product)     │
+│  │   ├── soma-search.sh  (query memory system)       │
+│  │   ├── soma-scan.sh    (frontmatter scanner)       │
+│  │   ├── soma-tldr.sh    (agent TL;DR generator)     │
+│  │   └── ...             (auth, sync, init, etc.)    │
+│  └── memory/                                         │
+│      ├── muscles/    — learned patterns              │
+│      ├── preload-next.md — session continuation      │
+│      └── sessions/   — daily logs                    │
+└─────────────────────────────────────────────────────┘
 ```
 
-## Component Inventory
+## Protocol Two-Tier System
 
-| Component | Canonical Source | Installed At | Status |
-|-----------|-----------------|--------------|--------|
-| soma-cli | `tools/pi/soma-cli/` | global npm (`soma` command) | ✓ Built on Pi 0.56.2 |
-| identity | `Soma/.soma/identity.md` | — | ✓ Born 2026-03-08 |
-| boot preload | `Soma/.soma/preloads/boot.md` | — | ✓ Minimal |
-| svg-logo-design muscle | `Soma/.soma/memory/muscles/svg-logo-design.md` | — | ✓ Created from first session |
-| logo-designer skill | `~/.agents/skills/logo-designer` | ⚠️ Wrong path — should be `~/.soma/agent/skills/` | Bug (PI080) |
-| soma-boot.ts | `Soma/extensions/soma-boot.ts` | `~/.soma/agent/extensions/soma-boot.ts` (symlink) | ✓ Identity loading, preload, /flush, /soma commands |
-| soma-header.ts | `Soma/extensions/soma-header.ts` | `~/.soma/agent/extensions/soma-header.ts` (symlink) | ✓ Branded σῶμα header with memory status |
-| soma-statusline.ts | `Soma/extensions/soma-statusline.ts` | `~/.soma/agent/extensions/soma-statusline.ts` (symlink) | ✓ Footer with model, context %, cost, git |
+Every protocol exists in two forms:
+
+| Tier | Location | Purpose |
+|------|----------|---------|
+| **Spec** | `curtismercier/protocols/<name>/README.md` | Public CC BY 4.0 spec. Educational, for humans/implementors. |
+| **Operational** | `.soma/protocols/<name>.md` | Dense rules for the agent. Loaded into system prompt at boot. |
+
+Loading by heat: hot = full content, warm = breadcrumb only, cold = name listed.
+
+Three loading tiers per doc:
+- **Breadcrumb** — `breadcrumb:` frontmatter field (1-2 sentences, warm protocol injection)
+- **TL;DR** — `## TL;DR` section in body (3-7 dense bullets, first thing loaded on deeper read). Protocols use `## TL;DR` (visible in markdown). Muscles use `<!-- digest:start/end -->` (agent-facing).
+- **Full body** — complete rules (only for hot protocols or when agent needs full context)
+
+Frontmatter convention: files keep `type`, `status`, `updated`, `tags` for tooling (`soma-scan.sh`). Runtime-only fields (`name`, `heat-default`, `breadcrumb`, `scope`, `tier`) for the protocol loader. Attribution metadata (`author`, `license`, `version`, `created`, `upstream`) in trailing HTML comment.
+
+**Runtime status:** Core engine complete. All Tier 2 runtime gaps shipped 2026-03-09: G1 (bootstrap), G2 (mid-session tracking), G3 (shutdown save), G4 (muscle loading), G6 (applies-to filtering), G7 (settings). Full gap analysis: `docs/plans/runtime-gaps.md`.
+
+### Heat System (how it works)
+
+```
+  INHALE (boot)              HOLD (work)              EXHALE (/exhale)
+  ─────────────              ───────────              ────────────────
+  Load by heat:              Auto-detect:             For each item:
+  🔥 HOT (8+) → full body    write frontmatter → +1   Used? → keep heat
+  🟡 WARM (3-7) → breadcrumb  git commit → +1          Unused? → decay -1
+  ❄️  COLD (0-2) → name only   write SVG → +1           Pinned? → no decay
+                             Manual: /pin /kill        Save to disk
+```
+
+Protocols store heat in `.protocol-state.json`. Muscles store heat in frontmatter (`heat: N`). Thresholds configurable in `settings.json`.
+
+## Protocol Inventory
+
+| Protocol | Heat Default | Applies-to | Upstream Spec | Status |
+|----------|-------------|-----------|---------------|--------|
+| breath-cycle | hot | always | `curtismercier/protocols/breath-cycle/` | Operational ✅ |
+| heat-tracking | hot | always | (self-referential) | Operational ✅ |
+| frontmatter-standard | warm | always | `curtismercier/protocols/atlas/` | Operational ✅ |
+| git-identity | warm | git | `curtismercier/protocols/git-identity/` | Operational ✅ |
+| collaborative-flow | cold | — | — | Draft (in `drafts/`) |
+
+## Git Identity
+
+| Context | Name | Email |
+|---------|------|-------|
+| Personal repos (`personal/`, `products/soma/`) | Curtis Mercier | curtis@gravicity.ai |
+| Business repos (`clients/`, `infra/`) | Gravicity | accounts@gravicity.ca |
+
+Configured via `~/.gitconfig` `includeIf` rules. See `curtismercier/protocols/git-identity/`.
 
 ## Settings
 
@@ -89,69 +145,67 @@ An AI coding agent with self-growing memory. Built on Pi (0.56.2) with custom `p
 | Quiet startup | `~/.soma/agent/settings.json` | `true` |
 | Collapse changelog | `~/.soma/agent/settings.json` | `true` |
 
-## Pi configDir Resolution
+**Note:** `settings.json` written by `core/init.ts`, read at runtime by `core/settings.ts` (G7 shipped). Project settings override parent, which override global. Missing fields use built-in defaults.
 
-Because `piConfig.configDir: ".soma"` in soma-cli's `package.json`:
+## What's Working
 
-| Feature | Resolves To |
-|---------|-------------|
-| User skills | `~/.soma/agent/skills/` |
-| Project skills | `CWD/.soma/skills/` |
-| Extensions | `~/.soma/agent/extensions/` |
-| Sessions | `~/.soma/agent/sessions/` |
-| Settings | `~/.soma/agent/settings.json` |
-| Context files | Walks up CWD for `AGENTS.md` / `CLAUDE.md` (hardcoded, not configDir) |
-| SYSTEM.md | `CWD/.soma/SYSTEM.md` |
+- ✅ Boot: discovery → identity → preload → protocols → muscles → scripts → ready
+- ✅ Header: σῶμα brand, memory status dots, protocol count
+- ✅ Statusline: model, context %, cost, git, uptime
+- ✅ Context warnings: 50% → 70% → 80% → 85% auto-exhale
+- ✅ Script awareness: `.soma/scripts/` surfaced at boot with descriptions
+- ✅ /exhale (~~`/flush`~~), /inhale, /preload, /soma, /status, /auto-continue commands (D012)
+- ✅ Core modules importable from extensions via symlink chain
 
-## What's NOT Built Yet
+## What's NOT Working
 
-| Feature | Blocking? | Ref |
-|---------|-----------|-----|
-| ~~Extensions (flush, preload, header)~~ | ~~Yes~~ | ✅ PI077 done — agent-boot.ts + statusline.ts symlinked |
-| Skill install path | No — workaround: manual move | PI080 |
-| Boot system registration | No — can run `soma` directly | PI081 |
-| Own CHANGELOG.md | ✅ Done | PI089 |
-| Custom branded header | No — cosmetic | PI088 |
-| promptSnippet for personality | No — future | PI083 |
+| Gap | Ref | Blocking? |
+|-----|-----|-----------|
+| ~~Heat never bootstraps~~ | G1 | ✅ Shipped — `bootstrapProtocolState()` + `syncProtocolState()` |
+| ~~Heat never updates mid-session~~ | G2 | ✅ Shipped — auto-detect from tool_result + /pin /kill commands |
+| ~~Heat only saves on /flush~~ | G3 | ✅ Shipped — `session_shutdown` hook |
+| ~~Muscles don't load at boot~~ | G4 | ✅ Shipped — `core/muscles.ts` + boot integration |
+| ~~Settings.json not read~~ | G7 | ✅ Shipped — `core/settings.ts` reads + merges from chain |
+| ~~`applies-to` filtering missing~~ | G6 | ✅ Shipped — `detectProjectSignals()` + `protocolMatchesSignals()` + frontmatter `applies-to` field |
+| Muscle promotion | G8 | No — future |
+| Ritual system | G9 | No — future |
 
-## Key Patterns
-
-1. **`.soma/` is the configDir** — Pi resolves all user-level paths under `~/.soma/agent/`. Project-level under `CWD/.soma/`.
-2. **Memory lives in project, not user dir** — `Soma/.soma/memory/` is project-scoped. Different Soma projects get different memories.
-3. **Identity is prose, not config** — `identity.md` is free-form, written by Soma herself after her first session.
-4. **Breath cycle** — sessions exhale (write preload + session log), next session inhales (loads preload). Currently broken without extensions (PI079).
+Full gap analysis: `docs/plans/runtime-gaps.md`
 
 ## File Map
 
 ```
-~/Gravicity/products/soma/     ← OSS repo (meetsoma/soma)
-├── extensions/                ← Soma's own extensions (clean, no vault)
-│   ├── soma-boot.ts           ← identity, preload, /flush, /soma
-│   ├── soma-header.ts         ← branded σῶμα header
-│   └── soma-statusline.ts     ← footer with model/context/cost/git
-├── docs/                      ← living docs (feeds website)
-│   ├── how-it-works.md        ← breath cycle, identity, muscles
-│   ├── getting-started.md     ← install + first run
-│   ├── memory-layout.md       ← .soma/ structure explained
-│   └── extending.md           ← skills + extension development
-├── .soma/                     ← project instance (mostly gitignored)
-│   ├── identity.md            ← who she is (gitignored)
-│   ├── STATE.md               ← architecture truth (tracked)
-│   └── memory/                ← muscles, preloads, logs (gitignored)
-├── logos/                     ← brand work (SVGs, voting UI)
-├── README.md                  ← public readme
-└── LICENSE                    ← MIT
+products/soma/agent/          ← meetsoma/agent (private)
+├── core/                     ← 7 modules — the soma runtime
+├── extensions/               ← 3 thin wrappers calling core
+├── protocols/                ← 3 reference protocol .md files (published specs)
+├── docs/plans/               ← 10+ architecture plans (tracked)
+├── registry/plugin-index.json
+├── .soma/                    ← OUR dev workspace (not the product)
+│   ├── STATE.md              ← THIS FILE (tracked)
+│   ├── protocols/            ← operational protocols (tracked — 4 active + 1 draft)
+│   ├── scripts/              ← dev tooling: soma-search, soma-scan, soma-tldr (not tracked, future → somas-daddy)
+│   ├── memory/muscles/       ← our learned patterns (not tracked, personal)
+│   └── memory/sessions/      ← session logs (not tracked, ephemeral)
+├── STATE.md                  ← ecosystem-level ATLAS (meetsoma org)
+├── README.md
+└── LICENSE (MIT)
 
-~/Gravicity/Soma/              ← personal workspace (identity, memories)
+products/soma/cli/            ← npm package (@gravicity.ai/soma)
+├── package.json              ← piConfig.configDir: ".soma"
+├── dist/                     ← compiled Pi runtime
+└── CHANGELOG.md
 
-~/Gravicity/tools/pi/soma-cli/ ← CLI package (npm distribution)
-├── package.json               ← piConfig.configDir: ".soma"
-├── CHANGELOG.md               ← Soma's own changelog
-└── dist/                      ← compiled Pi runtime
+products/soma/website/        ← soma.gravicity.ai (Astro)
 
-~/.soma/agent/                 ← user-level runtime
-├── settings.json              ← compaction, quiet, changelog
-├── extensions/                ← symlinks to Soma/extensions/
-├── skills/                    ← globally installed skills
-└── sessions/                  ← Pi session JSONL files
+~/.soma/agent/                ← user-level runtime
+├── settings.json
+├── extensions/               ← symlinks → agent/extensions/
+├── core/                     ← symlink → agent/core/
+├── skills/
+└── sessions/
+
+personal/protocols/           ← curtismercier/protocols (CC BY 4.0)
+├── amp/, atlas/, breath-cycle/, three-layer/, identity/
+└── git-identity/             ← NEW this session
 ```

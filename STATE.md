@@ -17,7 +17,26 @@ rule: Update this file whenever repos, infrastructure, skills, or cross-repo rel
 
 The public-facing GitHub org for **Soma** — an AI coding agent with self-growing memory. Built on Pi, extended with three layers (extensions, skills, rituals). Created by Curtis Mercier, shipped under the Gravicity brand.
 
-Soma is the **reference implementation** of Curtis's protocol inventions (AMP, ATLAS, Three-Layer Model, Breath Cycle, Identity System). The protocols are Curtis's personal IP. Soma implements them as open source (MIT) and source-available (BSL) software.
+Soma is the **reference implementation** of Curtis's protocol inventions (AMP, ATLAS, Three-Layer Model, Breath Cycle, Identity System, Git Identity). Six protocols published at `curtismercier/protocols` (CC BY 4.0). Soma implements them as open source (MIT).
+
+### Architecture Note (2026-03-09)
+
+Core extraction complete: **9 TypeScript modules** in `core/` + 3 thin extension wrappers. Full heat system operational end-to-end.
+
+**Core modules:** discovery, identity, preload, protocols, muscles, settings, init, utils, index.
+
+**Heat system (complete):**
+- Bootstrap: `.protocol-state.json` seeds from `heat-default` on first boot (G1)
+- Mid-session: `tool_result` hook auto-detects usage + `/pin` `/kill` commands (G2)
+- Save: heat persists on `/exhale` AND `session_shutdown` with decay (G3)
+- Settings: `core/settings.ts` reads thresholds from `settings.json` chain (G7)
+- Loading: protocols by heat (hot=full, warm=breadcrumb, cold=name). Muscles by heat within token budget (hot=full, warm=digest) (G4)
+
+**Commands:** `/exhale` (save state, ~~`/flush`~~), `/inhale` (fresh session), `/pin`/`/kill` (heat override), `/soma status`
+
+**Dev tooling:** `soma-search.sh` (memory query), `soma-scan.sh` (frontmatter scanner), `soma-tldr.sh` (agent TL;DR generator) — surfaced at boot.
+
+**All Tier 2 runtime gaps shipped** (G1–G4, G6, G7, G2). G6 adds `applies-to` frontmatter + `detectProjectSignals()` for domain scoping. Template install system planned (PI137).
 
 ## Org Map
 
@@ -36,7 +55,7 @@ github.com/meetsoma
 
 | Repo | Visibility | Stage | Has Code | Notes |
 |------|-----------|-------|----------|-------|
-| `agent` | **Private** | Active | ✅ | Extensions (`soma-boot.ts`, `soma-header.ts`, `soma-statusline.ts`), docs, STATE.md |
+| `agent` | **Private** | Active | ✅ | 9 core modules, 3 extensions, 4 operational protocols, 15+ plan docs, full heat system |
 | `website` | Public | **Shipped** | ✅ | Astro 5, deployed to Vercel, HTTPS live |
 | `media` | Public | **Shipped** | ✅ | Full media kit pushed |
 | `.github` | Public | **Shipped** | ✅ | Org profile with ecosystem table |

@@ -32,7 +32,22 @@ export interface Protocol {
 	scope: "local" | "shared";
 	/** Enterprise tier only? */
 	tier: "free" | "enterprise";
+	/** Domain signals this protocol applies to. Empty = always. */
+	appliesTo: string[];
 }
+
+/** Signals detected from the project directory */
+export type ProjectSignal =
+	| "git"
+	| "typescript"
+	| "javascript"
+	| "python"
+	| "rust"
+	| "go"
+	| "frontend"
+	| "docs"
+	| "multi-repo"
+	| "always";
 
 export interface ProtocolHeatState {
 	heat: number;
@@ -97,6 +112,86 @@ function extractFrontmatter(content: string): Record<string, string> {
 }
 
 // ---------------------------------------------------------------------------
+// Project signal detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect project signals from the filesystem.
+ * Scans the project directory for marker files/dirs that indicate
+ * what kind of project this is.
+ *
+ * @param projectDir - The project root to scan
+ * @returns Set of detected signals (always includes "always")
+ */
+export function detectProjectSignals(projectDir: string): Set<ProjectSignal> {
+	const signals = new Set<ProjectSignal>(["always"]);
+
+	const has = (p: string) => existsSync(join(projectDir, p));
+
+	// Git
+	if (has(".git")) signals.add("git");
+
+	// JavaScript / TypeScript
+	if (has("package.json")) signals.add("javascript");
+	if (has("tsconfig.json") || has("tsconfig.base.json")) {
+		signals.add("typescript");
+		signals.add("javascript"); // TS implies JS
+	}
+
+	// Python
+	if (has("pyproject.toml") || has("requirements.txt") || has("setup.py") || has("Pipfile")) {
+		signals.add("python");
+	}
+
+	// Rust
+	if (has("Cargo.toml")) signals.add("rust");
+
+	// Go
+	if (has("go.mod")) signals.add("go");
+
+	// Frontend (framework configs or component dirs)
+	if (
+		has("next.config.js") || has("next.config.mjs") || has("next.config.ts") ||
+		has("vite.config.ts") || has("vite.config.js") ||
+		has("svelte.config.js") || has("nuxt.config.ts") ||
+		has("src/components") || has("app/components")
+	) {
+		signals.add("frontend");
+	}
+
+	// Docs-heavy (heuristic: docs/ dir or many .md files at root)
+	if (has("docs") || has("docs/")) signals.add("docs");
+
+	// Multi-repo (workspace with nested git repos)
+	try {
+		const entries = readdirSync(projectDir, { withFileTypes: true });
+		let gitChildren = 0;
+		for (const e of entries) {
+			if (e.isDirectory() && !e.name.startsWith(".")) {
+				if (existsSync(join(projectDir, e.name, ".git"))) gitChildren++;
+			}
+		}
+		if (gitChildren >= 2) signals.add("multi-repo");
+	} catch { /* ignore */ }
+
+	return signals;
+}
+
+/**
+ * Check if a protocol matches the project signals.
+ * A protocol with empty appliesTo matches everything (same as "always").
+ */
+export function protocolMatchesSignals(
+	protocol: Protocol,
+	signals: Set<ProjectSignal>
+): boolean {
+	// No applies-to = always applies
+	if (protocol.appliesTo.length === 0) return true;
+	// Match if ANY signal overlaps
+	return protocol.appliesTo.some(tag => signals.has(tag as ProjectSignal));
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -114,7 +209,7 @@ export function discoverProtocols(soma: SomaDir): Protocol[] {
 
 	try {
 		const files = readdirSync(protocolDir).filter(
-			f => f.endsWith(".md") && !f.startsWith(".")
+			f => f.endsWith(".md") && !f.startsWith(".") && !f.startsWith("_") && f !== "README.md"
 		);
 
 		for (const file of files) {
@@ -132,6 +227,7 @@ export function discoverProtocols(soma: SomaDir): Protocol[] {
 				heatDefault: parseHeatDefault(fm["heat-default"]),
 				scope: fm["scope"] === "shared" ? "shared" : "local",
 				tier: fm["tier"] === "enterprise" ? "enterprise" : "free",
+				appliesTo: parseAppliesTo(fm["applies-to"]),
 			});
 		}
 	} catch {
@@ -144,21 +240,27 @@ export function discoverProtocols(soma: SomaDir): Protocol[] {
 /**
  * Discover protocols from a soma chain (project + parent @children/ + global).
  * Project protocols shadow same-named parent/global ones.
+ * Optionally filters by project signals (G6: applies-to).
  *
  * @param chain - Array of SomaDir from getSomaChain()
+ * @param signals - Project signals to filter against (optional — no filtering if omitted)
  * @returns Deduplicated array of protocols (project wins on name collision)
  */
-export function discoverProtocolChain(chain: SomaDir[]): Protocol[] {
+export function discoverProtocolChain(
+	chain: SomaDir[],
+	signals?: Set<ProjectSignal>
+): Protocol[] {
 	const seen = new Set<string>();
 	const all: Protocol[] = [];
 
 	for (const soma of chain) {
 		const protocols = discoverProtocols(soma);
 		for (const proto of protocols) {
-			if (!seen.has(proto.name)) {
-				seen.add(proto.name);
-				all.push(proto);
-			}
+			if (seen.has(proto.name)) continue;
+			seen.add(proto.name);
+			// Filter by signals if provided
+			if (signals && !protocolMatchesSignals(proto, signals)) continue;
+			all.push(proto);
 		}
 	}
 
@@ -339,6 +441,89 @@ export function applyDecay(
 	}
 }
 
+/**
+ * Bootstrap a fresh protocol state from discovered protocols.
+ * Seeds heat from each protocol's `heat-default` frontmatter value.
+ *
+ * Called once on first boot when no `.protocol-state.json` exists.
+ * After this, heat evolves through use, decay, and explicit pin/kill.
+ *
+ * @param protocols - All discovered protocols
+ * @param thresholds - Heat thresholds for mapping defaults to numeric values
+ * @returns A new ProtocolState ready to be saved
+ */
+export function bootstrapProtocolState(
+	protocols: Protocol[],
+	thresholds = DEFAULT_THRESHOLDS
+): ProtocolState {
+	const today = new Date().toISOString().slice(0, 10);
+	const now = new Date().toISOString();
+
+	const entries: Record<string, ProtocolHeatState> = {};
+	for (const p of protocols) {
+		let heat: number;
+		switch (p.heatDefault) {
+			case "hot": heat = thresholds.hotThreshold; break;
+			case "warm": heat = thresholds.warmThreshold; break;
+			default: heat = 0;
+		}
+		entries[p.name] = {
+			heat,
+			lastReferenced: today,
+			timesApplied: 0,
+			firstSeen: today,
+			pinned: false,
+		};
+	}
+
+	return {
+		version: 1,
+		updated: now,
+		protocols: entries,
+	};
+}
+
+/**
+ * Sync state with discovered protocols — add entries for new protocols,
+ * leave existing entries untouched (their heat has evolved).
+ *
+ * Handles the case where new protocol files appear after initial bootstrap.
+ *
+ * @param state - Existing protocol state
+ * @param protocols - Currently discovered protocols
+ * @param thresholds - For seeding new protocol heat defaults
+ * @returns true if state was modified (caller should save)
+ */
+export function syncProtocolState(
+	state: ProtocolState,
+	protocols: Protocol[],
+	thresholds = DEFAULT_THRESHOLDS
+): boolean {
+	const today = new Date().toISOString().slice(0, 10);
+	let modified = false;
+
+	for (const p of protocols) {
+		if (!state.protocols[p.name]) {
+			let heat: number;
+			switch (p.heatDefault) {
+				case "hot": heat = thresholds.hotThreshold; break;
+				case "warm": heat = thresholds.warmThreshold; break;
+				default: heat = 0;
+			}
+			state.protocols[p.name] = {
+				heat,
+				lastReferenced: today,
+				timesApplied: 0,
+				firstSeen: today,
+				pinned: false,
+			};
+			modified = true;
+		}
+	}
+
+	return modified;
+}
+
 // ---------------------------------------------------------------------------
 // Internal
 // ---------------------------------------------------------------------------
@@ -347,4 +532,20 @@ function parseHeatDefault(value: string | undefined): "cold" | "warm" | "hot" {
 	if (value === "hot") return "hot";
 	if (value === "warm") return "warm";
 	return "cold";
+}
+
+/**
+ * Parse applies-to from frontmatter value.
+ * Accepts: `[always, git]`, `always`, `git, typescript`, or empty.
+ * Returns empty array for missing/empty (means "always applies").
+ */
+function parseAppliesTo(value: string | undefined): string[] {
+	if (!value) return [];
+	// Strip brackets if present
+	let cleaned = value.trim();
+	if (cleaned.startsWith("[") && cleaned.endsWith("]")) {
+		cleaned = cleaned.slice(1, -1);
+	}
+	const tags = cleaned.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+	return tags;
 }
