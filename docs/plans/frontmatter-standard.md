@@ -2,12 +2,20 @@
 type: spec
 status: active
 created: 2026-03-10
-updated: 2026-03-10
+updated: 2026-03-09
 ---
 
 # ATLAS Frontmatter Standard
 
 > Part of the ATLAS protocol. Every document in the Soma/Gravicity ecosystem that participates in memory, planning, or architecture MUST have standard frontmatter. This makes docs searchable, filterable, and machine-readable.
+
+## TL;DR
+- Every `.md` file: `type`, `status`, `created`, `updated` (required). Optional: `tags`, `related`, `priority`, `project`
+- 12 types, 8 statuses — see tables below. `updated` must change with every meaningful content edit
+- Agent-loaded files (protocols, muscles) keep full frontmatter on disk for tooling (`soma-scan.sh`). Only breadcrumb/TL;DR/body gets injected into system prompt
+- Attribution metadata (`author`, `license`, `version`, `upstream`) goes in trailing HTML comment, not frontmatter — not consumed by any code
+- Body loading tiers: `breadcrumb` (1-2 sentences) → `## TL;DR` (3-7 bullets) → full body. Protocols use `## TL;DR` (visible). Muscles use `<!-- digest:start/end -->` (agent-facing)
+- Search pattern: `soma-scan.sh` reads `type`, `status`, `updated`, `tags` — these fields power the entire scan/filter/staleness system
 
 ## Required Fields (All Docs)
 
@@ -135,6 +143,25 @@ created: 2026-03-08
 updated: 2026-03-10
 ---
 ```
+
+## Agent-Loaded Files (Protocols + Muscles)
+
+Files that get loaded into the system prompt at boot have a special convention:
+
+**Frontmatter stays rich** — `type`, `status`, `updated`, `tags`, plus runtime fields (`name`, `heat-default`, `breadcrumb`, `scope`, `tier`). Tooling reads all of it.
+
+**Attribution goes in trailing comment** — not consumed by any code:
+```markdown
+<!-- v1.0.0 | created: 2026-03-10 | MIT | Soma Team | upstream: meetsoma/protocols/atlas/ -->
+```
+
+**Body has TL;DR section** for the loading pipeline:
+- Protocols: `## TL;DR` heading (visible in rendered markdown, human-browsable)
+- Muscles: `<!-- digest:start/end -->` block (invisible in rendered markdown, agent-facing)
+- Both extracted by search/inhale tooling as the "first read" layer
+- Full body only injected for hot protocols or on explicit agent read
+
+**Why two conventions?** Protocols are published, human-readable specs — visible headings make sense. Muscles are agent working memory — the digest is for machines, humans don't browse muscles on GitHub.
 
 ## Migration
 

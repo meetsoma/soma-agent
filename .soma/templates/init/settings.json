@@ -1,0 +1,27 @@
+{
+  "$schema": "https://soma.gravicity.ai/schemas/settings-v1.json",
+  "root": "{{ROOT}}",
+  "memory": {
+    "flowUp": false
+  },
+  "protocols": {
+    "warmThreshold": 3,
+    "hotThreshold": 8,
+    "maxHeat": 15,
+    "decayRate": 1,
+    "maxBreadcrumbsInPrompt": 10,
+    "maxFullProtocolsInPrompt": 3
+  },
+  "muscles": {
+    "tokenBudget": 2000,
+    "maxFull": 2,
+    "maxDigest": 8,
+    "fullThreshold": 5,
+    "digestThreshold": 1
+  },
+  "heat": {
+    "autoDetect": true,
+    "autoDetectBump": 1,
+    "pinBump": 5
+  }
+}

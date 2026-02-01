@@ -2,7 +2,7 @@
 type: plan
 status: draft
 created: 2026-03-10
-updated: 2026-03-10
+updated: 2026-03-09
 tags: [templates, sharing, community, agent-identity, ecosystem]
 related: [plugin-architecture, protocol-architecture, light-core-architecture]
 ---
@@ -207,6 +207,20 @@ Enterprise: organizational templates, enforcement, drift detection.
 | 7 | `meetsoma/templates` repo | Small | Community contributions |
 | 8 | Template inheritance (`extends`) | Medium | v2 |
 | 9 | Enterprise: private registries + enforcement | Large | Enterprise tier |
+
+## Evolution Note: Dev .soma/ vs Product .soma/ (2026-03-07)
+
+The `.soma/` at `products/soma/agent/.soma/` is **our developer workspace** — not what ships. It contains:
+- Our internal protocols (git-identity, frontmatter-standard — specific to how we build Soma)
+- Our muscles (github-app-auth, svg-logo-design — specific to our workflows)
+- Our scripts (soma-scan, soma-search, soma-tldr — developer tooling)
+- Our STATE.md (architecture truth about Soma's internals)
+
+None of this goes into the product. `core/init.ts` scaffolds a clean `.soma/` with empty dirs and templates. Templates are how users get pre-configured setups — and our scripts like `soma-search.sh` and `soma-tldr.sh` could eventually ship as optional skills or as part of a "developer" template.
+
+**The `somas-daddy` template** (documented above) is the bridge — it's Curtis's personal setup extracted and sanitized. It's the most opinionated template possible: every protocol we've built, every pattern we use. Private, but shows the ceiling.
+
+**Baby somas from clones** — when a user installs a template, they're getting a "baby" pre-configured with someone else's choices. The baby then evolves through use: heat adjusts, muscles grow, identity sharpens. Two agents initialized from the same template will diverge as they work in different contexts. That's the design — templates are starting points, not constraints.
 
 ## Open Questions
 

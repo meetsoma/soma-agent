@@ -12,6 +12,7 @@
  */
 
 import { join } from "path";
+import { existsSync, readdirSync } from "fs";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import {
 	findSomaDir,
@@ -19,12 +20,23 @@ import {
 	buildLayeredIdentity,
 	findPreload,
 	discoverProtocolChain,
+	detectProjectSignals,
 	loadProtocolState,
 	saveProtocolState,
+	bootstrapProtocolState,
+	syncProtocolState,
 	buildProtocolInjection,
 	applyDecay,
+	discoverMuscleChain,
+	buildMuscleInjection,
+	trackMuscleLoads,
+	decayMuscleHeat,
+	bumpMuscleHeat,
+	recordHeatEvent,
+	loadSettings,
 	initSoma,
 	type SomaDir,
+	type SomaSettings,
 	type ProtocolState,
 } from "../core/index.js";
 
@@ -32,11 +44,28 @@ import {
 // Extension
 // ---------------------------------------------------------------------------
 
+// Script descriptions for boot injection (tooling awareness)
+const SCRIPT_DESCRIPTIONS: Record<string, string> = {
+	"soma-search.sh": "Query memory by type/status/tags/domain. `--deep` for TL;DR, `--brief` for breadcrumbs, `--missing-tldr` for audit",
+	"soma-scan.sh": "Scan frontmatter across docs. `--stale` for outdated, `--type`/`--status` filters",
+	"soma-tldr.sh": "Generate TL;DR/digest sections via Haiku. `--scan` gaps, `--batch` all, `--dry-run`",
+	"gh-app-token.sh": "Source to get `$GH_APP_TOKEN` for meetsoma[bot] auth (1hr)",
+	"soma-init.sh": "Scaffold new .soma/ directory for a project",
+	"soma-skill.sh": "Manage soma skills (install, list)",
+	"soma-snapshot.sh": "Rolling backup snapshots of .soma/",
+	"protocol-sync.sh": "Sync operational protocols from upstream specs",
+	"frontmatter-date-hook.sh": "Git pre-commit hook: auto-update `updated:` in frontmatter",
+};
+
 export default function somaBootExtension(pi: ExtensionAPI) {
 
 	let soma: SomaDir | null = null;
+	let settings: SomaSettings | null = null;
 	let protocolState: ProtocolState | null = null;
 	let protocolsReferenced = new Set<string>();
+	let musclesReferenced = new Set<string>();
+	let knownProtocolNames: string[] = [];
+	let knownMuscleNames: string[] = [];
 	let booted = false;
 	let lastContextWarningPct = 0;
 
@@ -72,6 +101,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const parts: string[] = [];
 		const chain = getSomaChain();
 
+		// Settings (merged from chain: project overrides parent overrides global)
+		settings = loadSettings(chain);
+
 		// Identity (layered: project → parent → global)
 		const identity = buildLayeredIdentity(chain);
 		if (identity) {
@@ -90,14 +122,69 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 		}
 
-		// Protocols (discover from chain, build injection)
-		const protocols = discoverProtocolChain(chain);
+		// Protocols (discover from chain, filter by project signals — G6)
+		const signals = detectProjectSignals(soma.projectDir);
+		const protocols = discoverProtocolChain(chain, signals);
+		knownProtocolNames = protocols.map(p => p.name);
 		if (protocols.length > 0) {
 			protocolState = loadProtocolState(soma);
-			const injection = buildProtocolInjection(protocols, protocolState);
+
+			const protoThresholds = settings.protocols;
+
+			if (!protocolState) {
+				// G1: First boot — bootstrap state from heat-default values
+				protocolState = bootstrapProtocolState(protocols, protoThresholds);
+				saveProtocolState(soma, protocolState);
+			} else {
+				// Sync: add entries for any new protocols discovered since last boot
+				if (syncProtocolState(protocolState, protocols, protoThresholds)) {
+					saveProtocolState(soma, protocolState);
+				}
+			}
+
+			const injection = buildProtocolInjection(protocols, protocolState, protoThresholds);
 			if (injection.systemPromptBlock.trim()) {
 				parts.push(`\n---\n${injection.systemPromptBlock}`);
 			}
+		}
+
+		// Muscles (discover from chain, load by heat within token budget)
+		const muscles = discoverMuscleChain(chain);
+		knownMuscleNames = muscles.map(m => m.name);
+		if (muscles.length > 0) {
+			const muscleInjection = buildMuscleInjection(muscles, settings.muscles);
+			if (muscleInjection.systemPromptBlock.trim()) {
+				parts.push(`\n---\n${muscleInjection.systemPromptBlock}`);
+			}
+			// Track load counts for loaded muscles
+			const loaded = [...muscleInjection.hot, ...muscleInjection.warm];
+			if (loaded.length > 0) {
+				trackMuscleLoads(loaded);
+			}
+		}
+
+		// Scripts (tooling awareness — agent needs to know it has hands)
+		const scriptsDir = join(soma.path, "scripts");
+		if (existsSync(scriptsDir)) {
+			try {
+				const scripts = readdirSync(scriptsDir).filter(f => f.endsWith(".sh"));
+				if (scripts.length > 0) {
+					const scriptLines = [
+						"## Available Scripts\n",
+						`Location: \`${scriptsDir}/\`\n`,
+						"| Script | What it does |",
+						"|--------|-------------|",
+						...scripts.map(s => {
+							const desc = SCRIPT_DESCRIPTIONS[s] || "—";
+							return `| \`${s}\` | ${desc} |`;
+						}),
+						"",
+						"Run with `bash <path>`. Use `--help` for options.",
+						"",
+					];
+					parts.push(`\n---\n${scriptLines.join("\n")}`);
+				}
+			} catch { /* ignore */ }
 		}
 
 		if (parts.length > 0) {
@@ -153,48 +240,216 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.on("session_switch", async () => {
 		lastContextWarningPct = 0;
 		protocolsReferenced = new Set();
+		musclesReferenced = new Set();
 	});
 
 	// -------------------------------------------------------------------
-	// /flush command
+	// G3: Save heat state on session shutdown (not just /flush)
 	// -------------------------------------------------------------------
 
-	pi.registerCommand("flush", {
-		description: "Write session state for next session continuation",
-		handler: async (_args, ctx) => {
-			if (!soma) {
-				ctx.ui.notify("No .soma/ found. Run /soma init first.", "error");
+	pi.on("session_shutdown", async () => {
+		if (!soma) return;
+		const decay = settings?.protocols.decayRate ?? 1;
+		// Decay protocol heat
+		if (protocolState) {
+			applyDecay(protocolState, protocolsReferenced, decay);
+			saveProtocolState(soma, protocolState);
+		}
+		// Decay muscle heat
+		decayMuscleHeat(soma, musclesReferenced, decay);
+	});
+
+	// -------------------------------------------------------------------
+	// G2: Mid-session heat tracking — auto-detect from tool results (PI132)
+	// -------------------------------------------------------------------
+
+	// Detection rules: map tool actions to protocol/muscle names
+	const HEAT_RULES: Array<{
+		match: (toolName: string, input: any, output: string) => boolean;
+		target: string;  // protocol or muscle name
+		type: "protocol" | "muscle";
+	}> = [
+		// frontmatter-standard: agent writes a file with YAML frontmatter
+		{
+			match: (tool, input) =>
+				tool === "write" &&
+				typeof input?.content === "string" &&
+				input.content.startsWith("---\n"),
+			target: "frontmatter-standard",
+			type: "protocol",
+		},
+		// git-identity: agent runs git config or git commit
+		{
+			match: (tool, input) =>
+				tool === "bash" &&
+				typeof input?.command === "string" &&
+				/git (config|commit|push|remote)/.test(input.command),
+			target: "git-identity",
+			type: "protocol",
+		},
+		// breath-cycle: agent writes a preload file
+		{
+			match: (tool, input) =>
+				tool === "write" &&
+				typeof input?.path === "string" &&
+				/preload|continuation/.test(input.path),
+			target: "breath-cycle",
+			type: "protocol",
+		},
+		// svg-logo-design muscle: agent writes SVG
+		{
+			match: (tool, input) =>
+				tool === "write" &&
+				typeof input?.path === "string" &&
+				input.path.endsWith(".svg"),
+			target: "svg-logo-design",
+			type: "muscle",
+		},
+		// github-app-auth muscle: agent uses gh-app-token or GH_APP_TOKEN
+		{
+			match: (tool, input) =>
+				tool === "bash" &&
+				typeof input?.command === "string" &&
+				/gh-app-token|GH_APP_TOKEN/.test(input.command),
+			target: "github-app-auth",
+			type: "muscle",
+		},
+	];
+
+	pi.on("tool_result", async (event) => {
+		if (!soma || !protocolState || !settings?.heat.autoDetect) return;
+
+		const toolName = event.toolName;
+		const input = event.input as any;
+		const output = typeof event.output === "string" ? event.output : "";
+		const bump = settings.heat.autoDetectBump;
+
+		for (const rule of HEAT_RULES) {
+			if (!rule.match(toolName, input, output)) continue;
+
+			if (rule.type === "protocol" && knownProtocolNames.includes(rule.target)) {
+				if (!protocolsReferenced.has(rule.target)) {
+					protocolsReferenced.add(rule.target);
+					recordHeatEvent(protocolState, rule.target, "applied");
+				}
+			} else if (rule.type === "muscle" && knownMuscleNames.includes(rule.target)) {
+				if (!musclesReferenced.has(rule.target)) {
+					musclesReferenced.add(rule.target);
+					bumpMuscleHeat(soma, rule.target, bump);
+				}
+			}
+		}
+	});
+
+	// -------------------------------------------------------------------
+	// /pin and /kill commands — manual heat overrides (PI132)
+	// -------------------------------------------------------------------
+
+	pi.registerCommand("pin", {
+		description: "Pin a protocol or muscle to hot — keeps it loaded across sessions",
+		handler: async (args, ctx) => {
+			const name = args.trim();
+			if (!name) {
+				ctx.ui.notify("Usage: /pin <protocol-or-muscle-name>", "info");
+				return;
+			}
+			if (!soma || !protocolState) {
+				ctx.ui.notify("No soma booted", "error");
 				return;
 			}
 
-			const memDir = join(soma.path, "memory");
-			const preloadPath = join(memDir, "preload-next.md");
-			const contPath = join(memDir, "continuation-prompt.md");
-			const today = new Date().toISOString().split("T")[0];
-			const logPath = join(memDir, "sessions", `${today}.md`);
-
-			// Save protocol heat state on flush
-			if (protocolState && soma) {
-				applyDecay(protocolState, protocolsReferenced);
+			if (knownProtocolNames.includes(name)) {
+				recordHeatEvent(protocolState, name, "pinned");
 				saveProtocolState(soma, protocolState);
+				protocolsReferenced.add(name);
+				ctx.ui.notify(`📌 ${name} pinned (heat locked hot)`, "info");
+			} else if (knownMuscleNames.includes(name)) {
+				bumpMuscleHeat(soma, name, settings?.heat.pinBump ?? 5);
+				musclesReferenced.add(name);
+				ctx.ui.notify(`📌 ${name} pinned (heat bumped to hot)`, "info");
+			} else {
+				ctx.ui.notify(`Unknown protocol or muscle: ${name}`, "error");
+			}
+		},
+	});
+
+	pi.registerCommand("kill", {
+		description: "Kill a protocol or muscle — drops heat to zero",
+		handler: async (args, ctx) => {
+			const name = args.trim();
+			if (!name) {
+				ctx.ui.notify("Usage: /kill <protocol-or-muscle-name>", "info");
+				return;
+			}
+			if (!soma || !protocolState) {
+				ctx.ui.notify("No soma booted", "error");
+				return;
 			}
 
-			pi.sendUserMessage(
-				`[FLUSH]\n\n` +
-				`**Step 1:** Commit all uncommitted work.\n\n` +
-				`**Step 2:** Write \`${preloadPath}\` — compact session state:\n` +
-				`- What shipped this session\n` +
-				`- Key files changed\n` +
-				`- What's next (priority order)\n` +
-				`- What NOT to re-read\n\n` +
-				`**Step 3:** Write \`${contPath}\` — instructions to yourself for the next session.\n\n` +
-				`**Step 4:** Append to \`${logPath}\` — daily session log.\n\n` +
-				`**Step 5:** Say "FLUSH COMPLETE".`,
-				{ deliverAs: "followUp" }
-			);
-
-			ctx.ui.notify("Flush initiated — protocol heat will be saved", "info");
+			if (knownProtocolNames.includes(name)) {
+				recordHeatEvent(protocolState, name, "killed");
+				saveProtocolState(soma, protocolState);
+				ctx.ui.notify(`💀 ${name} killed (heat → 0)`, "info");
+			} else if (knownMuscleNames.includes(name)) {
+				bumpMuscleHeat(soma, name, -15); // Force to 0 (clamped in bumpMuscleHeat)
+				ctx.ui.notify(`💀 ${name} killed (heat → 0)`, "info");
+			} else {
+				ctx.ui.notify(`Unknown protocol or muscle: ${name}`, "error");
+			}
 		},
+	});
+
+	// -------------------------------------------------------------------
+	// /exhale command (was /flush — breath-cycle alignment, D012)
+	// -------------------------------------------------------------------
+
+	const exhaleHandler = async (_args: string, ctx: any) => {
+		if (!soma) {
+			ctx.ui.notify("No .soma/ found. Run /soma init first.", "error");
+			return;
+		}
+
+		const memDir = join(soma.path, "memory");
+		const preloadPath = join(memDir, "preload-next.md");
+		const today = new Date().toISOString().split("T")[0];
+		const logPath = join(memDir, "sessions", `${today}.md`);
+
+		// Save protocol heat state on exhale
+		const decay = settings?.protocols.decayRate ?? 1;
+		if (protocolState && soma) {
+			applyDecay(protocolState, protocolsReferenced, decay);
+			saveProtocolState(soma, protocolState);
+		}
+		// Decay muscle heat on exhale
+		if (soma) {
+			decayMuscleHeat(soma, musclesReferenced, decay);
+		}
+
+		pi.sendUserMessage(
+			`[EXHALE — save session state]\n\n` +
+			`**Step 1:** Commit all uncommitted work.\n\n` +
+			`**Step 2:** Write \`${preloadPath}\` — compact session state:\n` +
+			`- What shipped this session\n` +
+			`- Key files changed\n` +
+			`- What's next (priority order)\n` +
+			`- What NOT to re-read\n\n` +
+			`**Step 3:** Append to \`${logPath}\` — daily session log.\n\n` +
+			`**Step 4:** Say "FLUSH COMPLETE".`,
+			{ deliverAs: "followUp" }
+		);
+
+		ctx.ui.notify("Exhale initiated — heat will be saved, preload is your continuation prompt", "info");
+	};
+
+	pi.registerCommand("exhale", {
+		description: "Exhale — save session state for next inhale (breath-cycle protocol)",
+		handler: exhaleHandler,
+	});
+
+	// Backward compat: /flush still works (D012)
+	pi.registerCommand("flush", {
+		description: "Alias for /exhale — save session state",
+		handler: exhaleHandler,
 	});
 
 	// -------------------------------------------------------------------
@@ -215,6 +470,33 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				ctx.ui.notify(`${preload.name} (${Math.floor(preload.ageHours)}h ago${stale})`, "info");
 			} else {
 				ctx.ui.notify("No preloads found", "info");
+			}
+		},
+	});
+
+	// -------------------------------------------------------------------
+	// /inhale command — start fresh session (breath-cycle alignment, D012)
+	// -------------------------------------------------------------------
+
+	pi.registerCommand("inhale", {
+		description: "Inhale — start fresh session, loading identity + memory + protocols",
+		handler: async (_args, ctx) => {
+			if (!soma) {
+				ctx.ui.notify("No .soma/ — nothing to inhale. Run /soma init first.", "info");
+				return;
+			}
+
+			const preload = findPreload(soma);
+			if (preload && !preload.stale) {
+				ctx.ui.notify(
+					`🫁 Fresh preload ready (${Math.floor(preload.ageHours)}h ago). Hit Ctrl+N to inhale — preload will auto-load.`,
+					"info"
+				);
+			} else {
+				ctx.ui.notify(
+					"🫁 No fresh preload. Hit Ctrl+N for clean inhale (identity + protocols only).",
+					"info"
+				);
 			}
 		},
 	});

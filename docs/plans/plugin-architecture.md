@@ -1,6 +1,6 @@
 ---
 type: plan
-status: draft
+status: active
 updated: 2026-03-09
 created: 2026-03-10
 tags: [architecture, plugins, skills, extensions, rituals, protocols, soma-init, slash-commands]

@@ -40,18 +40,40 @@ export type { PreloadInfo } from "./preload.js";
 export {
 	discoverProtocols,
 	discoverProtocolChain,
+	detectProjectSignals,
+	protocolMatchesSignals,
 	loadProtocolState,
 	saveProtocolState,
+	bootstrapProtocolState,
+	syncProtocolState,
 	getProtocolHeat,
 	buildProtocolInjection,
 	recordHeatEvent,
 	applyDecay,
 } from "./protocols.js";
-export type { Protocol, ProtocolHeatState, ProtocolState, ProtocolInjection } from "./protocols.js";
+export type { Protocol, ProtocolHeatState, ProtocolState, ProtocolInjection, ProjectSignal } from "./protocols.js";
 
 export {
 	initSoma,
+	resolveTemplateDir,
 } from "./init.js";
 export type { InitOptions } from "./init.js";
+
+export {
+	discoverMuscles,
+	discoverMuscleChain,
+	buildMuscleInjection,
+	trackMuscleLoads,
+	bumpMuscleHeat,
+	decayMuscleHeat,
+} from "./muscles.js";
+export type { Muscle, MuscleInjection, MuscleLoadConfig } from "./muscles.js";
+
+export {
+	loadSettings,
+	loadSettingsFile,
+	getDefaultSettings,
+} from "./settings.js";
+export type { SomaSettings } from "./settings.js";
 
 export { safeRead, fmtDuration } from "./utils.js";

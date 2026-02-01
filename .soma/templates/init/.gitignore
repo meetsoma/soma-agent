@@ -1,0 +1,14 @@
+# Session data (personal, not shared)
+memory/preload-*.md
+memory/continuation-prompt.md
+memory/sessions/
+.protocol-state.json
+
+# Secrets
+secrets/
+*.env
+
+# Keep the structure
+!memory/.gitkeep
+!memory/muscles/.gitkeep
+!extensions/.gitkeep

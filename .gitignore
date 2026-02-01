@@ -16,14 +16,16 @@ Thumbs.db
 *.swp
 *.swo
 
-# Soma user instance (private — created by `soma init`)
-# STATE.md is tracked (architecture truth). Everything else is personal.
+# Soma project instance
+# Tracked: STATE.md, protocols/, plans/ (architecture truth)
+# Ignored: identity, memory, sessions (personal/ephemeral)
 .soma/identity.md
 .soma/memory/
 .soma/sessions/
 .soma/preloads/
 .soma/skills/
 .soma/extensions/
+.soma/.protocol-state.json
 
 # Secrets
 .env
@@ -46,8 +48,14 @@ _reference-site/
 # Symlinks to personal content
 media
 
-# Soma local memory
-.soma/
+# Soma dev workspace — .soma/ is OUR working memory, not the product
+# Tracked (architecture truth): STATE.md, protocols/
+# Everything else is personal/dev tooling — lives in somas-daddy or vault
+!.soma/STATE.md
+!.soma/protocols/
+!.soma/protocols/**
+!.soma/plans/
+!.soma/plans/**
 
 # Git worktrees (feature branches checked out side-by-side)
 .worktrees/
