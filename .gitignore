@@ -17,11 +17,13 @@ Thumbs.db
 *.swo
 
 # Soma user instance (private — created by `soma init`)
-# The public repo ships templates, not your actual identity/memory
+# STATE.md is tracked (architecture truth). Everything else is personal.
 .soma/identity.md
 .soma/memory/
 .soma/sessions/
-.soma/preloads/boot.md
+.soma/preloads/
+.soma/skills/
+.soma/extensions/
 
 # Secrets
 .env
