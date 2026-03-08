@@ -44,7 +44,7 @@ An AI coding agent with self-growing memory. Built on Pi (0.56.2) with custom `p
 │  ├── skills/                                     │
 │  └── sessions/       (Pi session JSONL)          │
 │                                                  │
-│  ~/Gravicity/Soma/  (OSS repo: meetsoma/soma)    │
+│  ~/Gravicity/products/soma/ (meetsoma/soma)       │
 │  ├── extensions/     (source — symlinked global) │
 │  │   ├── soma-boot.ts                            │
 │  │   ├── soma-header.ts                          │
@@ -124,7 +124,7 @@ Because `piConfig.configDir: ".soma"` in soma-cli's `package.json`:
 ## File Map
 
 ```
-~/Gravicity/Soma/              ← OSS repo (meetsoma/soma)
+~/Gravicity/products/soma/     ← OSS repo (meetsoma/soma)
 ├── extensions/                ← Soma's own extensions (clean, no vault)
 │   ├── soma-boot.ts           ← identity, preload, /flush, /soma
 │   ├── soma-header.ts         ← branded σῶμα header
@@ -141,6 +141,8 @@ Because `piConfig.configDir: ".soma"` in soma-cli's `package.json`:
 ├── logos/                     ← brand work (SVGs, voting UI)
 ├── README.md                  ← public readme
 └── LICENSE                    ← MIT
+
+~/Gravicity/Soma/              ← personal workspace (identity, memories)
 
 ~/Gravicity/tools/pi/soma-cli/ ← CLI package (npm distribution)
 ├── package.json               ← piConfig.configDir: ".soma"
