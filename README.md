@@ -1,8 +1,5 @@
 <div align="center">
 
-<!-- TODO: Replace with actual mascot image once finalized -->
-<!-- <img src="./logos/soma-mascot.svg" alt="Soma" width="200" /> -->
-
 # σῶμα — Soma
 
 **The AI coding agent that grows with you.**
@@ -33,12 +30,20 @@ npm install -g @gravicity.ai/soma
 
 ```bash
 # Initialize Soma in your project
-soma init
-
-# Start working
+cd your-project
 soma
 
 # That's it. Soma discovers her identity through use.
+```
+
+On first run, Soma creates a `.soma/` directory and writes her own identity based on your workspace.
+
+### Session Modes
+
+```bash
+soma                # Fresh session — identity only, clean slate
+soma --continue     # Resume — picks up where you left off (identity + preload)
+soma --resume       # Select a previous session to resume
 ```
 
 ## How It Works
@@ -55,15 +60,22 @@ Session 2 (inhale) ← picks up preload → work → exhale
 Session 3 (inhale) ← ...and so on
 ```
 
-No context is lost. No cold starts.
+No context is lost. No cold starts. At 85% context, Soma auto-flushes and continues seamlessly.
 
 ### 💪 Muscles
 
-Patterns observed 2+ times become **muscles** — reusable knowledge that loads automatically when relevant. Soma builds her own playbook from your work.
+Patterns observed across sessions become **muscles** — reusable knowledge that loads automatically when relevant. Soma builds her own playbook from your work.
+
+### 🧠 Identity is Discovered
+
+Soma doesn't come with a personality config file. She discovers who she is through working with you. Her `identity.md` is written by her, not for her.
+
+## Memory Layout
 
 ```
 .soma/
 ├── identity.md          ← who Soma becomes (discovered, not configured)
+├── STATE.md             ← project architecture truth
 ├── memory/
 │   ├── muscles/         ← patterns learned from experience
 │   ├── preload-next.md  ← continuation for next session
@@ -71,32 +83,39 @@ Patterns observed 2+ times become **muscles** — reusable knowledge that loads 
 └── skills/              ← project-specific skills
 ```
 
-### 🧠 Identity is Discovered
+Each project gets its own `.soma/`. Different projects, different Somas.
 
-Soma doesn't come with a personality config file. She discovers who she is through working with you. Her `identity.md` is written by her, not for her.
+## Commands
+
+| Command | What it does |
+|---------|-------------|
+| `/flush` | Write preload + prepare for continuation |
+| `/soma status` | Show memory status (identity, preload, muscles) |
+| `/soma init` | Create `.soma/` in current directory |
+| `/status` | Session stats (context %, turns, uptime) |
+| `/auto-continue` | New session with continuation prompt |
 
 ## Skills
 
 Soma supports skills — specialized instructions for specific tasks.
 
 ```bash
-# Install a community skill
-soma install skill <name>
+# Install a skill
+soma install skill <source>
 
 # Skills live in .soma/skills/ (project) or ~/.soma/agent/skills/ (global)
 ```
 
-## Configuration
+See [docs/extending.md](docs/extending.md) for how to create your own skills and extensions.
 
-Soma uses `.soma/` as her config directory:
+## Documentation
 
-| Path | Purpose |
-|------|---------|
-| `.soma/identity.md` | Who Soma is (auto-discovered) |
-| `.soma/memory/muscles/` | Learned patterns |
-| `.soma/skills/` | Project-specific skills |
-| `~/.soma/agent/settings.json` | Global settings |
-| `~/.soma/agent/skills/` | Global skills |
+| Doc | Contents |
+|-----|----------|
+| [How It Works](docs/how-it-works.md) | Breath cycle, identity, muscles, context management |
+| [Getting Started](docs/getting-started.md) | Install, session modes, commands, `.soma/` layout |
+| [Memory Layout](docs/memory-layout.md) | Project vs user level, git strategy, data flow |
+| [Extending](docs/extending.md) | Skills, extensions, events, APIs |
 
 ## Built on Pi
 
