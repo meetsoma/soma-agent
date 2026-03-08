@@ -75,7 +75,9 @@ An AI coding agent with self-growing memory. Built on Pi (0.56.2) with custom `p
 | boot preload | `Soma/.soma/preloads/boot.md` | — | ✓ Minimal |
 | svg-logo-design muscle | `Soma/.soma/memory/muscles/svg-logo-design.md` | — | ✓ Created from first session |
 | logo-designer skill | `~/.agents/skills/logo-designer` | ⚠️ Wrong path — should be `~/.soma/agent/skills/` | Bug (PI080) |
-| extensions | — | `~/.soma/agent/extensions/` | ❌ Empty — no auto-flush, no preload loading, no custom header (PI077-079, PI088) |
+| agent-boot.ts | `tools/pi/gravicity/extensions/agent-boot.ts` | `~/.soma/agent/extensions/agent-boot.ts` (symlink) | ✓ Working — configDir-aware (PI077), flush, preload, boot |
+| statusline.ts | `tools/pi/gravicity/extensions/statusline.ts` | `~/.soma/agent/extensions/statusline.ts` (symlink) | ✓ Working — configDir-aware (PI077), footer, keepalive, auto-continue |
+| soma (built-in) | `~/.soma/agent/extensions/soma/` | `~/.soma/agent/extensions/soma.disabled/` | Disabled — superseded by agent-boot.ts (PI077) |
 
 ## Settings
 
@@ -103,7 +105,7 @@ Because `piConfig.configDir: ".soma"` in soma-cli's `package.json`:
 
 | Feature | Blocking? | Ref |
 |---------|-----------|-----|
-| Extensions (flush, preload, header) | Yes — core bugs | PI077-079, PI088 |
+| ~~Extensions (flush, preload, header)~~ | ~~Yes~~ | ✅ PI077 done — agent-boot.ts + statusline.ts symlinked |
 | Skill install path | No — workaround: manual move | PI080 |
 | Boot system registration | No — can run `soma` directly | PI081 |
 | Own CHANGELOG.md | ✅ Done | PI089 |
