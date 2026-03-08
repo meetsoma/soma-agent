@@ -35,34 +35,36 @@ An AI coding agent with self-growing memory. Built on Pi (0.56.2) with custom `p
 ```
 ┌─────────────────────────────────────────────────┐
 │  soma (CLI)                                      │
-│  Built on: Pi 0.56.2 (via soma-cli package)      │
+│  Built on: Pi 0.57.1 (via soma-cli package)      │
 │  configDir: .soma                                │
 │                                                  │
 │  ~/.soma/agent/                                  │
 │  ├── settings.json   (compaction off, quiet)     │
-│  ├── extensions/     (EMPTY — needs PI077/078)   │
-│  ├── skills/         (should be here, not        │
-│  │                    ~/.agents/skills/)          │
+│  ├── extensions/     (soma-boot, header, status) │
+│  ├── skills/                                     │
 │  └── sessions/       (Pi session JSONL)          │
 │                                                  │
-│  ~/Gravicity/Soma/                               │
-│  ├── .soma/                                      │
+│  ~/Gravicity/Soma/  (OSS repo: meetsoma/soma)    │
+│  ├── extensions/     (source — symlinked global) │
+│  │   ├── soma-boot.ts                            │
+│  │   ├── soma-header.ts                          │
+│  │   └── soma-statusline.ts                      │
+│  ├── docs/           (living docs for website)   │
+│  │   ├── how-it-works.md                         │
+│  │   ├── getting-started.md                      │
+│  │   ├── memory-layout.md                        │
+│  │   └── extending.md                            │
+│  ├── .soma/          (project instance)          │
 │  │   ├── identity.md    (who she is)             │
 │  │   ├── STATE.md       (YOU ARE HERE)           │
-│  │   ├── preloads/                               │
-│  │   │   └── boot.md    (session boot context)   │
 │  │   ├── memory/                                 │
 │  │   │   ├── muscles/                            │
 │  │   │   │   └── svg-logo-design.md              │
 │  │   │   └── preload-next.md  (continuation)     │
-│  │   ├── sessions/                               │
-│  │   │   └── 2026-03-08.md   (daily log)         │
 │  │   └── skills/          (project-level skills) │
 │  └── logos/                                      │
 │      ├── concepts/        (5 initial concepts)   │
-│      ├── iterations/      (36 SVG iterations)    │
-│      ├── preview.html     (voting UI)            │
-│      └── server.js        (vote server)          │
+│      └── iterations/      (36 SVG iterations)    │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -75,9 +77,9 @@ An AI coding agent with self-growing memory. Built on Pi (0.56.2) with custom `p
 | boot preload | `Soma/.soma/preloads/boot.md` | — | ✓ Minimal |
 | svg-logo-design muscle | `Soma/.soma/memory/muscles/svg-logo-design.md` | — | ✓ Created from first session |
 | logo-designer skill | `~/.agents/skills/logo-designer` | ⚠️ Wrong path — should be `~/.soma/agent/skills/` | Bug (PI080) |
-| agent-boot.ts | `tools/pi/gravicity/extensions/agent-boot.ts` | `~/.soma/agent/extensions/agent-boot.ts` (symlink) | ✓ Working — configDir-aware (PI077), flush, preload, boot |
-| statusline.ts | `tools/pi/gravicity/extensions/statusline.ts` | `~/.soma/agent/extensions/statusline.ts` (symlink) | ✓ Working — configDir-aware (PI077), footer, keepalive, auto-continue |
-| soma (built-in) | `~/.soma/agent/extensions/soma/` | `~/.soma/agent/extensions/soma.disabled/` | Disabled — superseded by agent-boot.ts (PI077) |
+| soma-boot.ts | `Soma/extensions/soma-boot.ts` | `~/.soma/agent/extensions/soma-boot.ts` (symlink) | ✓ Identity loading, preload, /flush, /soma commands |
+| soma-header.ts | `Soma/extensions/soma-header.ts` | `~/.soma/agent/extensions/soma-header.ts` (symlink) | ✓ Branded σῶμα header with memory status |
+| soma-statusline.ts | `Soma/extensions/soma-statusline.ts` | `~/.soma/agent/extensions/soma-statusline.ts` (symlink) | ✓ Footer with model, context %, cost, git |
 
 ## Settings
 
@@ -122,24 +124,32 @@ Because `piConfig.configDir: ".soma"` in soma-cli's `package.json`:
 ## File Map
 
 ```
-~/Gravicity/Soma/              ← project root
-├── .soma/                     ← Soma's config dir (project-level)
-│   ├── identity.md            ← who she is
-│   ├── STATE.md               ← YOU ARE HERE
-│   ├── preloads/boot.md       ← initial boot context
-│   ├── memory/                ← muscles, preloads, session logs
-│   └── sessions/              ← daily session logs
+~/Gravicity/Soma/              ← OSS repo (meetsoma/soma)
+├── extensions/                ← Soma's own extensions (clean, no vault)
+│   ├── soma-boot.ts           ← identity, preload, /flush, /soma
+│   ├── soma-header.ts         ← branded σῶμα header
+│   └── soma-statusline.ts     ← footer with model/context/cost/git
+├── docs/                      ← living docs (feeds website)
+│   ├── how-it-works.md        ← breath cycle, identity, muscles
+│   ├── getting-started.md     ← install + first run
+│   ├── memory-layout.md       ← .soma/ structure explained
+│   └── extending.md           ← skills + extension development
+├── .soma/                     ← project instance (mostly gitignored)
+│   ├── identity.md            ← who she is (gitignored)
+│   ├── STATE.md               ← architecture truth (tracked)
+│   └── memory/                ← muscles, preloads, logs (gitignored)
 ├── logos/                     ← brand work (SVGs, voting UI)
-└── (future project files)
+├── README.md                  ← public readme
+└── LICENSE                    ← MIT
 
-~/Gravicity/tools/pi/soma-cli/ ← CLI package source
+~/Gravicity/tools/pi/soma-cli/ ← CLI package (npm distribution)
 ├── package.json               ← piConfig.configDir: ".soma"
 ├── CHANGELOG.md               ← Soma's own changelog
-└── dist/                      ← compiled from Pi upstream
+└── dist/                      ← compiled Pi runtime
 
 ~/.soma/agent/                 ← user-level runtime
 ├── settings.json              ← compaction, quiet, changelog
-├── extensions/                ← (empty — needs PI077)
-├── skills/                    ← (should have logo-designer)
+├── extensions/                ← symlinks to Soma/extensions/
+├── skills/                    ← globally installed skills
 └── sessions/                  ← Pi session JSONL files
 ```
