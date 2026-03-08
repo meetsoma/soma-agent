@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Concept 4: "The Cell"
+       The most fundamental unit of life — a single cell dividing.
+       Two connected circles like a cell in mitosis, about to become more.
+       This IS what Soma does: it replicates context, grows, splits into
+       sessions, carries forward. Life at its most basic.
+       One large circle (current session) with a smaller one budding off.
+       Eye in the main cell. Growing.
+       At 16px: figure-8 blob with a dot. Organic, unique. -->
+  <defs>
+    <style>
+      .membrane { fill: #1a1a2e; }
+      .nucleus { fill: #5b8fb9; }
+    </style>
+  </defs>
+  <g id="icon">
+    <!-- Main cell body -->
+    <circle class="membrane" cx="236" cy="272" r="160"/>
+
+    <!-- Budding daughter cell — growing off the top-right -->
+    <circle class="membrane" cx="368" cy="140" r="88"/>
+
+    <!-- Connection bridge — the neck between cells -->
+    <path class="membrane" d="M340,200 Q360,230 380,200 Q400,170 380,150 L340,200 Z"/>
+    <ellipse class="membrane" cx="350" cy="192" rx="52" ry="40" transform="rotate(-40 350 192)"/>
+
+    <!-- Main cell nucleus — the eye -->
+    <circle cx="220" cy="255" r="44" fill="#e8f0fb"/>
+    <circle cx="228" cy="250" r="26" fill="#5b8fb9"/>
+    <circle cx="238" cy="240" r="9" fill="white" opacity="0.9"/>
+
+    <!-- Daughter cell nucleus — smaller, new -->
+    <circle cx="368" cy="135" r="20" fill="#e8f0fb"/>
+    <circle cx="372" cy="132" r="12" fill="#5b8fb9"/>
+    <circle cx="376" cy="128" r="4" fill="white" opacity="0.9"/>
+
+    <!-- Main cell smile -->
+    <path d="M200,310 Q222,330 244,310" fill="none" stroke="#5b8fb9" stroke-width="6" stroke-linecap="round"/>
+  </g>
+</svg>

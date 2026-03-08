@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Iteration 11: Seedling style — no face. Just plants being plants.
+       Mom: a stem with 2-3 pairs of leaves, one leaf-arm reaching to baby.
+       Baby: a tiny stem with two cotyledon leaves, just emerged.
+       The gesture IS the personality — the reaching leaf says everything.
+       Clean, iconic, emoji-inspired. -->
+  <defs>
+    <style>
+      .stem { fill: #5a9e72; }
+      .leaf { fill: #4abe78; }
+      .leaf-dk { fill: #3a8e5e; }
+      .soil { fill: #7a6550; }
+    </style>
+  </defs>
+  <g id="icon">
+    <!-- Soil -->
+    <ellipse class="soil" cx="256" cy="458" rx="210" ry="36"/>
+
+    <!-- === MOTHER SEEDLING === -->
+    <!-- Stem -->
+    <rect class="stem" x="148" y="140" width="18" height="320" rx="9"/>
+
+    <!-- Bottom leaf pair -->
+    <path class="leaf" d="M148,380 Q100,352 72,312 Q64,296 82,296 Q100,298 128,332 Q148,362 148,376"/>
+    <path class="leaf" d="M166,372 Q200,348 224,316 Q232,302 218,300 Q204,302 182,330 Q166,356 166,370"/>
+
+    <!-- Middle leaf pair -->
+    <path class="leaf" d="M148,284 Q108,260 86,228 Q78,214 94,214 Q110,216 134,246 Q150,270 148,282"/>
+    <path class="leaf-dk" d="M166,278 Q196,258 216,232 Q222,220 210,218 Q198,220 180,244 Q166,264 166,276"/>
+
+    <!-- Top leaves — the crown -->
+    <path class="leaf" d="M148,188 Q118,158 112,124 Q108,108 124,114 Q138,120 148,156 Q150,172 148,186"/>
+    <path class="leaf" d="M166,184 Q190,156 200,124 Q204,108 190,112 Q178,118 168,152 Q164,170 166,182"/>
+
+    <!-- RIGHT LEAF-ARM — reaches over in an arc to rest on baby -->
+    <path class="leaf" d="M166,240 Q224,196 300,184 Q348,178 380,190 Q396,196 390,212 Q384,226 366,220 Q336,210 296,218 Q248,232 206,260"
+          opacity="0.95"/>
+    <!-- Leaf vein -->
+    <path d="M174,246 Q240,204 380,198" fill="none" stroke="#3a8e5e" stroke-width="2" opacity="0.35"/>
+
+    <!-- === BABY SEEDLING === -->
+    <!-- Short stem -->
+    <rect class="stem" x="372" y="370" width="12" height="90" rx="6"/>
+
+    <!-- Two cotyledon leaves — the classic seedling shape -->
+    <path class="leaf" d="M372,378 Q346,356 336,332 Q332,320 346,324 Q358,330 372,358 Q372,370 372,376"/>
+    <path class="leaf" d="M384,374 Q406,354 418,332 Q422,320 410,322 Q398,328 386,356 Q384,368 384,372"/>
+  </g>
+</svg>

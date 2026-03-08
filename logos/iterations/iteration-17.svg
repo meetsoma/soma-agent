@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Iteration 17: Planet mascot — the Soma character.
+       Inspired by OpenClaw's approach: round body, glowing eyes, signature features.
+       Planet body, tilted ring like a hat/halo, moon companion, tiny legs.
+       Dark background with glow. ONE blue palette. -->
+  <defs>
+    <radialGradient id="bg-glow" cx="50%" cy="48%" r="40%">
+      <stop offset="0%" stop-color="#4a6a8e" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#0e1520" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="body" cx="42%" cy="38%" r="52%">
+      <stop offset="0%" stop-color="#5a7ea6"/>
+      <stop offset="50%" stop-color="#3e5e82"/>
+      <stop offset="100%" stop-color="#2a4264"/>
+    </radialGradient>
+    <radialGradient id="moon-g" cx="42%" cy="38%" r="52%">
+      <stop offset="0%" stop-color="#7a9abe"/>
+      <stop offset="50%" stop-color="#5a7a9e"/>
+      <stop offset="100%" stop-color="#3a5a7e"/>
+    </radialGradient>
+    <radialGradient id="eye-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#8cf0d0"/>
+      <stop offset="60%" stop-color="#5ad4b0"/>
+      <stop offset="100%" stop-color="#3ab090"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Dark background -->
+  <rect width="512" height="512" fill="#0e1520" rx="0"/>
+
+  <!-- Background glow -->
+  <circle cx="256" cy="270" r="240" fill="url(#bg-glow)"/>
+
+  <g id="icon">
+    <!-- Tiny legs -->
+    <rect x="216" y="400" width="16" height="32" rx="8" fill="#2a4264"/>
+    <rect x="280" y="400" width="16" height="32" rx="8" fill="#2a4264"/>
+    <!-- Feet -->
+    <ellipse cx="224" cy="434" rx="14" ry="8" fill="#2a4264"/>
+    <ellipse cx="288" cy="434" rx="14" ry="8" fill="#2a4264"/>
+
+    <!-- Body — big round planet -->
+    <circle cx="256" cy="272" r="136" fill="url(#body)"/>
+
+    <!-- Subtle body highlight -->
+    <circle cx="220" cy="230" r="60" fill="white" opacity="0.06"/>
+
+    <!-- Ring — tilted, like a halo/belt. Signature feature. -->
+    <!-- Back half of ring (behind body) -->
+    <ellipse cx="256" cy="280" rx="192" ry="40" fill="none" stroke="#3a5a7e" stroke-width="12" opacity="0.25" transform="rotate(-12 256 280)"/>
+    <!-- Front half of ring (over body) — brighter -->
+    <path d="M72,298 Q256,336 456,254" fill="none" stroke="#5a8ab2" stroke-width="12" stroke-linecap="round" opacity="0.4" transform="rotate(-12 256 280)"/>
+
+    <!-- Moon companion — tucked to the right, slightly behind -->
+    <circle cx="404" cy="186" r="48" fill="url(#moon-g)"/>
+    <!-- Moon highlight -->
+    <circle cx="390" cy="174" r="18" fill="white" opacity="0.08"/>
+
+    <!-- Moon eyes — small, looking at planet -->
+    <circle cx="392" cy="180" r="7" fill="url(#eye-glow)"/>
+    <circle cx="392" cy="180" r="3.5" fill="#0e1520"/>
+    <circle cx="394" cy="178" r="1.5" fill="white" opacity="0.9"/>
+
+    <circle cx="414" cy="178" r="7" fill="url(#eye-glow)"/>
+    <circle cx="414" cy="178" r="3.5" fill="#0e1520"/>
+    <circle cx="416" cy="176" r="1.5" fill="white" opacity="0.9"/>
+
+    <!-- Planet eyes — glowing, like OpenClaw's teal eyes -->
+    <circle cx="224" cy="256" r="20" fill="url(#eye-glow)"/>
+    <circle cx="224" cy="256" r="10" fill="#0e1520"/>
+    <circle cx="228" cy="252" r="4" fill="white" opacity="0.9"/>
+
+    <circle cx="288" cy="254" r="20" fill="url(#eye-glow)"/>
+    <circle cx="288" cy="254" r="10" fill="#0e1520"/>
+    <circle cx="292" cy="250" r="4" fill="white" opacity="0.9"/>
+
+    <!-- Small craters for texture -->
+    <circle cx="200" cy="320" r="16" fill="#2a4264" opacity="0.25"/>
+    <circle cx="300" cy="340" r="10" fill="#2a4264" opacity="0.2"/>
+  </g>
+</svg>

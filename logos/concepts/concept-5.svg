@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Concept 5: "The Ghost Body"
+       A soft, rounded body — like a friendly spirit or slime creature.
+       It has no hard edges. It sits and breathes. It absorbs.
+       Two tiny dots for eyes (like a Miyazaki creature — Kodama, soot sprite).
+       Simple. Warm. Alive. Not trying hard. Just... there.
+       The body puddles slightly at the bottom — it's soft, it conforms
+       to whatever it sits on. That's Soma: it shapes to you.
+       At 16px: blob with two dots. Instantly recognizable. -->
+  <defs>
+    <style>
+      .body { fill: #1a1a2e; }
+    </style>
+  </defs>
+  <g id="icon">
+    <!-- The body — soft, blobby, puddles at the bottom -->
+    <path class="body" d="M256,72
+      Q340,72 380,120
+      Q420,168 416,240
+      Q412,320 420,370
+      Q428,420 400,448
+      Q370,476 320,468
+      Q280,462 256,466
+      Q232,462 192,468
+      Q142,476 112,448
+      Q84,420 92,370
+      Q100,320 96,240
+      Q92,168 132,120
+      Q172,72 256,72 Z"/>
+
+    <!-- Two simple eyes — Kodama style, just aware -->
+    <circle cx="210" cy="230" r="18" fill="#5b8fb9"/>
+    <circle cx="302" cy="230" r="18" fill="#5b8fb9"/>
+
+    <!-- Tiny highlight in each eye -->
+    <circle cx="216" cy="224" r="6" fill="#e8f0fb"/>
+    <circle cx="308" cy="224" r="6" fill="#e8f0fb"/>
+
+    <!-- Very subtle blush marks — warmth -->
+    <ellipse cx="188" cy="268" rx="22" ry="10" fill="#5b8fb9" opacity="0.2"/>
+    <ellipse cx="324" cy="268" rx="22" ry="10" fill="#5b8fb9" opacity="0.2"/>
+  </g>
+</svg>

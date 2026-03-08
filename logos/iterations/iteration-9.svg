@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Iteration 9: Simpler, more iconic. Potted plants.
+       Mom in a small pot, baby in a tinier pot.
+       Mom has a curvy stem, big leaf-hand reaching over.
+       Fewer details, bolder shapes. Better at small sizes. -->
+  <defs>
+    <style>
+      .pot { fill: #8b6f56; }
+      .pot-rim { fill: #9e7f64; }
+      .stem { fill: #5a8a6e; }
+      .leaf { fill: #6aaa82; }
+      .head { fill: #3e5575; }
+      .head-baby { fill: #4e6888; }
+    </style>
+  </defs>
+  <g id="icon">
+    <!-- === MOTHER === -->
+    <!-- Pot -->
+    <path class="pot" d="M100,420 L120,480 L244,480 L264,420 Z"/>
+    <rect class="pot-rim" x="92" y="408" width="180" height="20" rx="4"/>
+
+    <!-- Stem — slight curve -->
+    <path class="stem" d="M172,408 Q168,340 170,260 Q172,220 176,180"
+          fill="none" stroke="#5a8a6e" stroke-width="18" stroke-linecap="round"/>
+
+    <!-- Left leaf -->
+    <path class="leaf" d="M162,310 Q108,270 86,240 Q80,230 94,228 Q108,226 130,254 Q154,286 162,306"/>
+
+    <!-- Right leaf-arm — reaching to pat baby -->
+    <path class="leaf" d="M182,270 Q240,236 310,228 Q350,224 372,236 Q384,244 376,258 Q368,268 348,260 Q316,248 270,268 Q228,288 196,294"/>
+    <!-- Leaf tip on baby's head -->
+    <ellipse class="leaf" cx="372" cy="248" rx="18" ry="11" transform="rotate(15 372 248)"/>
+
+    <!-- Head -->
+    <circle class="head" cx="174" cy="132" r="60"/>
+
+    <!-- Head leaves -->
+    <ellipse class="leaf" cx="174" cy="72" rx="14" ry="24"/>
+    <ellipse class="leaf" cx="140" cy="88" rx="20" ry="10" transform="rotate(-40 140 88)"/>
+    <ellipse class="leaf" cx="208" cy="88" rx="20" ry="10" transform="rotate(40 208 88)"/>
+
+    <!-- Eyes — looking toward baby -->
+    <circle cx="154" cy="124" r="18" fill="#eaeff7"/>
+    <circle cx="160" cy="121" r="11" fill="#7ba3c9"/>
+    <circle cx="164" cy="117" r="4" fill="white"/>
+
+    <circle cx="196" cy="122" r="18" fill="#eaeff7"/>
+    <circle cx="202" cy="119" r="11" fill="#7ba3c9"/>
+    <circle cx="206" cy="115" r="4" fill="white"/>
+
+    <!-- Smile -->
+    <path d="M160,152 Q176,166 194,152" fill="none" stroke="#7ba3c9" stroke-width="4.5" stroke-linecap="round"/>
+
+    <!-- === BABY === -->
+    <!-- Tiny pot -->
+    <path class="pot" d="M332,432 L342,480 L414,480 L424,432 Z"/>
+    <rect class="pot-rim" x="326" y="422" width="104" height="16" rx="3"/>
+
+    <!-- Stem -->
+    <path d="M378,422 Q376,380 377,340"
+          fill="none" stroke="#5a8a6e" stroke-width="12" stroke-linecap="round"/>
+
+    <!-- Tiny leaves on stem -->
+    <path class="leaf" d="M371,380 Q352,366 346,354 Q344,348 352,350 Q360,354 370,372"/>
+    <path class="leaf" d="M383,370 Q400,358 408,348 Q410,342 404,346 Q396,352 384,366"/>
+
+    <!-- Baby head -->
+    <circle class="head-baby" cx="378" cy="300" r="42"/>
+
+    <!-- Baby head leaf -->
+    <ellipse class="leaf" cx="378" cy="260" rx="10" ry="18"/>
+
+    <!-- Baby eyes — looking up at mom -->
+    <circle cx="364" cy="294" r="13" fill="#eaeff7"/>
+    <circle cx="360" cy="291" r="8" fill="#7ba3c9"/>
+    <circle cx="358" cy="288" r="3" fill="white"/>
+
+    <circle cx="394" cy="292" r="13" fill="#eaeff7"/>
+    <circle cx="390" cy="289" r="8" fill="#7ba3c9"/>
+    <circle cx="388" cy="286" r="3" fill="white"/>
+
+    <!-- Baby smile -->
+    <path d="M370,316 Q380,326 392,316" fill="none" stroke="#8aaad0" stroke-width="3.5" stroke-linecap="round"/>
+  </g>
+</svg>

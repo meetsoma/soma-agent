@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Concept 2: "The Sprout"
+       A body emerging from a seed — half seed, half figure.
+       The bottom is rooted, organic. The top is reaching upward with
+       two arm-like branches. A face in the middle — curious, alive.
+       Soma is something that germinates and becomes YOU.
+       At 16px: a round shape with upward reaches. -->
+  <defs>
+    <style>
+      .body { fill: #1a1a2e; }
+      .accent { fill: #5b8fb9; }
+    </style>
+  </defs>
+  <g id="icon">
+    <!-- Root/base — the seed, grounded -->
+    <path class="body" d="M200,460 Q180,400 190,350 Q200,310 256,300 Q312,310 322,350 Q332,400 312,460 Z"/>
+
+    <!-- Main body — round torso emerging from seed -->
+    <circle class="body" cx="256" cy="240" r="120"/>
+
+    <!-- Left arm-branch reaching up and out -->
+    <path class="body" d="M160,220 Q120,160 100,120 Q90,100 108,92 Q126,84 140,108 Q160,148 176,196 Z"/>
+    <!-- Left hand/leaf bud -->
+    <circle class="accent" cx="104" cy="100" r="18"/>
+
+    <!-- Right arm-branch reaching up and out -->
+    <path class="body" d="M352,220 Q392,160 412,120 Q422,100 404,92 Q386,84 372,108 Q352,148 336,196 Z"/>
+    <!-- Right hand/leaf bud -->
+    <circle class="accent" cx="408" cy="100" r="18"/>
+
+    <!-- Face — two curious eyes -->
+    <circle cx="224" cy="225" r="20" fill="#e8f0fb"/>
+    <circle cx="230" cy="222" r="11" fill="#5b8fb9"/>
+    <circle cx="234" cy="218" r="4" fill="white"/>
+
+    <circle cx="288" cy="225" r="20" fill="#e8f0fb"/>
+    <circle cx="294" cy="222" r="11" fill="#5b8fb9"/>
+    <circle cx="298" cy="218" r="4" fill="white"/>
+
+    <!-- Small content smile -->
+    <path d="M240,268 Q256,282 272,268" fill="none" stroke="#5b8fb9" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>

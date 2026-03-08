@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Iteration 26: Proper ray-traced lighting.
+       Light source: upper-left (~10 o'clock)
+       - Specular highlight on upper-left of planet and moon
+       - Moon casts shadow on planet surface below/right of where it sits
+       - Shadow is soft-edged (penumbra), small, accurate position
+       - Body stays in the lighter range -->
+  <defs>
+    <!-- Planet: gentle sphere gradient lit from upper-left -->
+    <radialGradient id="body" cx="36%" cy="32%" r="58%">
+      <stop offset="0%" stop-color="#6494be"/>
+      <stop offset="50%" stop-color="#4e7ea6"/>
+      <stop offset="100%" stop-color="#3a6890"/>
+    </radialGradient>
+    <!-- Specular on planet -->
+    <radialGradient id="body-spec" cx="28%" cy="24%" r="16%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Moon: same lighting direction -->
+    <radialGradient id="moon-fill" cx="36%" cy="32%" r="58%">
+      <stop offset="0%" stop-color="#78aed0"/>
+      <stop offset="50%" stop-color="#6298be"/>
+      <stop offset="100%" stop-color="#4c82a8"/>
+    </radialGradient>
+    <radialGradient id="moon-spec" cx="28%" cy="24%" r="18%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Moon shadow ON the planet surface.
+         Moon center ~(386,144), planet center ~(256,268), planet r=150.
+         Light from upper-left means shadow falls lower-right of moon position.
+         Shadow hits planet surface around (340, 180) — soft oval. -->
+    <radialGradient id="moon-shadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2a4a6a" stop-opacity="0.3"/>
+      <stop offset="70%" stop-color="#2a4a6a" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#2a4a6a" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Arms lit from upper-left -->
+    <radialGradient id="arm-l" cx="36%" cy="34%" r="54%">
+      <stop offset="0%" stop-color="#5484aa"/>
+      <stop offset="100%" stop-color="#3a6488"/>
+    </radialGradient>
+    <radialGradient id="arm-r" cx="36%" cy="34%" r="54%">
+      <stop offset="0%" stop-color="#5484aa"/>
+      <stop offset="100%" stop-color="#3a6488"/>
+    </radialGradient>
+
+    <radialGradient id="leg" cx="40%" cy="32%" r="54%">
+      <stop offset="0%" stop-color="#4e7ea0"/>
+      <stop offset="100%" stop-color="#386a8a"/>
+    </radialGradient>
+
+    <radialGradient id="ground-shd" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <g id="icon">
+    <!-- Ground shadow — offset slightly right (light from left) -->
+    <ellipse cx="268" cy="460" rx="124" ry="14" fill="url(#ground-shd)"/>
+
+    <!-- Legs -->
+    <rect x="218" y="396" width="20" height="38" rx="10" fill="url(#leg)"/>
+    <rect x="274" y="396" width="20" height="38" rx="10" fill="url(#leg)"/>
+    <ellipse cx="228" cy="436" rx="16" ry="9" fill="#386a8a"/>
+    <ellipse cx="284" cy="436" rx="16" ry="9" fill="#386a8a"/>
+
+    <!-- Arms -->
+    <ellipse cx="104" cy="270" rx="38" ry="34" fill="url(#arm-l)"/>
+    <ellipse cx="408" cy="270" rx="38" ry="34" fill="url(#arm-r)"/>
+
+    <!-- Planet body -->
+    <circle cx="256" cy="268" r="150" fill="url(#body)"/>
+    <circle cx="256" cy="268" r="150" fill="url(#body-spec)"/>
+
+    <!-- Moon's shadow cast onto planet surface -->
+    <ellipse cx="344" cy="178" rx="32" ry="28" fill="url(#moon-shadow)" transform="rotate(15 344 178)"/>
+
+    <!-- Eyes — white -->
+    <circle cx="220" cy="252" r="24" fill="white"/>
+    <circle cx="220" cy="252" r="12" fill="#12202e"/>
+    <circle cx="226" cy="246" r="5" fill="white"/>
+
+    <circle cx="292" cy="250" r="24" fill="white"/>
+    <circle cx="292" cy="250" r="12" fill="#12202e"/>
+    <circle cx="298" cy="244" r="5" fill="white"/>
+
+    <!-- Moon -->
+    <circle cx="386" cy="144" r="46" fill="url(#moon-fill)"/>
+    <circle cx="386" cy="144" r="46" fill="url(#moon-spec)"/>
+
+    <!-- Moon eyes -->
+    <circle cx="376" cy="138" r="8" fill="white"/>
+    <circle cx="376" cy="138" r="4" fill="#12202e"/>
+    <circle cx="378" cy="136" r="1.8" fill="white"/>
+
+    <circle cx="400" cy="136" r="8" fill="white"/>
+    <circle cx="400" cy="136" r="4" fill="#12202e"/>
+    <circle cx="402" cy="134" r="1.8" fill="white"/>
+  </g>
+</svg>

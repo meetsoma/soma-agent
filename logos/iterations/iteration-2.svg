@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="cell-main" cx="40%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#8fa4c4"/>
+      <stop offset="45%" stop-color="#5a6f8f"/>
+      <stop offset="100%" stop-color="#354360"/>
+    </radialGradient>
+    <radialGradient id="cell-bud" cx="40%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#99aec8"/>
+      <stop offset="45%" stop-color="#6a80a0"/>
+      <stop offset="100%" stop-color="#3e5068"/>
+    </radialGradient>
+    <radialGradient id="spec" cx="32%" cy="28%" r="25%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="spec-sm" cx="32%" cy="28%" r="28%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="rim" cx="75%" cy="70%" r="30%">
+      <stop offset="60%" stop-color="white" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#8fa4c4" stop-opacity="0.25"/>
+    </radialGradient>
+  </defs>
+  <g id="icon">
+    <!-- Bridge behind -->
+    <ellipse cx="340" cy="204" rx="54" ry="38" transform="rotate(-42 340 204)" fill="#506888" opacity="0.5"/>
+
+    <!-- Main cell -->
+    <circle cx="228" cy="284" r="168" fill="url(#cell-main)"/>
+    <circle cx="228" cy="284" r="168" fill="url(#spec)"/>
+    <circle cx="228" cy="284" r="168" fill="url(#rim)"/>
+
+    <!-- Daughter cell -->
+    <circle cx="380" cy="148" r="88" fill="url(#cell-bud)"/>
+    <circle cx="380" cy="148" r="88" fill="url(#spec-sm)"/>
+
+    <!-- Main eye -->
+    <circle cx="210" cy="264" r="46" fill="#e8edf5"/>
+    <circle cx="219" cy="257" r="28" fill="#7ba3c9"/>
+    <circle cx="228" cy="247" r="10" fill="white"/>
+
+    <!-- Daughter eye -->
+    <circle cx="378" cy="140" r="22" fill="#e8edf5"/>
+    <circle cx="382" cy="137" r="13" fill="#7ba3c9"/>
+    <circle cx="386" cy="133" r="5" fill="white"/>
+
+    <!-- Smile -->
+    <path d="M194,322 Q214,340 236,322" fill="none" stroke="#7ba3c9" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>

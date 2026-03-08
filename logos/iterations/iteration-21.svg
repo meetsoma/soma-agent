@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Iteration 21: Same as 20 but warmer eye color (more golden/amber)
+       and slightly different body proportions — squatter, cuter.
+       Moon tucked closer. -->
+  <defs>
+    <radialGradient id="body" cx="40%" cy="34%" r="52%">
+      <stop offset="0%" stop-color="#6088b0"/>
+      <stop offset="40%" stop-color="#44648a"/>
+      <stop offset="80%" stop-color="#2e4a6c"/>
+      <stop offset="100%" stop-color="#243e5c"/>
+    </radialGradient>
+    <radialGradient id="body-hi" cx="30%" cy="26%" r="22%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="body-rim" cx="78%" cy="76%" r="26%">
+      <stop offset="50%" stop-color="white" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#6088b0" stop-opacity="0.2"/>
+    </radialGradient>
+    <radialGradient id="arm" cx="45%" cy="38%" r="50%">
+      <stop offset="0%" stop-color="#4e7296"/>
+      <stop offset="100%" stop-color="#283e58"/>
+    </radialGradient>
+    <radialGradient id="moon" cx="38%" cy="34%" r="52%">
+      <stop offset="0%" stop-color="#82a6c8"/>
+      <stop offset="40%" stop-color="#6088aa"/>
+      <stop offset="100%" stop-color="#3e6488"/>
+    </radialGradient>
+    <radialGradient id="moon-hi" cx="32%" cy="28%" r="24%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Amber/warm eyes -->
+    <radialGradient id="eye-glow" cx="50%" cy="48%" r="50%">
+      <stop offset="0%" stop-color="#ffe4a0"/>
+      <stop offset="40%" stop-color="#f0c460"/>
+      <stop offset="100%" stop-color="#d4a030"/>
+    </radialGradient>
+    <radialGradient id="eye-ambient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f0c460" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#f0c460" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="leg" cx="50%" cy="30%" r="55%">
+      <stop offset="0%" stop-color="#3a5a7a"/>
+      <stop offset="100%" stop-color="#243e5c"/>
+    </radialGradient>
+    <radialGradient id="shadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <g id="icon">
+    <ellipse cx="256" cy="458" rx="136" ry="18" fill="url(#shadow)"/>
+
+    <!-- Legs -->
+    <rect x="220" y="396" width="18" height="36" rx="9" fill="url(#leg)"/>
+    <rect x="274" y="396" width="18" height="36" rx="9" fill="url(#leg)"/>
+    <ellipse cx="229" cy="434" rx="16" ry="9" fill="#283e58"/>
+    <ellipse cx="283" cy="434" rx="16" ry="9" fill="#283e58"/>
+
+    <!-- Arms -->
+    <ellipse cx="106" cy="280" rx="38" ry="34" fill="url(#arm)"/>
+    <ellipse cx="406" cy="280" rx="38" ry="34" fill="url(#arm)"/>
+
+    <!-- Body — slightly wider/squatter -->
+    <ellipse cx="256" cy="272" rx="152" ry="142" fill="url(#body)"/>
+    <ellipse cx="256" cy="272" rx="152" ry="142" fill="url(#body-hi)"/>
+    <ellipse cx="256" cy="272" rx="152" ry="142" fill="url(#body-rim)"/>
+
+    <!-- Craters -->
+    <circle cx="198" cy="332" r="16" fill="#243e5c" opacity="0.18"/>
+    <circle cx="316" cy="346" r="11" fill="#243e5c" opacity="0.14"/>
+
+    <!-- Eye glow -->
+    <circle cx="222" cy="256" r="34" fill="url(#eye-ambient)"/>
+    <circle cx="290" cy="254" r="34" fill="url(#eye-ambient)"/>
+
+    <!-- Eyes — warm amber -->
+    <circle cx="222" cy="256" r="22" fill="url(#eye-glow)"/>
+    <circle cx="222" cy="256" r="10" fill="#1a1a2e"/>
+    <circle cx="226" cy="251" r="4.5" fill="white" opacity="0.95"/>
+    <circle cx="218" cy="259" r="1.8" fill="white" opacity="0.3"/>
+
+    <circle cx="290" cy="254" r="22" fill="url(#eye-glow)"/>
+    <circle cx="290" cy="254" r="10" fill="#1a1a2e"/>
+    <circle cx="294" cy="249" r="4.5" fill="white" opacity="0.95"/>
+    <circle cx="286" cy="257" r="1.8" fill="white" opacity="0.3"/>
+
+    <!-- Moon — closer, tucked into shoulder area -->
+    <circle cx="376" cy="158" r="48" fill="url(#moon)"/>
+    <circle cx="376" cy="158" r="48" fill="url(#moon-hi)"/>
+    <circle cx="366" cy="172" r="7" fill="#3e6488" opacity="0.18"/>
+
+    <!-- Moon eye glow -->
+    <circle cx="366" cy="152" r="12" fill="url(#eye-ambient)"/>
+    <circle cx="390" cy="150" r="12" fill="url(#eye-ambient)"/>
+
+    <!-- Moon eyes -->
+    <circle cx="366" cy="152" r="8" fill="url(#eye-glow)"/>
+    <circle cx="366" cy="152" r="4" fill="#1a1a2e"/>
+    <circle cx="368" cy="150" r="1.8" fill="white" opacity="0.9"/>
+
+    <circle cx="390" cy="150" r="8" fill="url(#eye-glow)"/>
+    <circle cx="390" cy="150" r="4" fill="#1a1a2e"/>
+    <circle cx="392" cy="148" r="1.8" fill="white" opacity="0.9"/>
+  </g>
+</svg>

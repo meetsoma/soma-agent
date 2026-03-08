@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Concept 3: "The Jellyfish"
+       A translucent bell shape with flowing tendrils beneath.
+       Jellyfish are ancient, resilient, they drift and grow.
+       The bell is the memory dome. The tendrils are connections —
+       muscles, sessions, patterns flowing downward.
+       One glowing eye/nucleus inside the bell.
+       At 16px: dome + trailing lines. Distinctive silhouette. -->
+  <defs>
+    <style>
+      .bell { fill: #1a1a2e; }
+      .inner { fill: #2d3a5c; }
+      .tendril { fill: none; stroke: #1a1a2e; stroke-width: 14; stroke-linecap: round; }
+      .tendril-light { fill: none; stroke: #5b8fb9; stroke-width: 10; stroke-linecap: round; }
+      .nucleus { fill: #5b8fb9; }
+    </style>
+  </defs>
+  <g id="icon">
+    <!-- Tendrils — memory flowing down -->
+    <path class="tendril" d="M176,310 Q176,360 192,390 Q208,420 192,456"/>
+    <path class="tendril-light" d="M240,310 Q240,370 232,400 Q224,430 232,470"/>
+    <path class="tendril" d="M304,310 Q304,360 296,400 Q288,440 304,472"/>
+    <path class="tendril-light" d="M352,310 Q352,350 336,380 Q320,410 336,448"/>
+
+    <!-- Bell/dome — the memory vessel -->
+    <path class="bell" d="M100,290 Q100,80 256,80 Q412,80 412,290 Q412,320 256,320 Q100,320 100,290 Z"/>
+
+    <!-- Inner dome glow -->
+    <path class="inner" d="M148,270 Q148,128 256,128 Q364,128 364,270 Q364,292 256,292 Q148,292 148,270 Z" opacity="0.4"/>
+
+    <!-- The nucleus — one eye, alive -->
+    <circle cx="256" cy="210" r="40" fill="#e8f0fb"/>
+    <circle cx="264" cy="205" r="24" fill="#5b8fb9"/>
+    <circle cx="274" cy="196" r="8" fill="white" opacity="0.9"/>
+
+    <!-- Subtle smile under the eye -->
+    <path d="M236,272 Q256,288 276,272" fill="none" stroke="#5b8fb9" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Iteration 6: Same concept, but in the blue palette they've been liking.
+       More compact composition. Rounder, cuter proportions.
+       Baby is closer to mom. Leaf-pat is more gentle/droopy. -->
+  <defs>
+    <radialGradient id="mom-body" cx="40%" cy="34%" r="54%">
+      <stop offset="0%" stop-color="#97aaca"/>
+      <stop offset="40%" stop-color="#677da2"/>
+      <stop offset="100%" stop-color="#384b68"/>
+    </radialGradient>
+    <radialGradient id="baby-body" cx="40%" cy="34%" r="54%">
+      <stop offset="0%" stop-color="#a4b5d0"/>
+      <stop offset="40%" stop-color="#7588a8"/>
+      <stop offset="100%" stop-color="#425670"/>
+    </radialGradient>
+    <radialGradient id="spec" cx="33%" cy="28%" r="24%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="spec-sm" cx="33%" cy="28%" r="28%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="shadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1e2a40" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#1e2a40" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g id="icon">
+    <!-- Ground shadow -->
+    <ellipse cx="240" cy="476" rx="190" ry="22" fill="url(#shadow)"/>
+
+    <!-- Mom roots -->
+    <ellipse cx="180" cy="446" rx="52" ry="16" fill="#384b68"/>
+    <!-- Baby roots -->
+    <ellipse cx="368" cy="450" rx="28" ry="10" fill="#425670"/>
+
+    <!-- Mom body — big round -->
+    <ellipse cx="180" cy="308" rx="136" ry="150" fill="url(#mom-body)"/>
+    <ellipse cx="180" cy="308" rx="136" ry="150" fill="url(#spec)"/>
+
+    <!-- Mom's leaf-arm reaching right — gentle arc that droops onto baby -->
+    <path d="M280,238 Q330,195 368,188 Q388,184 392,198 Q396,212 378,218 Q348,228 320,258"
+          fill="#5a7a9e"/>
+    <!-- Leaf detail line -->
+    <path d="M286,246 Q336,208 386,200" fill="none" stroke="#4a6a8e" stroke-width="2" opacity="0.4"/>
+
+    <!-- Mom's other leaf — small, tucked left -->
+    <path d="M62,270 Q36,235 48,202 Q56,228 66,216 Q68,245 68,268"
+          fill="#4a6a8e" opacity="0.7"/>
+
+    <!-- Mom's head sprout -->
+    <path d="M180,158 Q162,118 172,92 Q180,114 186,100 Q198,126 180,158 Z"
+          fill="#5a7a9e"/>
+
+    <!-- Baby body — small, round -->
+    <ellipse cx="368" cy="370" rx="60" ry="76" fill="url(#baby-body)"/>
+    <ellipse cx="368" cy="370" rx="60" ry="76" fill="url(#spec-sm)"/>
+
+    <!-- Baby head sprout — tiny -->
+    <path d="M368,295 Q358,274 364,260 Q368,272 372,264 Q378,278 368,295 Z" fill="#6a8aae"/>
+
+    <!-- The pat — leaf tip resting gently on baby's head area -->
+    <ellipse cx="380" cy="208" rx="16" ry="10" transform="rotate(-10 380 208)" fill="#6a8aae"/>
+
+    <!-- Wait — the leaf needs to reach the baby's HEAD, not float above.
+         Let me make the leaf curve down to the baby's top. -->
+
+    <!-- Mom eyes — looking right toward baby -->
+    <circle cx="156" cy="286" r="26" fill="#e8edf5"/>
+    <circle cx="164" cy="282" r="15" fill="#7ba3c9"/>
+    <circle cx="170" cy="276" r="5.5" fill="white"/>
+
+    <circle cx="218" cy="286" r="26" fill="#e8edf5"/>
+    <circle cx="226" cy="282" r="15" fill="#7ba3c9"/>
+    <circle cx="232" cy="276" r="5.5" fill="white"/>
+
+    <!-- Mom smile -->
+    <path d="M164,336 Q186,354 210,336" fill="none" stroke="#7ba3c9" stroke-width="5" stroke-linecap="round"/>
+
+    <!-- Baby eyes — looking up -->
+    <circle cx="352" cy="354" r="16" fill="#e8edf5"/>
+    <circle cx="356" cy="350" r="10" fill="#7ba3c9"/>
+    <circle cx="360" cy="346" r="3.5" fill="white"/>
+
+    <circle cx="388" cy="354" r="16" fill="#e8edf5"/>
+    <circle cx="392" cy="350" r="10" fill="#7ba3c9"/>
+    <circle cx="396" cy="346" r="3.5" fill="white"/>
+
+    <!-- Baby smile -->
+    <path d="M360,382 Q372,393 386,382" fill="none" stroke="#8aaad0" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Flattest — nearly solid fills. Clean, bold, icon-like. -->
+  <defs>
+    <radialGradient id="shadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <g id="icon">
+    <ellipse cx="256" cy="460" rx="120" ry="12" fill="url(#shadow)"/>
+
+    <!-- Legs -->
+    <rect x="218" y="396" width="20" height="38" rx="10" fill="#3a6488"/>
+    <rect x="274" y="396" width="20" height="38" rx="10" fill="#3a6488"/>
+    <ellipse cx="228" cy="436" rx="16" ry="9" fill="#3a6488"/>
+    <ellipse cx="284" cy="436" rx="16" ry="9" fill="#3a6488"/>
+
+    <!-- Arms -->
+    <ellipse cx="104" cy="270" rx="38" ry="34" fill="#3e6a90"/>
+    <ellipse cx="408" cy="270" rx="38" ry="34" fill="#3e6a90"/>
+
+    <!-- Body — solid -->
+    <circle cx="256" cy="268" r="150" fill="#4a7ca6"/>
+
+    <!-- Eyes -->
+    <circle cx="220" cy="252" r="24" fill="white"/>
+    <circle cx="220" cy="252" r="12" fill="#12202e"/>
+    <circle cx="226" cy="246" r="5" fill="white"/>
+
+    <circle cx="292" cy="250" r="24" fill="white"/>
+    <circle cx="292" cy="250" r="12" fill="#12202e"/>
+    <circle cx="298" cy="244" r="5" fill="white"/>
+
+    <!-- Moon — solid -->
+    <circle cx="386" cy="144" r="46" fill="#5e94b8"/>
+
+    <!-- Moon eyes -->
+    <circle cx="376" cy="138" r="8" fill="white"/>
+    <circle cx="376" cy="138" r="4" fill="#12202e"/>
+    <circle cx="378" cy="136" r="1.8" fill="white"/>
+
+    <circle cx="400" cy="136" r="8" fill="white"/>
+    <circle cx="400" cy="136" r="4" fill="#12202e"/>
+    <circle cx="402" cy="134" r="1.8" fill="white"/>
+  </g>
+</svg>
