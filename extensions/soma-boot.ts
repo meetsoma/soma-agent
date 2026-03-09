@@ -453,6 +453,50 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	});
 
 	// -------------------------------------------------------------------
+	// /breathe command — exhale + auto-continue (seamless session rotation)
+	// -------------------------------------------------------------------
+
+	pi.registerCommand("breathe", {
+		description: "Breathe — save state and continue in a fresh session (exhale + inhale)",
+		handler: async (_args, ctx) => {
+			if (!soma) {
+				ctx.ui.notify("No .soma/ found. Run /soma init first.", "error");
+				return;
+			}
+
+			const memDir = join(soma.path, "memory");
+			const preloadPath = join(memDir, "preload-next.md");
+			const today = new Date().toISOString().split("T")[0];
+			const logPath = join(memDir, "sessions", `${today}.md`);
+
+			// Save heat state (same as exhale)
+			const decay = settings?.protocols.decayRate ?? 1;
+			if (protocolState && soma) {
+				applyDecay(protocolState, protocolsReferenced, decay);
+				saveProtocolState(soma, protocolState);
+			}
+			if (soma) {
+				decayMuscleHeat(soma, musclesReferenced, decay);
+			}
+
+			pi.sendUserMessage(
+				`[BREATHE — save and continue]\n\n` +
+				`**Step 1:** Commit all uncommitted work.\n\n` +
+				`**Step 2:** Write \`${preloadPath}\` — compact session state:\n` +
+				`- What shipped this session\n` +
+				`- Key files changed\n` +
+				`- What's next (priority order)\n` +
+				`- What NOT to re-read\n\n` +
+				`**Step 3:** Append to \`${logPath}\` — daily session log.\n\n` +
+				`**Step 4:** Say "BREATHE COMPLETE — starting fresh inhale" then use /auto-continue to rotate.`,
+				{ deliverAs: "followUp" }
+			);
+
+			ctx.ui.notify("🫁 Breathing — exhale then auto-continue into fresh session", "info");
+		},
+	});
+
+	// -------------------------------------------------------------------
 	// /preload command
 	// -------------------------------------------------------------------
 

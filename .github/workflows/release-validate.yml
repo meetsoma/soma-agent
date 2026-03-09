@@ -1,0 +1,43 @@
+name: Release Validation
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Test — Protocols
+        run: bash tests/test-protocols.sh
+
+      - name: Test — Muscles
+        run: |
+          if [ -d ".soma/memory/muscles" ]; then
+            bash tests/test-muscles.sh
+          else
+            echo "Muscle directory gitignored — skipping in CI"
+          fi
+
+      - name: Test — Settings
+        run: bash tests/test-settings.sh
+
+      - name: Test — Init
+        run: bash tests/test-init.sh
+
+      - name: Test — Applies-to
+        run: bash tests/test-applies-to.sh
+
+      - name: Changelog version check
+        run: |
+          if [ -f package.json ]; then
+            VERSION=$(node -e "console.log(require('./package.json').version || '')")
+            if [ -n "$VERSION" ] && ! grep -q "\[$VERSION\]" CHANGELOG.md 2>/dev/null; then
+              echo "::warning::CHANGELOG.md may be missing entry for v$VERSION"
+            fi
+          fi

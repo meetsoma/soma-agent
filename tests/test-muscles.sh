@@ -12,8 +12,8 @@ PASS=0
 FAIL=0
 TOTAL=0
 
-pass() { ((PASS++)); ((TOTAL++)); echo "  ✓ $1"; }
-fail() { ((FAIL++)); ((TOTAL++)); echo "  ✗ $1"; }
+pass() { PASS=$((PASS + 1)); TOTAL=$((TOTAL + 1)); echo "  ✓ $1"; }
+fail() { FAIL=$((FAIL + 1)); TOTAL=$((TOTAL + 1)); echo "  ✗ $1"; }
 
 echo "═══ Muscle File Discovery ═══"
 
@@ -21,6 +21,13 @@ echo "═══ Muscle File Discovery ═══"
 if [[ -d "$MUSCLE_DIR" ]]; then
     pass "muscle directory exists"
 else
+    if [[ -n "${CI:-}" || -n "${GITHUB_ACTIONS:-}" ]]; then
+        pass "muscle directory absent (CI — gitignored, skipping muscle tests)"
+        echo "═══════════════════════════════"
+        echo "  Results: $PASS passed, $FAIL failed, $TOTAL total"
+        echo "═══════════════════════════════"
+        exit 0
+    fi
     fail "muscle directory missing: $MUSCLE_DIR"
     echo "═══════════════════════════════"
     echo "  Results: $PASS passed, $FAIL failed, $TOTAL total"

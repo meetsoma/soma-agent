@@ -21,7 +21,8 @@ An AI coding agent with self-growing memory. Built on Pi (0.57.1) with custom `p
 |-------|-------|
 | GitHub org | `github.com/meetsoma` |
 | Main repo | `meetsoma/agent` (private), `meetsoma/cli` (public) |
-| npm package | `@gravicity.ai/soma` |
+| npm (public) | `meetsoma` |
+| npm (enterprise) | `@gravicity.ai/soma` |
 | CLI command | `soma` |
 | Website | `soma.gravicity.ai` |
 | License | MIT |
@@ -191,9 +192,15 @@ products/soma/agent/          ← meetsoma/agent (private)
 ├── README.md
 └── LICENSE (MIT)
 
-products/soma/cli/            ← npm package (@gravicity.ai/soma)
+products/soma/cli/            ← npm package (meetsoma — public)
 ├── package.json              ← piConfig.configDir: ".soma"
-├── dist/                     ← compiled Pi runtime
+├── dist/                     ← compiled Pi runtime (synced from cli-pro/)
+└── README.md
+
+products/soma/cli-pro/        ← npm package (@gravicity.ai/soma — enterprise)
+├── package.json              ← same piConfig, may diverge with pro features
+├── dist/                     ← compiled Pi runtime (source of truth)
+├── extensions/               ← enterprise extensions
 └── CHANGELOG.md
 
 products/soma/website/        ← soma.gravicity.ai (Astro)
