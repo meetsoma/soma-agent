@@ -45,3 +45,6 @@ _reference-site/
 
 # Symlinks to personal content
 media
+
+# Soma local memory
+.soma/
