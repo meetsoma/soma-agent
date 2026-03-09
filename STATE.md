@@ -10,7 +10,7 @@ rule: Update this file whenever repos, infrastructure, skills, or cross-repo rel
 # meetsoma — Ecosystem State
 
 > **ATLAS** — Single source of truth for the meetsoma GitHub org and Soma's public ecosystem.
-> For Soma's internal architecture, see `products/soma/.soma/STATE.md`.
+> For Soma's internal architecture, see `products/soma/agent/.soma/STATE.md`.
 > For the Gravicity-wide map, see `~/Gravicity/STATE.md`.
 
 ## What meetsoma Is
@@ -97,7 +97,7 @@ soma skill list --remote        # what's available in registry
 
 **Current:** Manual copy to `~/.soma/agent/skills/`
 **Next:** PI081 (resolution config) → PI115 (install command) → PI102 (community ecosystem)
-**Design doc:** `products/soma/.soma/plans/plugin-architecture.md`
+**Design doc:** `products/soma/agent/.soma/plans/plugin-architecture.md`
 
 ### Ritual System (Planned — PI110)
 
@@ -175,7 +175,7 @@ Social preview image: `soma-og-social.svg` rendered at 1280×640 (upload pending
 
 | File | What |
 |------|------|
-| `products/soma/.soma/STATE.md` | Soma internal architecture ATLAS |
+| `products/soma/agent/.soma/STATE.md` | Soma internal architecture ATLAS |
 | `products/soma/docs/ecosystem-plan.md` | Original planning doc (historical, partially outdated) |
 | `products/soma/docs/website-plan.md` | Astro site plan + reference analysis |
 | `products/soma/website/` | Astro site source |
@@ -185,4 +185,5 @@ Social preview image: `soma-og-social.svg` rendered at 1280×640 (upload pending
 
 ---
 
-*This is the org-level ATLAS. For Soma's internals → `products/soma/.soma/STATE.md`. For Gravicity-wide → `~/Gravicity/STATE.md`.*
+*This is the org-level ATLAS. For Soma's internals → `products/soma/agent/.soma/STATE.md`. For Gravicity-wide → `~/Gravicity/STATE.md`.*
+
