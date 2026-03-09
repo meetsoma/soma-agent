@@ -102,7 +102,21 @@ Three loading tiers per doc:
 
 Frontmatter convention: files keep `type`, `status`, `updated`, `tags` for tooling (`soma-scan.sh`). Runtime-only fields (`name`, `heat-default`, `breadcrumb`, `scope`, `tier`) for the protocol loader. Attribution metadata (`author`, `license`, `version`, `created`, `upstream`) in trailing HTML comment.
 
-**Runtime gaps (remaining):** `applies-to` filtering not implemented (G6), settings.json not read (G7), mid-session heat tracking (G2). Heat bootstrap (G1), session_shutdown save (G3), and muscle loading (G4) all shipped 2026-03-09. See `docs/plans/runtime-gaps.md`.
+**Runtime status:** Core engine complete. G1 (bootstrap), G2 (mid-session tracking), G3 (shutdown save), G4 (muscle loading), G7 (settings) all shipped 2026-03-09. Only G6 (applies-to filtering) remains. Full gap analysis: `docs/plans/runtime-gaps.md`.
+
+### Heat System (how it works)
+
+```
+  INHALE (boot)              HOLD (work)              EXHALE (/exhale)
+  ─────────────              ───────────              ────────────────
+  Load by heat:              Auto-detect:             For each item:
+  🔥 HOT (8+) → full body    write frontmatter → +1   Used? → keep heat
+  🟡 WARM (3-7) → breadcrumb  git commit → +1          Unused? → decay -1
+  ❄️  COLD (0-2) → name only   write SVG → +1           Pinned? → no decay
+                             Manual: /pin /kill        Save to disk
+```
+
+Protocols store heat in `.protocol-state.json`. Muscles store heat in frontmatter (`heat: N`). Thresholds configurable in `settings.json`.
 
 ## Protocol Inventory
 
