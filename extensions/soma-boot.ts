@@ -1,125 +1,32 @@
 /**
  * Soma Boot Extension
  *
- * Auto-discovers and loads Soma's identity and preload from the project's
- * .soma/ directory. No vault, no agent profiles — just memory.
+ * Thin wrapper around soma core. Handles Pi lifecycle hooks,
+ * delegates all logic to core modules.
  *
- * Fresh session: loads identity only (who Soma is).
- * Resumed session (--continue): loads identity + preload (what happened).
- *
- * Also provides:
- *   /flush   — write preload + continuation prompt for next session
- *   /preload — list available preloads
- *   /soma    — status and management
+ * Provides:
+ *   - Auto-discovery of .soma/ on session start
+ *   - Identity + preload + protocol loading
+ *   - /flush, /preload, /soma commands
+ *   - Context usage warnings
  */
 
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, mkdirSync } from "fs";
-import { join, resolve, basename, dirname } from "path";
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { getAgentDir } from "@mariozechner/pi-coding-agent";
-
-// ---------------------------------------------------------------------------
-// Path resolution
-// ---------------------------------------------------------------------------
-
-const AGENT_DIR = getAgentDir(); // ~/.soma/agent
-const USER_CONFIG_DIR = basename(dirname(AGENT_DIR)); // ".soma"
-const CONFIG_DIR = USER_CONFIG_DIR; // ".soma" — project-level config dir
-
-// Marker files that identify a valid .soma/ project directory
-const MARKERS = ["STATE.md", "identity.md", "memory"];
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function safeRead(path: string): string | null {
-	try {
-		if (existsSync(path)) return readFileSync(path, "utf-8");
-	} catch { /* ignore */ }
-	return null;
-}
-
-/**
- * Walk up from CWD to find the project .soma/ directory.
- */
-function findSomaDir(): string | null {
-	let dir = process.cwd();
-	const root = resolve("/");
-	while (dir !== root) {
-		const candidate = join(dir, CONFIG_DIR);
-		if (existsSync(candidate) && MARKERS.some(m => existsSync(join(candidate, m)))) {
-			return candidate;
-		}
-		dir = resolve(dir, "..");
-	}
-	return null;
-}
-
-/**
- * Find the best preload file. Checks both root and memory/ subdirectory.
- */
-function findPreload(somaDir: string): string | null {
-	const searchDirs = [somaDir];
-	const memoryDir = join(somaDir, "memory");
-	if (existsSync(memoryDir)) searchDirs.push(memoryDir);
-
-	for (const dir of searchDirs) {
-		const generic = join(dir, "preload-next.md");
-		if (existsSync(generic)) return generic;
-	}
-
-	// Fallback: most recent preload-* file
-	for (const dir of searchDirs) {
-		try {
-			const files = readdirSync(dir)
-				.filter(f => f.startsWith("preload-") && f.endsWith(".md"))
-				.map(f => ({ name: f, path: join(dir, f), mtime: statSync(join(dir, f)).mtimeMs }))
-				.sort((a, b) => b.mtime - a.mtime);
-			if (files.length > 0) return files[0].path;
-		} catch { /* ignore */ }
-	}
-	return null;
-}
-
-function isPreloadStale(path: string, maxAgeHours: number = 48): boolean {
-	try {
-		const age = (Date.now() - statSync(path).mtimeMs) / 3600000;
-		return age > maxAgeHours;
-	} catch { return true; }
-}
-
-/**
- * Initialize a fresh .soma/ directory in CWD.
- */
-function initSoma(cwd: string): string {
-	const somaDir = join(cwd, CONFIG_DIR);
-	const dirs = [
-		somaDir,
-		join(somaDir, "memory"),
-		join(somaDir, "memory", "muscles"),
-		join(somaDir, "memory", "sessions"),
-		join(somaDir, "skills"),
-	];
-	for (const dir of dirs) {
-		if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-	}
-
-	// Create empty identity
-	const identityPath = join(somaDir, "identity.md");
-	if (!existsSync(identityPath)) {
-		writeFileSync(identityPath, "# Soma Identity\n\n<!-- Write yourself. Who are you? What do you help with? -->\n");
-	}
-
-	// Create STATE.md
-	const statePath = join(somaDir, "STATE.md");
-	if (!existsSync(statePath)) {
-		const date = new Date().toISOString().slice(0, 10);
-		writeFileSync(statePath, `---\ntype: state\nproject: soma\ncreated: ${date}\n---\n\n# Soma — Project State\n\nFresh install. Identity will be discovered through use.\n`);
-	}
-
-	return somaDir;
-}
+import { join } from "path";
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import {
+	findSomaDir,
+	getSomaChain,
+	buildLayeredIdentity,
+	findPreload,
+	discoverProtocolChain,
+	loadProtocolState,
+	saveProtocolState,
+	buildProtocolInjection,
+	applyDecay,
+	initSoma,
+	type SomaDir,
+	type ProtocolState,
+} from "../core/index.js";
 
 // ---------------------------------------------------------------------------
 // Extension
@@ -127,28 +34,31 @@ function initSoma(cwd: string): string {
 
 export default function somaBootExtension(pi: ExtensionAPI) {
 
-	let somaDir: string | null = null;
+	let soma: SomaDir | null = null;
+	let protocolState: ProtocolState | null = null;
+	let protocolsReferenced = new Set<string>();
 	let booted = false;
+	let lastContextWarningPct = 0;
 
 	// -------------------------------------------------------------------
-	// Session start: find .soma/, load identity, optionally load preload
+	// Session start: discover, load identity + preload + protocols
 	// -------------------------------------------------------------------
 
 	pi.on("session_start", async (_event, ctx) => {
-		somaDir = findSomaDir();
+		soma = findSomaDir();
 
-		if (!somaDir) {
-			// No .soma/ found — offer to create one
+		if (!soma) {
 			const shouldInit = await ctx.ui.confirm(
 				"🌱 Soma",
 				"No memory found in this project. Create one?"
 			);
 			if (shouldInit) {
-				somaDir = initSoma(process.cwd());
-				ctx.ui.notify(`🌱 Soma planted at ${somaDir}`, "info");
+				const somaPath = initSoma(process.cwd());
+				soma = findSomaDir();
+				ctx.ui.notify(`🌱 Soma planted at ${somaPath}`, "info");
 				pi.sendUserMessage(
-					`You have a fresh memory system at \`${somaDir}\`.\n` +
-					`There's an empty identity file at \`${somaDir}/identity.md\`.\n` +
+					`You have a fresh memory system at \`${somaPath}\`.\n` +
+					`There's an empty identity file at \`${somaPath}/identity.md\`.\n` +
 					`Based on what you know about yourself and this workspace, ` +
 					`write a brief identity — who are you, what do you help with, ` +
 					`what's your style? Keep it under 20 lines.`,
@@ -158,28 +68,35 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			return;
 		}
 
-		// .soma/ exists — build boot context
+		// Build boot context
 		const parts: string[] = [];
+		const chain = getSomaChain();
 
-		// Always load identity
-		const identityPath = join(somaDir, "identity.md");
-		const identity = safeRead(identityPath);
-		if (identity && identity.trim().length > 50) {
-			parts.push(`# Identity\n${identity}`);
+		// Identity (layered: project → parent → global)
+		const identity = buildLayeredIdentity(chain);
+		if (identity) {
+			parts.push(identity);
 		}
 
-		// Load preload only on resumed sessions (--continue has existing messages)
+		// Preload (only on resumed sessions)
 		const isResumed = ctx.sessionManager.getEntries().some(
 			(e: any) => e.type === "message"
 		);
 		if (isResumed) {
-			const preloadPath = findPreload(somaDir);
-			if (preloadPath) {
-				const preload = safeRead(preloadPath);
-				if (preload) {
-					const stale = isPreloadStale(preloadPath) ? " ⚠️ stale" : "";
-					parts.push(`\n---\n# Session Preload (${basename(preloadPath)})${stale}\n${preload}`);
-				}
+			const preload = findPreload(soma);
+			if (preload) {
+				const staleTag = preload.stale ? " ⚠️ stale" : "";
+				parts.push(`\n---\n# Session Preload (${preload.name})${staleTag}\n${preload.content}`);
+			}
+		}
+
+		// Protocols (discover from chain, build injection)
+		const protocols = discoverProtocolChain(chain);
+		if (protocols.length > 0) {
+			protocolState = loadProtocolState(soma);
+			const injection = buildProtocolInjection(protocols, protocolState);
+			if (injection.systemPromptBlock.trim()) {
+				parts.push(`\n---\n${injection.systemPromptBlock}`);
 			}
 		}
 
@@ -188,8 +105,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			pi.appendEntry("soma-boot", { timestamp: Date.now(), resumed: isResumed });
 
 			const greetStyle = isResumed
-				? `You've resumed a Soma session. Your identity and preload are above. Orient briefly — what you know, what you're picking up — and await instructions.`
-				: `You've booted into a fresh Soma session. Your identity is above. Greet the user briefly and await instructions.`;
+				? `You've resumed a Soma session. Your identity, preload, and protocols are above. Orient briefly and await instructions.`
+				: `You've booted into a fresh Soma session. Your identity and protocols are above. Greet the user briefly and await instructions.`;
 
 			pi.sendUserMessage(
 				`[Soma Boot${isResumed ? " — resumed" : ""}]\n\n${parts.join("\n")}\n\n${greetStyle}`,
@@ -199,49 +116,43 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	});
 
 	// -------------------------------------------------------------------
-	// Before agent start: inject identity into system prompt + context warnings
+	// Context warnings (injected into system prompt)
 	// -------------------------------------------------------------------
 
-	let lastContextWarningPct = 0;
-
 	pi.on("before_agent_start", async (event, ctx) => {
-		if (!somaDir || !booted) return;
+		if (!soma || !booted) return;
+
+		const usage = ctx.getContextUsage?.();
+		if (!usage?.percent) return;
+		const pct = usage.percent;
 
 		const additions: string[] = [];
 
-		// Context monitoring
-		const usage = ctx.getContextUsage?.();
-		if (usage?.percent != null) {
-			const pct = usage.percent;
-
-			if (pct >= 85 && lastContextWarningPct < 85) {
-				additions.push(
-					`\n## ⚠️ CONTEXT CRITICAL (${Math.round(pct)}%)\n` +
-					`Flush now. Write preload, commit work, say "FLUSH COMPLETE".`
-				);
-				lastContextWarningPct = pct;
-			} else if (pct >= 75 && lastContextWarningPct < 75) {
-				additions.push(
-					`\n## ⚠️ Context High (${Math.round(pct)}%)\n` +
-					`Wrap up current task. Prepare to flush.`
-				);
-				lastContextWarningPct = pct;
-			} else if (pct >= 50 && lastContextWarningPct < 50) {
-				ctx.ui.notify(`Context: ${Math.round(pct)}% — pace yourself`, "info");
-				lastContextWarningPct = pct;
-			}
+		if (pct >= 85 && lastContextWarningPct < 85) {
+			additions.push(
+				`\n## ⚠️ CONTEXT CRITICAL (${Math.round(pct)}%)\n` +
+				`Flush now. Write preload, commit work, say "FLUSH COMPLETE".`
+			);
+			lastContextWarningPct = pct;
+		} else if (pct >= 75 && lastContextWarningPct < 75) {
+			additions.push(
+				`\n## ⚠️ Context High (${Math.round(pct)}%)\n` +
+				`Wrap up current task. Prepare to flush.`
+			);
+			lastContextWarningPct = pct;
+		} else if (pct >= 50 && lastContextWarningPct < 50) {
+			ctx.ui.notify(`Context: ${Math.round(pct)}% — pace yourself`, "info");
+			lastContextWarningPct = pct;
 		}
 
 		if (additions.length > 0) {
-			return {
-				systemPrompt: event.systemPrompt + "\n" + additions.join("\n"),
-			};
+			return { systemPrompt: event.systemPrompt + "\n" + additions.join("\n") };
 		}
 	});
 
-	// Reset on new session
-	pi.on("session_switch", async (_event, _ctx) => {
+	pi.on("session_switch", async () => {
 		lastContextWarningPct = 0;
+		protocolsReferenced = new Set();
 	});
 
 	// -------------------------------------------------------------------
@@ -251,15 +162,22 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.registerCommand("flush", {
 		description: "Write session state for next session continuation",
 		handler: async (_args, ctx) => {
-			if (!somaDir) {
-				ctx.ui.notify("No .soma/ found. Run `soma init` first.", "error");
+			if (!soma) {
+				ctx.ui.notify("No .soma/ found. Run /soma init first.", "error");
 				return;
 			}
 
-			const preloadPath = join(somaDir, "memory", "preload-next.md");
-			const contPath = join(somaDir, "memory", "continuation-prompt.md");
+			const memDir = join(soma.path, "memory");
+			const preloadPath = join(memDir, "preload-next.md");
+			const contPath = join(memDir, "continuation-prompt.md");
 			const today = new Date().toISOString().split("T")[0];
-			const logPath = join(somaDir, "memory", "sessions", `${today}.md`);
+			const logPath = join(memDir, "sessions", `${today}.md`);
+
+			// Save protocol heat state on flush
+			if (protocolState && soma) {
+				applyDecay(protocolState, protocolsReferenced);
+				saveProtocolState(soma, protocolState);
+			}
 
 			pi.sendUserMessage(
 				`[FLUSH]\n\n` +
@@ -275,7 +193,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				{ deliverAs: "followUp" }
 			);
 
-			ctx.ui.notify("Flush initiated", "info");
+			ctx.ui.notify("Flush initiated — protocol heat will be saved", "info");
 		},
 	});
 
@@ -286,29 +204,18 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.registerCommand("preload", {
 		description: "List available preload files",
 		handler: async (_args, ctx) => {
-			if (!somaDir) {
+			if (!soma) {
 				ctx.ui.notify("No .soma/ found", "info");
 				return;
 			}
 
-			const searchDirs = [somaDir, join(somaDir, "memory")];
-			const items: string[] = [];
-
-			for (const dir of searchDirs) {
-				try {
-					const files = readdirSync(dir)
-						.filter(f => f.startsWith("preload-") && f.endsWith(".md"))
-						.map(f => {
-							const p = join(dir, f);
-							const age = Math.floor((Date.now() - statSync(p).mtimeMs) / 3600000);
-							const stale = age > 48 ? " ⚠️stale" : "";
-							return `  ${f} (${age}h ago${stale})`;
-						});
-					if (files.length > 0) items.push(...files);
-				} catch { /* ignore */ }
+			const preload = findPreload(soma);
+			if (preload) {
+				const stale = preload.stale ? " ⚠️stale" : "";
+				ctx.ui.notify(`${preload.name} (${Math.floor(preload.ageHours)}h ago${stale})`, "info");
+			} else {
+				ctx.ui.notify("No preloads found", "info");
 			}
-
-			ctx.ui.notify(items.length > 0 ? items.join("\n") : "No preloads found", "info");
 		},
 	});
 
@@ -324,32 +231,34 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const cmd = args.trim().toLowerCase() || "status";
 
 			if (cmd === "init") {
-				if (somaDir) {
-					ctx.ui.notify(`Soma already planted at ${somaDir}`, "info");
+				if (soma) {
+					ctx.ui.notify(`Soma already planted at ${soma.path}`, "info");
 					return;
 				}
-				somaDir = initSoma(process.cwd());
-				ctx.ui.notify(`🌱 Soma planted at ${somaDir}`, "info");
+				const somaPath = initSoma(process.cwd());
+				soma = findSomaDir();
+				ctx.ui.notify(`🌱 Soma planted at ${somaPath}`, "info");
 				return;
 			}
 
 			if (cmd === "status") {
-				if (!somaDir) {
+				if (!soma) {
 					ctx.ui.notify("No Soma found. Use /soma init", "info");
 					return;
 				}
-				const hasIdentity = existsSync(join(somaDir, "identity.md"));
-				const hasPreload = findPreload(somaDir) !== null;
-				const muscleDir = join(somaDir, "memory", "muscles");
-				let muscleCount = 0;
-				try { muscleCount = readdirSync(muscleDir).filter(f => f.endsWith(".md")).length; } catch {}
 
-				ctx.ui.notify([
-					`🌿 Soma: ${somaDir}`,
-					`Identity: ${hasIdentity ? "✓" : "empty"}`,
-					`Preload: ${hasPreload ? "✓" : "none"}`,
-					`Muscles: ${muscleCount}`,
-				].join("\n"), "info");
+				const preload = findPreload(soma);
+				const chain = getSomaChain();
+				const protocols = discoverProtocolChain(chain);
+
+				const lines = [
+					`🌿 Soma: ${soma.path} (${soma.rootName}/)`,
+					`Chain: ${chain.length} level${chain.length !== 1 ? "s" : ""}`,
+					`Preload: ${preload ? "✓" : "none"}`,
+					`Protocols: ${protocols.length}`,
+				];
+
+				ctx.ui.notify(lines.join("\n"), "info");
 				return;
 			}
 
