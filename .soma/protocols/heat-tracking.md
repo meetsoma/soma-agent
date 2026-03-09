@@ -1,18 +1,22 @@
 ---
 type: protocol
 name: heat-tracking
-version: 1.0.0
-status: planned
-created: 2026-03-10
-updated: 2026-03-10
-author: Curtis Mercier
-license: MIT
+status: active
+updated: 2026-03-09
 heat-default: hot
 tier: enterprise
 breadcrumb: "Protocols have temperature: cold (not loaded), warm (breadcrumb in prompt), hot (full in prompt). Heat rises on use (+1/+2), decays per session if unused (-1). Thresholds configurable in settings.json."
 ---
 
 # Heat Tracking Protocol
+
+## TL;DR
+- Three temperatures: **cold** (0-2, name only), **warm** (3-7, breadcrumb in prompt), **hot** (8+, full body in prompt)
+- Heat rises on use: +2 explicit reference, +1 applied in action. Decays -1 per session if unused
+- Pin to hot: user says "always use X" → heat 10. Kill: "stop using X" → heat 0
+- Limits: max 3 full protocols in prompt, max 10 breadcrumbs. Highest heat wins ties
+- State persists in `.soma/.protocol-state.json`, updated during exhale phase
+- Enterprise feature — free tier loads protocols statically
 
 > This protocol is self-referential — it governs its own loading behavior.
 
@@ -80,3 +84,5 @@ During every inhale (protocol loading) and every exhale (heat update). This prot
 ## Enterprise Note
 
 Heat tracking is an enterprise feature. Free tier loads protocols statically (all or nothing). Enterprise gets the adaptive temperature system — protocols that matter rise, protocols that don't fade. The agent learns what behavioral rules actually get used.
+
+<!-- v1.0.0 | created: 2026-03-10 | MIT | Curtis Mercier -->

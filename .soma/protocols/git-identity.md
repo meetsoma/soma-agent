@@ -1,21 +1,23 @@
 ---
 type: protocol
 name: git-identity
-version: 1.0.0
 status: active
-created: 2026-03-07
-updated: 2026-03-07
-author: Curtis Mercier
-license: MIT
+updated: 2026-03-09
 heat-default: warm
 scope: shared
-tier: free
-upstream: curtismercier/protocols/git-identity/
-breadcrumb: "Commits must be attributed correctly. Personal repos (personal/, products/soma/): Curtis Mercier <curtis@gravicity.ai>. Business repos (clients/, infra/): Gravicity <accounts@gravicity.ca>. Check git config user.email before first commit in any repo. Never let bot identity land on personal repos."
 tags: [git, attribution, identity, multi-repo]
+breadcrumb: "Commits must be attributed correctly. Personal repos (personal/, products/soma/): Curtis Mercier <curtis@gravicity.ai>. Business repos (clients/, infra/): Gravicity <accounts@gravicity.ca>. Check git config user.email before first commit in any repo. Never let bot identity land on personal repos."
 ---
 
 # Git Identity Protocol
+
+## TL;DR
+- Three identities: **personal** (Curtis Mercier / curtis@gravicity.ai), **business** (Gravicity / accounts@gravicity.ca), **agent** (Soma / soma-agent@gravicity.ai)
+- Personal: `personal/*`, `products/soma/*`, `curtismercier/*`, `meetsoma/*`
+- Business: `clients/*`, `infra/*`, `Gravicity/*`
+- Agent: autonomous-only commits. Human drives → human identity, always
+- Check `git config user.email` before first commit in any repo
+- Fix before push: `git commit --amend --author="..." --no-edit`
 
 ## Rule
 
@@ -58,3 +60,5 @@ After push: `git filter-branch` + force-push (solo repos only).
 
 - Third-party repos where you're using their contribution identity
 - Forks where upstream expects a specific email
+
+<!-- v1.0.0 | created: 2026-03-07 | MIT | Curtis Mercier | upstream: curtismercier/protocols/git-identity/ -->

@@ -1,6 +1,6 @@
 ---
 type: plan
-status: complete
+status: stable
 updated: 2026-03-09
 created: 2026-03-09
 topic: github-app-strategy

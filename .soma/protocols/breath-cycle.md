@@ -1,18 +1,20 @@
 ---
 type: protocol
 name: breath-cycle
-version: 1.0.0
 status: active
-created: 2026-03-10
-updated: 2026-03-10
-author: Curtis Mercier
-license: MIT
+updated: 2026-03-09
 heat-default: hot
-upstream: curtismercier/protocols/breath-cycle/
 breadcrumb: "Sessions have 3 phases: inhale (boot, load identity + memory + protocols), hold (work, track context), exhale (flush state, update heat, write preload). Never skip exhale."
 ---
 
 # Breath Cycle Protocol
+
+## TL;DR
+- Three phases, no exceptions: **inhale** (boot identity + memory + protocols), **hold** (work + track context), **exhale** (flush state + write preload)
+- Exhale triggers at 85% context OR `/flush` — never skip it, or session learnings are lost
+- Inhale loads: identity (layered) → preload → muscles (by heat) → protocols → STATE.md
+- Exhale writes: preload-next.md → .protocol-state.json (heat update) → continuation-prompt.md
+- This protocol is meta — it governs when all other protocols load and when their heat updates
 
 ## Rule
 
@@ -47,3 +49,5 @@ Every agent session follows three phases. No exceptions.
 ## When to Apply
 
 Always. This protocol governs the session lifecycle. It's meta — it's the protocol that makes other protocols work (they load during inhale, their heat updates during exhale).
+
+<!-- v1.0.0 | created: 2026-03-10 | MIT | Curtis Mercier | upstream: curtismercier/protocols/breath-cycle/ -->

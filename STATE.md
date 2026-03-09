@@ -19,9 +19,11 @@ The public-facing GitHub org for **Soma** — an AI coding agent with self-growi
 
 Soma is the **reference implementation** of Curtis's protocol inventions (AMP, ATLAS, Three-Layer Model, Breath Cycle, Identity System, Git Identity). Six protocols published at `curtismercier/protocols` (CC BY 4.0). Soma implements them as open source (MIT).
 
-### Architecture Note (2026-03-07)
+### Architecture Note (2026-03-09)
 
-Core extraction complete: 7 TypeScript modules in `core/` + 3 thin extension wrappers. Protocol two-tier system formalized (published specs vs operational `.soma/protocols/` files). Git identity protocol ensures correct commit attribution across personal/business/agent identities. Full gap analysis in `docs/plans/runtime-gaps.md`.
+Core extraction complete: 7 TypeScript modules in `core/` + 3 thin extension wrappers. Protocol two-tier system formalized (published specs vs operational `.soma/protocols/` files). Git identity protocol ensures correct commit attribution across personal/business/agent identities.
+
+Heat bootstrap (G1) and session shutdown save (G3) shipped — `.protocol-state.json` now created on first boot and saved on exit. Frontmatter convention solidified: tooling fields in YAML, attribution in trailing comments, three body loading tiers (breadcrumb → TL;DR → full). Dev tooling: `soma-search.sh` (memory query), `soma-scan.sh` (frontmatter scanner), `soma-tldr.sh` (agent TL;DR generator). Full gap analysis in `docs/plans/runtime-gaps.md`.
 
 ## Org Map
 

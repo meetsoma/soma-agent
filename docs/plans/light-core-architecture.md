@@ -36,7 +36,7 @@ core/                               (BUILT — 2026-03-10)
 ├── discovery.ts    ← find .soma/ dirs, walk chain, agnostic root (.soma → .claude → .cursor)
 ├── identity.ts     ← load + layer identity files from chain (project → parent → global)
 ├── preload.ts      ← session resumption, staleness check
-├── protocols.ts    ← discovery, heat model, system prompt injection (350 lines)
+├── protocols.ts    ← discovery, heat model, bootstrap/sync state, system prompt injection
 ├── init.ts         ← scaffold new .soma/ with protocols/, skills/, settings.json
 ├── utils.ts        ← safeRead, fmtDuration
 └── index.ts        ← public API re-exports
@@ -51,8 +51,10 @@ That's 7 modules built, 2 planned. Everything else is a plugin.
 > **Evolution note (2026-03-07):** Original plan had `boot.ts`, `flush.ts`, `memory.ts`, `hierarchy.ts`. Actual extraction consolidated differently: flush stayed in the extension (it's UX), hierarchy merged into `discovery.ts` as `getSomaChain()`, `memory.ts` split into future `muscles.ts` (loading) and protocol heat (merged into `protocols.ts`). The design doc leads, reality refines.
 
 `protocols.ts` handles:
-- Scanning `.soma/protocols/` for `.md` files
+- Scanning `.soma/protocols/` for `.md` files (skips `_template.md`, `README.md`)
 - Reading/writing `.protocol-state.json`
+- `bootstrapProtocolState()` — first boot, seeds heat from `heat-default` (G1 ✅)
+- `syncProtocolState()` — adds entries for new protocols discovered after initial bootstrap
 - Heat calculation (events, decay, thresholds)
 - Building the protocol injection block for system prompt (breadcrumbs vs full)
 - Respecting `settings.json` thresholds and limits

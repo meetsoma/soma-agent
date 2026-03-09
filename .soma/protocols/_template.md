@@ -1,30 +1,24 @@
 ---
 type: protocol
 name: REPLACE
-version: 0.1.0
 status: draft
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
-author: Curtis Mercier
-license: MIT
+updated: 2026-03-09
 heat-default: warm
-scope: local
-tier: free
-upstream:
-breadcrumb: "REPLACE — one to two sentences. This is ALL the agent sees when this protocol is warm (not hot). Make it actionable."
-tags: []
+breadcrumb: "REPLACE — one to two sentences. This is ALL the agent sees when warm. Make it actionable."
 ---
 
-# REPLACE — Protocol Name
+# REPLACE Protocol
 
 ## Rule
 
-<!-- Dense. Imperative. The core behavior. Under 2KB total body. -->
+<!-- Dense, imperative. What the agent must do. -->
 
 ## When to Apply
 
-<!-- Trigger conditions -->
+<!-- Contexts where this protocol activates. -->
 
 ## When NOT to Apply
 
-<!-- Exceptions, edge cases -->
+<!-- Explicit exclusions. -->
+
+<!-- version | created: YYYY-MM-DD | MIT | Curtis Mercier | upstream: -->

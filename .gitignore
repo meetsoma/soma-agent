@@ -48,7 +48,9 @@ _reference-site/
 # Symlinks to personal content
 media
 
-# Soma local memory (override: .soma/STATE.md and .soma/protocols/ ARE tracked via negation)
+# Soma dev workspace — .soma/ is OUR working memory, not the product
+# Tracked (architecture truth): STATE.md, protocols/
+# Everything else is personal/dev tooling — lives in somas-daddy or vault
 !.soma/STATE.md
 !.soma/protocols/
 !.soma/protocols/**

@@ -42,6 +42,8 @@ export {
 	discoverProtocolChain,
 	loadProtocolState,
 	saveProtocolState,
+	bootstrapProtocolState,
+	syncProtocolState,
 	getProtocolHeat,
 	buildProtocolInjection,
 	recordHeatEvent,

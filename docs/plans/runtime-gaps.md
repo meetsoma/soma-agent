@@ -21,9 +21,9 @@ and we're not following our own protocols. This plan maps every gap and sequence
 
 | # | Gap | Impact | Fix |
 |---|-----|--------|-----|
-| G1 | **Heat never initializes** | `.protocol-state.json` never created. Heat defaults used forever. No learning. | On first boot with protocols, create state file from discovered protocols + `heat-default` values. |
+| G1 | ~~**Heat never initializes**~~ ✅ | `.protocol-state.json` bootstrapped on first boot. `bootstrapProtocolState()` seeds from `heat-default`. `syncProtocolState()` handles new protocols appearing later. | Shipped 2026-03-09. `core/protocols.ts` + `soma-boot.ts`. |
 | G2 | **Heat never updates mid-session** | `recordHeatEvent()` exists but nothing calls it. Protocol usage untracked. | Need a detection mechanism. Simplest: agent self-reports via `/protocol-used <name>`. Better: extension detects protocol references in assistant messages. |
-| G3 | **Heat only saves on /flush** | And only if state already exists (chicken-and-egg with G1). | Fix G1 first. Then: save on `/flush` AND on session end (Pi `session_shutdown` event). |
+| G3 | ~~**Heat only saves on /flush**~~ ✅ | Saves on `/flush` AND `session_shutdown`. Decay applied to unused protocols on both paths. | Shipped 2026-03-09. `soma-boot.ts` `session_shutdown` hook. |
 | G4 | **Muscles never load at boot** | `memory/muscles/` has files. Boot ignores them. The whole point of AMP. | New `core/muscles.ts` module. Load at boot by heat, digest-only when tight. Wire into `soma-boot.ts`. |
 | G5 | **ATLAS files stale** | Both `STATE.md` (internal) and `products/soma/agent/STATE.md` (ecosystem) are out of date. Missing core extraction, protocols, git identity. | Update both. This session or next. |
 
@@ -47,10 +47,10 @@ and we're not following our own protocols. This plan maps every gap and sequence
 ## Sequence
 
 ```
-Phase 1 — Foundation (this session or next)
-  G5: Update ATLAS files (both)               ← 30 min, do first
-  G1: Bootstrap heat state on first boot       ← 15 min, tiny code change
-  G3: Save heat on session_shutdown too        ← 5 min
+Phase 1 — Foundation ✅ (2026-03-09)
+  G5: Update ATLAS files (both)               ← done (previous session)
+  G1: Bootstrap heat state on first boot       ← done: bootstrapProtocolState() + syncProtocolState()
+  G3: Save heat on session_shutdown too        ← done: session_shutdown hook
 
 Phase 2 — Core Runtime
   G4: Muscle loading at boot                   ← new module, 1-2 hours

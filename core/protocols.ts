@@ -339,6 +339,89 @@ export function applyDecay(
 	}
 }
 
+/**
+ * Bootstrap a fresh protocol state from discovered protocols.
+ * Seeds heat from each protocol's `heat-default` frontmatter value.
+ *
+ * Called once on first boot when no `.protocol-state.json` exists.
+ * After this, heat evolves through use, decay, and explicit pin/kill.
+ *
+ * @param protocols - All discovered protocols
+ * @param thresholds - Heat thresholds for mapping defaults to numeric values
+ * @returns A new ProtocolState ready to be saved
+ */
+export function bootstrapProtocolState(
+	protocols: Protocol[],
+	thresholds = DEFAULT_THRESHOLDS
+): ProtocolState {
+	const today = new Date().toISOString().slice(0, 10);
+	const now = new Date().toISOString();
+
+	const entries: Record<string, ProtocolHeatState> = {};
+	for (const p of protocols) {
+		let heat: number;
+		switch (p.heatDefault) {
+			case "hot": heat = thresholds.hotThreshold; break;
+			case "warm": heat = thresholds.warmThreshold; break;
+			default: heat = 0;
+		}
+		entries[p.name] = {
+			heat,
+			lastReferenced: today,
+			timesApplied: 0,
+			firstSeen: today,
+			pinned: false,
+		};
+	}
+
+	return {
+		version: 1,
+		updated: now,
+		protocols: entries,
+	};
+}
+
+/**
+ * Sync state with discovered protocols — add entries for new protocols,
+ * leave existing entries untouched (their heat has evolved).
+ *
+ * Handles the case where new protocol files appear after initial bootstrap.
+ *
+ * @param state - Existing protocol state
+ * @param protocols - Currently discovered protocols
+ * @param thresholds - For seeding new protocol heat defaults
+ * @returns true if state was modified (caller should save)
+ */
+export function syncProtocolState(
+	state: ProtocolState,
+	protocols: Protocol[],
+	thresholds = DEFAULT_THRESHOLDS
+): boolean {
+	const today = new Date().toISOString().slice(0, 10);
+	let modified = false;
+
+	for (const p of protocols) {
+		if (!state.protocols[p.name]) {
+			let heat: number;
+			switch (p.heatDefault) {
+				case "hot": heat = thresholds.hotThreshold; break;
+				case "warm": heat = thresholds.warmThreshold; break;
+				default: heat = 0;
+			}
+			state.protocols[p.name] = {
+				heat,
+				lastReferenced: today,
+				timesApplied: 0,
+				firstSeen: today,
+				pinned: false,
+			};
+			modified = true;
+		}
+	}
+
+	return modified;
+}
+
 // ---------------------------------------------------------------------------
 // Internal
 // ---------------------------------------------------------------------------

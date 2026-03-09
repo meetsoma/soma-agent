@@ -1,18 +1,21 @@
 ---
 type: protocol
 name: frontmatter-standard
-version: 1.0.0
 status: active
-created: 2026-03-10
-updated: 2026-03-10
-author: Curtis Mercier
-license: MIT
+updated: 2026-03-09
 heat-default: warm
-upstream: curtismercier/protocols/atlas/
 breadcrumb: "All .md files get YAML frontmatter: type, status, created, updated. 8 statuses: draft/active/stable/stale/archived/deprecated/blocked/review. 12 types: plan/spec/note/index/memory/muscle/protocol/decision/log/template/identity/config."
 ---
 
 # Frontmatter Standard Protocol
+
+## TL;DR
+- Every `.md` file gets YAML frontmatter: `type`, `status`, `created`, `updated` (required)
+- 12 types: plan · spec · note · index · memory · muscle · protocol · decision · log · template · identity · config
+- 8 statuses: draft · active · stable · stale · archived · deprecated · blocked · review
+- Optional fields: `tags`, `related`, `owner`, `priority` — powers search/scan tooling
+- Agent-loaded files (protocols, muscles) keep full frontmatter on disk for tooling, but only breadcrumb/TL;DR/body gets injected into system prompt
+- `## TL;DR` section for protocols (visible, human-readable); `<!-- digest:start/end -->` for muscles (agent-facing)
 
 ## Rule
 
@@ -58,3 +61,9 @@ Every Markdown document in a Soma-managed workspace MUST have YAML frontmatter.
 - README.md in public repos (conventional format, no frontmatter expected)
 - Third-party docs or generated files
 - Files explicitly marked as frontmatter-exempt
+
+## Exception: Agent-Loaded Files
+
+Protocol and muscle `.md` files keep full frontmatter for tooling (scan, search, sync). But only the **breadcrumb** or **digest block** gets injected into the system prompt — the rest stays on disk. Token efficiency comes from the loading tier, not from stripping the file.
+
+<!-- v1.0.0 | created: 2026-03-10 | MIT | Curtis Mercier | upstream: curtismercier/protocols/atlas/ -->

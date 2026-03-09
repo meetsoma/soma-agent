@@ -67,6 +67,11 @@ An AI coding agent with self-growing memory. Built on Pi (0.57.1) with custom `p
 │  │   ├── _template.md         (skipped)              │
 │  │   ├── README.md            (skipped)              │
 │  │   └── drafts/              (not scanned)          │
+│  ├── scripts/        — dev tooling (not product)     │
+│  │   ├── soma-search.sh  (query memory system)       │
+│  │   ├── soma-scan.sh    (frontmatter scanner)       │
+│  │   ├── soma-tldr.sh    (agent TL;DR generator)     │
+│  │   └── ...             (auth, sync, init, etc.)    │
 │  └── memory/                                         │
 │      ├── muscles/    — learned patterns              │
 │      ├── preload-next.md — session continuation      │
@@ -85,7 +90,14 @@ Every protocol exists in two forms:
 
 Loading by heat: hot = full content, warm = breadcrumb only, cold = name listed.
 
-**Runtime gaps:** Heat never persists (no `.protocol-state.json` bootstrap), muscles don't load at boot, `applies-to` filtering not implemented. See `docs/plans/runtime-gaps.md`.
+Three loading tiers per doc:
+- **Breadcrumb** — `breadcrumb:` frontmatter field (1-2 sentences, warm protocol injection)
+- **TL;DR** — `## TL;DR` section in body (3-7 dense bullets, first thing loaded on deeper read). Protocols use `## TL;DR` (visible in markdown). Muscles use `<!-- digest:start/end -->` (agent-facing).
+- **Full body** — complete rules (only for hot protocols or when agent needs full context)
+
+Frontmatter convention: files keep `type`, `status`, `updated`, `tags` for tooling (`soma-scan.sh`). Runtime-only fields (`name`, `heat-default`, `breadcrumb`, `scope`, `tier`) for the protocol loader. Attribution metadata (`author`, `license`, `version`, `created`, `upstream`) in trailing HTML comment.
+
+**Runtime gaps (remaining):** Muscles don't load at boot (G4), `applies-to` filtering not implemented (G6), settings.json not read (G7). Heat bootstrap (G1) and session_shutdown save (G3) shipped 2026-03-09. See `docs/plans/runtime-gaps.md`.
 
 ## Protocol Inventory
 
@@ -129,8 +141,9 @@ Configured via `~/.gitconfig` `includeIf` rules. See `curtismercier/protocols/gi
 
 | Gap | Ref | Blocking? |
 |-----|-----|-----------|
-| Heat never bootstraps (no state file created) | G1 | Yes — heat system is dead |
+| ~~Heat never bootstraps~~ | G1 | ✅ Shipped — `bootstrapProtocolState()` + `syncProtocolState()` |
 | Heat never updates mid-session | G2 | Yes — no learning |
+| ~~Heat only saves on /flush~~ | G3 | ✅ Shipped — `session_shutdown` hook |
 | Muscles don't load at boot | G4 | Yes — AMP half-implemented |
 | Settings.json not read | G7 | No — defaults work |
 | `applies-to` filtering missing | G6 | No — all protocols load |
@@ -148,11 +161,12 @@ products/soma/agent/          ← meetsoma/agent (private)
 ├── protocols/                ← 3 reference protocol .md files (published specs)
 ├── docs/plans/               ← 10+ architecture plans (tracked)
 ├── registry/plugin-index.json
-├── .soma/                    ← project instance
-│   ├── STATE.md              ← THIS FILE
-│   ├── protocols/            ← operational protocol files (4 active + 1 draft)
-│   ├── memory/               ← muscles, preloads, sessions
-│   └── plans/                ← older plans (moving to docs/plans/)
+├── .soma/                    ← OUR dev workspace (not the product)
+│   ├── STATE.md              ← THIS FILE (tracked)
+│   ├── protocols/            ← operational protocols (tracked — 4 active + 1 draft)
+│   ├── scripts/              ← dev tooling: soma-search, soma-scan, soma-tldr (not tracked, future → somas-daddy)
+│   ├── memory/muscles/       ← our learned patterns (not tracked, personal)
+│   └── memory/sessions/      ← session logs (not tracked, ephemeral)
 ├── STATE.md                  ← ecosystem-level ATLAS (meetsoma org)
 ├── README.md
 └── LICENSE (MIT)

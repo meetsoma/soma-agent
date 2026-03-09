@@ -21,6 +21,8 @@ import {
 	discoverProtocolChain,
 	loadProtocolState,
 	saveProtocolState,
+	bootstrapProtocolState,
+	syncProtocolState,
 	buildProtocolInjection,
 	applyDecay,
 	initSoma,
@@ -94,6 +96,18 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const protocols = discoverProtocolChain(chain);
 		if (protocols.length > 0) {
 			protocolState = loadProtocolState(soma);
+
+			if (!protocolState) {
+				// G1: First boot — bootstrap state from heat-default values
+				protocolState = bootstrapProtocolState(protocols);
+				saveProtocolState(soma, protocolState);
+			} else {
+				// Sync: add entries for any new protocols discovered since last boot
+				if (syncProtocolState(protocolState, protocols)) {
+					saveProtocolState(soma, protocolState);
+				}
+			}
+
 			const injection = buildProtocolInjection(protocols, protocolState);
 			if (injection.systemPromptBlock.trim()) {
 				parts.push(`\n---\n${injection.systemPromptBlock}`);
@@ -153,6 +167,16 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.on("session_switch", async () => {
 		lastContextWarningPct = 0;
 		protocolsReferenced = new Set();
+	});
+
+	// -------------------------------------------------------------------
+	// G3: Save heat state on session shutdown (not just /flush)
+	// -------------------------------------------------------------------
+
+	pi.on("session_shutdown", async () => {
+		if (!soma || !protocolState) return;
+		applyDecay(protocolState, protocolsReferenced);
+		saveProtocolState(soma, protocolState);
 	});
 
 	// -------------------------------------------------------------------

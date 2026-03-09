@@ -2,7 +2,7 @@
 type: index
 status: active
 created: 2026-03-07
-updated: 2026-03-07
+updated: 2026-03-09
 ---
 
 # Protocols
@@ -26,42 +26,31 @@ The spec is the full rationale, examples, edge cases. The operational file is th
 ---
 type: protocol
 name: <kebab-case-name>
-version: <semver>
-status: active | draft | planned
-created: <YYYY-MM-DD>
+status: active | draft
 updated: <YYYY-MM-DD>
-author: Curtis Mercier
-license: MIT
 heat-default: hot | warm | cold
-scope: local | shared
-tier: free | enterprise
-upstream: curtismercier/protocols/<name>/
-breadcrumb: "<1-2 sentence TL;DR for warm loading — this is ALL the agent sees when the protocol isn't hot>"
-tags: [searchable, keywords]
+scope: shared          # only if protocol flows up to parent
+tier: enterprise       # only if gated
+tags: []               # for soma-scan --related filtering
+breadcrumb: "<1-2 sentence TL;DR for warm loading>"
 ---
-
-# <Protocol Name>
-
-## Rule
-<The core behavioral rule. Dense. Imperative. No fluff.>
-
-## When to Apply
-<Trigger conditions — when should the agent activate this protocol?>
-
-## When NOT to Apply
-<Negative conditions — exceptions, edge cases to skip.>
 ```
 
-### Required Fields
+### What's in frontmatter vs trailing comment
 
-- `name`, `heat-default`, `breadcrumb` — the loading system needs these
-- `upstream` — links back to the full spec (omit if no published spec exists)
+**Frontmatter** — fields read by runtime code OR tooling (soma-scan, protocol-sync):
+- `type`, `status`, `updated` → soma-scan filters and staleness
+- `tags` → soma-scan `--related` search
+- `name`, `heat-default`, `breadcrumb`, `scope`, `tier` → runtime protocol loader
 
-### Heat Defaults
+**Trailing comment** — human reference only, not consumed by anything:
+```markdown
+<!-- v1.0.0 | created: 2026-03-10 | MIT | Curtis Mercier | upstream: curtismercier/protocols/<name>/ -->
+```
 
-- **hot** — always fully loaded into system prompt (reserve for core behaviors)
-- **warm** — breadcrumb only (good for situational protocols)
-- **cold** — listed by name, agent can reference if needed
+### Token efficiency
+
+Frontmatter stays rich on disk — tools need it. But **only the breadcrumb or body** gets injected into the system prompt. The `buildProtocolInjection()` function strips frontmatter before injection. Token savings come from the loading tier (cold/warm/hot), not from stripping the file.
 
 ### Body Rules
 
@@ -74,13 +63,13 @@ tags: [searchable, keywords]
 
 ```
 .soma/protocols/
-├── README.md                    ← this file
+├── README.md                    ← this file (skipped by loader)
+├── _template.md                 ← template (skipped by loader)
 ├── breath-cycle.md              ← hot: session lifecycle
-├── frontmatter-standard.md      ← warm: document metadata
 ├── heat-tracking.md             ← hot: protocol temperature system
+├── frontmatter-standard.md      ← warm: document metadata
 ├── git-identity.md              ← warm: commit attribution
 └── drafts/                      ← not loaded, incubating
-    └── collaborative-flow.md
 ```
 
 Drafts are never loaded — they live in `drafts/` until promoted to the root.

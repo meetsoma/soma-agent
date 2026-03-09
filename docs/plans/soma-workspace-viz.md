@@ -1,8 +1,8 @@
 ---
 type: plan
-status: seed
+status: draft
 created: 2026-03-07
-updated: 2026-03-07
+updated: 2026-03-09
 priority: medium
 tags: [visualization, ui, agents, multi-agent, office, orbital, 3d, swarm, extension]
 related: [light-core-architecture, protocol-architecture, plugin-architecture]
@@ -41,11 +41,35 @@ As the project grows, the office grows:
 - Month 1: full desk, bookshelf filling, file cabinets labeled
 - Year 1: corner office with reference library
 
-### View 3: Round Table (parent-child)
-Mother soma at center of a round table. Baby somas seated around it. Visual representation of:
-- Identity inheritance (parent traits flowing down)
-- Protocol sharing (@children/ symlinks)
-- Memory promotion (muscle bubbling up from child to parent)
+### View 3: Boardroom (parent-child, evolving)
+The office view evolves as the workspace grows sub-somas:
+
+**Solo agent (1 soma):** Single desk in center. Simple workspace.
+
+**Small team (2-4 child somas):** Mother agent's desk grows. Children get their own desks arranged in a loose circle around her.
+
+**Full team (5+ child somas):** The desks merge into a **boardroom table** — circular, with a **U-shaped notch** cut into one side. The mother agent sits inside the U, facing outward toward all children. Each child agent has an assigned seat around the outside of the table.
+
+```
+         ╭── child ── child ── child ──╮
+         │                              │
+      child                          child
+         │                              │
+         │    ╭────────────────╮        │
+      child   │   mother (U)   │     child
+         │    ╰────────────────╯        │
+         │                              │
+      child                          child
+         │                              │
+         ╰── child ── child ── child ──╯
+```
+
+The U-desk is the command center — mother agent delegates, monitors, receives reports. Visual representation of:
+- Identity inheritance (parent traits flowing down the table)
+- Protocol sharing (@children/ symlinks visible as shared documents on the table)
+- Memory promotion (muscle bubbling up from child seat to mother's desk)
+- Task delegation (mother assigns, child's desk lights up with activity)
+- Status at a glance (empty chair = idle, glowing chair = active, red = blocked)
 
 ### The Gravitational Metaphor
 This is literally the Gravicity brand. Pulsar already had the orbital viz for business tools (Email, Phone, CRM orbiting center). Now it's agents orbiting an agent. The metaphor holds:
@@ -93,6 +117,9 @@ The visualizer is a pure **read layer** on top of existing soma infrastructure:
 | Skill books | `.soma/skills/` count |
 | Desk growth | Total `.soma/` file count over time |
 | Parent-child | `getSomaChain()` from core/discovery.ts |
+| Boardroom layout | Child soma count → table size (solo desk → circle → U-boardroom) |
+| Seat assignment | Child `.soma/identity.md` → nameplate + role at table |
+| Delegation status | Future: task handoff file or status protocol |
 | Orbital position | Configurable or auto from directory structure |
 
 No new data formats needed. It just visualizes what `.soma/` already contains.

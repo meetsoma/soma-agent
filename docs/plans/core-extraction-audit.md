@@ -331,4 +331,18 @@ This wasn't in the original audit — it emerged from building the protocol syst
 
 **Vault scripts updated:** `discover-projects.sh` and `_lib-project.sh` now detect `.soma/` (preferred) → `.claude/` → `.cursor/`. Soma is first-class in the vault project registry.
 
+### 2026-03-09 — Heat Bootstrap + Frontmatter Convention (Session 4)
+
+**Shipped:**
+- G1: `bootstrapProtocolState()` — creates `.protocol-state.json` on first boot, seeds heat from `heat-default` frontmatter. `syncProtocolState()` handles new protocols appearing after initial bootstrap.
+- G3: `session_shutdown` hook — saves heat with decay on session end, not just `/flush`.
+- Both functions exported from `core/index.ts`, wired into `soma-boot.ts`.
+
+**Frontmatter convention solidified:**
+- Protocol files keep `type`, `status`, `updated`, `tags` for tooling (`soma-scan.sh`). Attribution metadata (`author`, `license`, `version`, `created`, `upstream`) moves to trailing HTML comment — not consumed by any code.
+- Three body loading tiers: `breadcrumb` (1-2 sentences, warm injection) → `## TL;DR` (3-7 bullets, first read) → full body (hot injection). Protocols use `## TL;DR` heading. Muscles use `<!-- digest:start/end -->`.
+- All 4 operational protocols updated with TL;DR sections.
+
+**Design evolution:** Originally considered stripping frontmatter aggressively (runtime-only fields). Pulled back when we realized `soma-scan.sh` reads `type`, `status`, `updated`, `tags` for filtering and staleness checks. Token efficiency comes from the loading tier, not from stripping the file — `buildProtocolInjection()` already strips frontmatter before prompt injection.
+
 **Status of this doc:** This audit is now **historical** — it captured the pre-extraction state and drove the extraction. For current gaps, see `runtime-gaps.md`. For current architecture truth, see `.soma/STATE.md`.
