@@ -17,7 +17,11 @@ rule: Update this file whenever repos, infrastructure, skills, or cross-repo rel
 
 The public-facing GitHub org for **Soma** — an AI coding agent with self-growing memory. Built on Pi, extended with three layers (extensions, skills, rituals). Created by Curtis Mercier, shipped under the Gravicity brand.
 
-Soma is the **reference implementation** of Curtis's protocol inventions (AMP, ATLAS, Three-Layer Model, Breath Cycle, Identity System). The protocols are Curtis's personal IP. Soma implements them as open source (MIT) and source-available (BSL) software.
+Soma is the **reference implementation** of Curtis's protocol inventions (AMP, ATLAS, Three-Layer Model, Breath Cycle, Identity System, Git Identity). Six protocols published at `curtismercier/protocols` (CC BY 4.0). Soma implements them as open source (MIT).
+
+### Architecture Note (2026-03-07)
+
+Core extraction complete: 7 TypeScript modules in `core/` + 3 thin extension wrappers. Protocol two-tier system formalized (published specs vs operational `.soma/protocols/` files). Git identity protocol ensures correct commit attribution across personal/business/agent identities. Full gap analysis in `docs/plans/runtime-gaps.md`.
 
 ## Org Map
 
@@ -36,7 +40,7 @@ github.com/meetsoma
 
 | Repo | Visibility | Stage | Has Code | Notes |
 |------|-----------|-------|----------|-------|
-| `agent` | **Private** | Active | ✅ | Extensions (`soma-boot.ts`, `soma-header.ts`, `soma-statusline.ts`), docs, STATE.md |
+| `agent` | **Private** | Active | ✅ | 7 core modules, 3 extensions, 4 operational protocols, 10+ plan docs, STATE.md |
 | `website` | Public | **Shipped** | ✅ | Astro 5, deployed to Vercel, HTTPS live |
 | `media` | Public | **Shipped** | ✅ | Full media kit pushed |
 | `.github` | Public | **Shipped** | ✅ | Org profile with ecosystem table |

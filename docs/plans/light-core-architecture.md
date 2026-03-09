@@ -1,6 +1,6 @@
 ---
 type: plan
-status: draft
+status: active
 updated: 2026-03-09
 created: 2026-03-10
 tags: [architecture, core, parent-child, memory-flow, light-core, body-that-grows]
@@ -32,17 +32,23 @@ The `.soma/` directory IS the body. You can literally watch it grow. Day one it 
 The absolute minimum that makes Soma recognizable as Soma:
 
 ```
-soma-core/
-├── boot.ts              ← discover .soma/, load identity, read preload
-├── flush.ts             ← context monitoring, threshold detection, state extraction
-├── memory.ts            ← muscle loading, promotion logic
-├── identity.ts          ← identity file discovery, inheritance
-├── protocols.ts         ← protocol discovery, heat tracking, system prompt injection
-└── templates/
-    └── init/            ← soma init scaffold templates
+core/                               (BUILT — 2026-03-10)
+├── discovery.ts    ← find .soma/ dirs, walk chain, agnostic root (.soma → .claude → .cursor)
+├── identity.ts     ← load + layer identity files from chain (project → parent → global)
+├── preload.ts      ← session resumption, staleness check
+├── protocols.ts    ← discovery, heat model, system prompt injection (350 lines)
+├── init.ts         ← scaffold new .soma/ with protocols/, skills/, settings.json
+├── utils.ts        ← safeRead, fmtDuration
+└── index.ts        ← public API re-exports
+
+NOT YET BUILT:
+├── muscles.ts      ← muscle loading at boot, heat tracking, digest-first loading (G4)
+└── settings.ts     ← settings.json reading, threshold config (G7)
 ```
 
-That's ~6 files of actual logic. Everything else is a plugin.
+That's 7 modules built, 2 planned. Everything else is a plugin.
+
+> **Evolution note (2026-03-07):** Original plan had `boot.ts`, `flush.ts`, `memory.ts`, `hierarchy.ts`. Actual extraction consolidated differently: flush stayed in the extension (it's UX), hierarchy merged into `discovery.ts` as `getSomaChain()`, `memory.ts` split into future `muscles.ts` (loading) and protocol heat (merged into `protocols.ts`). The design doc leads, reality refines.
 
 `protocols.ts` handles:
 - Scanning `.soma/protocols/` for `.md` files

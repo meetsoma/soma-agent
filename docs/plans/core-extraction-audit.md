@@ -1,8 +1,8 @@
 ---
 type: plan
-status: active
+status: complete
 created: 2026-03-10
-updated: 2026-03-10
+updated: 2026-03-09
 tags: [architecture, core, extraction, audit]
 priority: high
 ---
@@ -289,3 +289,46 @@ This is the most important technical work right now. The protocol specs are publ
 7. Parent-child discovery
 8. Upward memory flow
 9. Code-assisted flush (hybrid LLM + code)
+
+---
+
+## Evolution Log
+
+### 2026-03-10 — Core Extraction Shipped (Session 2)
+
+This audit led to the extraction. The "BIG GAP" items above drove the module design. Here's what shipped:
+
+**Built (resolves gaps above):**
+- `core/discovery.ts` — `findSomaDir()`, `findParentSomaDir()`, `findGlobalSomaDir()`, `getSomaChain()`. Full hierarchy resolution. ✅ Gaps 3, 4 resolved.
+- `core/identity.ts` — `loadIdentityChain()`, `buildLayeredIdentity()`. Project → parent → global layering. ✅ Gap 4 resolved.
+- `core/preload.ts` — extracted from boot, now standalone. ✅ Was already working.
+- `core/protocols.ts` — `discoverProtocols()`, `buildProtocolInjection()`, heat model, decay, state persistence. 350 lines. ✅ Gaps 7, 8, 9 resolved.
+- `core/init.ts` — `soma init` scaffold with protocols/, skills/, settings.json.
+- `core/utils.ts` — shared helpers.
+- `core/index.ts` — public API re-exports.
+- 3 extensions rewritten as thin wrappers importing from core. Net -204 lines.
+
+**Still gaps (moved to `runtime-gaps.md`):**
+- `core/muscles.ts` — NOT built. Muscle loading at boot still missing. (G4)
+- `core/settings.ts` — NOT built. settings.json not read at runtime. (G7)
+- Heat bootstrap — state file never created on first boot. (G1)
+- Heat mid-session updates — nothing calls `recordHeatEvent()`. (G2)
+- `applies-to` filtering — not implemented. (G6)
+
+**Architecture evolved:**
+- Original plan had `flush.ts` and `hierarchy.ts` as separate modules. Flush stayed in the extension (it's mostly UX). Hierarchy merged into `discovery.ts` via `getSomaChain()`.
+- `memory.ts` renamed to future `muscles.ts` — "memory" was too overloaded a term.
+
+### 2026-03-07 — Protocol Two-Tier + Git Identity (Session 3)
+
+**New pattern formalized:** Every protocol exists in two tiers:
+- Spec (published at `curtismercier/protocols/`) — educational, for humans
+- Operational (`.soma/protocols/`) — dense rules, loaded by agent
+
+This wasn't in the original audit — it emerged from building the protocol system. The published specs are 3-10KB educational docs. The operational files are <2KB compressed rules with `breadcrumb` fields for warm loading.
+
+**New protocol:** Git Identity — multi-repo attribution, path-based resolution, agent commits. 6th published spec.
+
+**Vault scripts updated:** `discover-projects.sh` and `_lib-project.sh` now detect `.soma/` (preferred) → `.claude/` → `.cursor/`. Soma is first-class in the vault project registry.
+
+**Status of this doc:** This audit is now **historical** — it captured the pre-extraction state and drove the extraction. For current gaps, see `runtime-gaps.md`. For current architecture truth, see `.soma/STATE.md`.
