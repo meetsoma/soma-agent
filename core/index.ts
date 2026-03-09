@@ -53,6 +53,7 @@ export type { Protocol, ProtocolHeatState, ProtocolState, ProtocolInjection } fr
 
 export {
 	initSoma,
+	resolveTemplateDir,
 } from "./init.js";
 export type { InitOptions } from "./init.js";
 
