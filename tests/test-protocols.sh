@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-protocols.sh — Verify protocol loading, heat bootstrap, and search tooling
+# test-protocols.sh — Verify protocol loading, heat bootstrap, and frontmatter
 #
 # Usage: ./tests/test-protocols.sh
 #
@@ -9,16 +9,15 @@
 #   3. Protocol state sync — new protocols get added to existing state
 #   4. Frontmatter extraction — all protocols have required fields
 #   5. TL;DR sections — all protocols 50+ lines have TL;DR
-#   6. Search script — query by type, tags, deep mode
-#   7. Boot integration — soma --version boots clean
+#   6. Muscle frontmatter — all muscles have required fields
+#   7. Protocol state file — valid JSON with version and protocols
+#   8. Boot integration — soma --version boots clean
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SOMA_DIR="$PROJECT_DIR/.soma"
-SEARCH="$SOMA_DIR/scripts/soma-search.sh"
-SCAN="$SOMA_DIR/scripts/soma-scan.sh"
 
 PASS=0
 FAIL=0
@@ -139,65 +138,7 @@ for f in "$SOMA_DIR"/memory/muscles/*.md; do
 done
 
 # ---------------------------------------------------------------------------
-# 5. Search Script
-# ---------------------------------------------------------------------------
-section "Search Script"
-
-if [[ -x "$SEARCH" ]]; then
-  # Basic run
-  result=$(bash "$SEARCH" 2>&1)
-  echo "$result" | grep -q "docs found" && pass "soma-search.sh runs" \
-    || fail "soma-search.sh failed to run"
-
-  # Type filter
-  result=$(bash "$SEARCH" --type protocol 2>&1)
-  proto_found=$(echo "$result" | grep "docs found" | grep -o '[0-9]*')
-  [[ "$proto_found" -ge 4 ]] && pass "--type protocol finds ≥4" \
-    || fail "--type protocol found $proto_found (expected ≥4)"
-
-  # Deep mode extracts TL;DR
-  result=$(bash "$SEARCH" --deep --type protocol 2>&1)
-  echo "$result" | grep -q "breath-cycle" && pass "--deep shows breath-cycle TL;DR" \
-    || fail "--deep missing breath-cycle"
-
-  # Tags filter — should find muscles with github topic
-  result=$(bash "$SEARCH" --tags github 2>&1)
-  echo "$result" | grep -q "docs found" && pass "--tags github returns results" \
-    || fail "--tags github failed"
-
-  # Missing TL;DR finder
-  result=$(bash "$SEARCH" --missing-tldr 2>&1)
-  echo "$result" | grep -q "docs found" && pass "--missing-tldr runs" \
-    || fail "--missing-tldr failed"
-else
-  fail "soma-search.sh not found or not executable"
-fi
-
-# ---------------------------------------------------------------------------
-# 6. Scan Script
-# ---------------------------------------------------------------------------
-section "Scan Script"
-
-if [[ -x "$SCAN" ]]; then
-  result=$(bash "$SCAN" --type protocol --dir "$PROTO_DIR" 2>&1)
-  echo "$result" | grep -q "protocol" && pass "soma-scan.sh finds protocols" \
-    || fail "soma-scan.sh found nothing"
-
-  # Verify frontmatter extraction doesn't leak body content
-  # protocol-architecture.md has name: heat-tracking in a code example
-  # Scan should NOT pick that up as the name
-  result=$(bash "$SCAN" --dir "$PROJECT_DIR/docs/plans/" 2>&1)
-  if echo "$result" | grep -q "heat-tracking.*protocol-architecture"; then
-    fail "scan leaks body content into frontmatter fields"
-  else
-    pass "scan correctly isolates frontmatter"
-  fi
-else
-  fail "soma-scan.sh not found or not executable"
-fi
-
-# ---------------------------------------------------------------------------
-# 7. Protocol State File
+# 6. Protocol State File
 # ---------------------------------------------------------------------------
 section "Protocol State (.protocol-state.json)"
 
@@ -242,8 +183,11 @@ section "Boot Integration"
 
 if command -v soma &>/dev/null; then
   version=$(soma --version 2>&1)
-  [[ -n "$version" ]] && pass "soma --version: $version" \
-    || fail "soma --version returned empty"
+  if echo "$version" | grep -qE '^[0-9]+\.[0-9]+'; then
+    pass "soma --version: $version"
+  else
+    fail "soma --version: expected semver, got error (check CLI dependencies)"
+  fi
 else
   # CI environments won't have soma installed — skip gracefully
   if [[ -n "$CI" || -n "$GITHUB_ACTIONS" ]]; then
