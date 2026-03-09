@@ -48,6 +48,12 @@ Every agent session follows three phases. No exceptions.
 5. Note any patterns worth crystallizing (muscle candidates)
 6. Preload-next.md IS the continuation prompt (D011) — no separate file needed
 
+### Pre-Publish Gate
+Before any public push or release, verify:
+1. Run all test suites — check for orphaned references to deleted files
+2. Classify files before bulk deletion — see `pre-publish-cleanup` muscle
+3. Scripts are tooling, not artifacts — don't delete operational scripts in cleanup sweeps
+
 ## Critical Rule
 
 **Never skip exhale.** If context runs out before exhale, the session's learnings are lost. The 85% auto-trigger exists to prevent this. If the human ends the session early, exhale what you can.
