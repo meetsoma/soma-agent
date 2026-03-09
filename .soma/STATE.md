@@ -2,7 +2,7 @@
 type: state
 method: atlas
 project: soma
-updated: 2026-03-08
+updated: 2026-03-10
 status: active
 rule: Update this file whenever architecture, memory structure, or extension behavior changes.
 ---
