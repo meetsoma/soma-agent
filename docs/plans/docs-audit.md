@@ -79,9 +79,9 @@ The docs were written early (pre-core-extraction, pre-heat-system). They tell a 
 
 | Doc | Why | Priority |
 |-----|-----|----------|
-| **docs/protocols.md** | Protocols are a core feature with no user doc. Explain: what they are, heat system, writing your own, applies-to, breadcrumbs. | 🔴 High |
-| **docs/configuration.md** | `settings.json` is configurable but undocumented. Explain: location, chain resolution, available settings. | 🟡 Medium |
-| **docs/commands.md** | Commands are scattered across README and getting-started. Centralize with full descriptions. | 🟡 Medium |
+| ~~**docs/protocols.md**~~ ✅ | Shipped. On website. | — |
+| ~~**docs/configuration.md**~~ ✅ | Shipped 2026-03-09. Full settings reference. | — |
+| ~~**docs/commands.md**~~ ✅ | Shipped 2026-03-09. Slash commands, CLI flags, context warnings. | — |
 | **docs/scripts.md** | `soma-search.sh`, `soma-scan.sh`, `soma-tldr.sh` — dev tooling for power users. | 🟢 Low |
 
 ## Structural Improvements
@@ -113,13 +113,13 @@ Users who want to create their own protocols need:
 
 ## Proposed Execution Order
 
-1. **Fix the /flush → /exhale rename** across all docs (quick, high impact)
-2. **Remove continuation-prompt.md references** (stale, confusing)
-3. **Write docs/protocols.md** (fills the biggest gap)
-4. **Update memory-layout.md** with current directory structure
-5. **Write docs/index.md** as reading-order guide
-6. **Write docs/configuration.md** for settings.json
-7. **Restructure README** to be leaner
+1. ~~**Fix the /flush → /exhale rename** across all docs~~ ✅ Already done — `/exhale` primary, `/flush` alias
+2. ~~**Remove continuation-prompt.md references**~~ ✅ Already cleaned
+3. ~~**Write docs/protocols.md**~~ ✅ Shipped and on website
+4. ~~**Update memory-layout.md** with current directory structure~~ ✅ Already current
+5. **Write docs/index.md** as reading-order guide — still open
+6. ~~**Write docs/configuration.md** for settings.json~~ ✅ Shipped 2026-03-09
+7. ~~**Restructure README** to be leaner~~ ✅ Already lean, docs table updated
 
 ---
 
