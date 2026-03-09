@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "updated": "2026-03-10",
   "registry": "meetsoma/agent",
-  "note": "Unified index for skills, rituals, and protocols. Replaces skill-index.json (v1). Type field distinguishes layers. CLI and website both read this.",
+  "note": "Unified index for skills, rituals, protocols, and templates. Replaces skill-index.json (v1). Type field distinguishes layers. CLI and website both read this.",
   "plugins": [
     {
       "name": "favicon-gen",
