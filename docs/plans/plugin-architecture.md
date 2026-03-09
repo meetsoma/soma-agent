@@ -355,7 +355,11 @@ This is a Phase 2 website feature. The current site works without it. But it's i
 | **Rituals** | Stepped skills with `/trigger` (`.md`) | On `/command` | Community registry |
 | **Protocols** | Behavioral rules (`.md`) | By heat temperature | Community registry |
 
-Skills = "how to do a thing." Protocols = "how to behave." See `protocol-architecture.md` for the full heat model.
+Skills = "how to do a thing." Protocols = "how to behave." Templates = "all of the above, bundled as a starting personality." See `protocol-architecture.md` for the full heat model, `agent-templates.md` for the template system.
+
+### Templates — The Fifth Artifact (Not a Layer)
+
+Templates aren't a runtime layer — they're a **packaging format**. A template bundles identity + protocols + skills + settings into a shareable starter. `soma init --template devops` gives you a fully configured agent instead of a blank scaffold. See `agent-templates.md` for the full design.
 
 ## Plugin Index Schema (v1)
 
