@@ -6,8 +6,8 @@ set -euo pipefail
 
 PASS=0 FAIL=0 TOTAL=0
 
-pass() { ((PASS++)); ((TOTAL++)); echo "  ✓ $1"; }
-fail() { ((FAIL++)); ((TOTAL++)); echo "  ✗ $1"; }
+pass() { PASS=$((PASS + 1)); TOTAL=$((TOTAL + 1)); echo "  ✓ $1"; }
+fail() { FAIL=$((FAIL + 1)); TOTAL=$((TOTAL + 1)); echo "  ✗ $1"; }
 section() { echo ""; echo "═══ $1 ═══"; }
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

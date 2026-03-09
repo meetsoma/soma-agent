@@ -1,5 +1,9 @@
 # How Soma Works
 
+<!-- tldr -->
+Sessions are breaths: inhale (load identity + protocols + muscles + preload if `-c`) → work → breathe or exhale (save state, decay heat, write preload). Fresh mode loads identity, protocols, and muscles. Continue mode (`-c`) adds last session's preload. `/breathe` saves + continues, `/exhale` saves + stops. Auto-exhale at 85% context. Heat system loads hot content fully, warm as breadcrumbs, cold stays dormant.
+<!-- /tldr -->
+
 ## The Core Idea
 
 Soma is an AI coding agent that **remembers**. Unlike tools that start fresh every session, Soma carries identity, context, and learned patterns across sessions.
@@ -22,25 +26,29 @@ Session 3 (inhale) ← ...and so on
 
 When Soma starts, she loads:
 - **Identity** (`identity.md`) — who she is, always loaded
+- **Protocols** — behavioral rules, loaded by heat (hot = full, warm = breadcrumb)
+- **Muscles** — learned patterns, loaded by heat within token budget
 - **Preload** (`preload-next.md`) — what happened last session, only on `--continue`
 
-Fresh sessions (`soma`) load identity only. Resumed sessions (`soma --continue`) load both.
+Fresh sessions (`soma`) load identity, protocols, and muscles. Resumed sessions (`soma -c`) add the preload on top — picking up exactly where you left off.
 
-### Exhale (Flush)
+### Exhale
 
-When context fills up (~85%), Soma flushes:
-1. Writes a **preload** for the next session
-2. Writes a **continuation prompt** with exact next steps
+When context fills up (~85%), Soma automatically breathes — saving state and continuing into a fresh session. You can also trigger this manually:
+
+- **`/breathe`** — save state + auto-continue (seamless rotation)
+- **`/exhale`** — save state + stop (alias: `/flush`)
+
+Either way, Soma:
+1. Writes a **preload** for the next session (`preload-next.md`)
+2. Saves protocol and muscle heat state
 3. Commits all work
-4. Says "FLUSH COMPLETE" — the system auto-continues
-
-The `/flush` command triggers this manually.
 
 ## Identity
 
 Soma doesn't come pre-configured with a personality. She **discovers** who she is through working with you. Her `identity.md` is written by her, not for her.
 
-On first run, Soma sees an empty identity file and writes her own based on the workspace and your interactions.
+On first run, Soma sees an empty identity file and writes her own based on the workspace and your interactions. See [Identity](identity.md) for the full guide on discovery, layering, and customization.
 
 ## Muscles
 
@@ -51,7 +59,28 @@ Examples:
 - A muscle for your preferred code style
 - A muscle for how to handle a specific API
 
-Muscles live in `.soma/memory/muscles/` and grow organically.
+Muscles live in `.soma/memory/muscles/` and grow organically. Like protocols, they're loaded by **heat** — frequently-used muscles get full content in the prompt, less-used ones get a digest summary, and cold ones stay available but unloaded. See [Muscles](muscles.md) for the full guide on writing muscles and the digest system.
+
+## Protocols
+
+Protocols are behavioral rules that guide Soma's actions: how to format files, how to attribute git commits, when to exhale. They live in `.soma/protocols/` as markdown files with frontmatter.
+
+### Heat System
+
+Every protocol has a temperature:
+- 🔥 **Hot** (8+) — full body loaded into system prompt
+- 🟡 **Warm** (3–7) — breadcrumb reminder only (one sentence)
+- ❄️ **Cold** (0–2) — name listed, content not loaded
+
+Heat rises when protocols get used (+1 per action, +2 per explicit reference) and decays by 1 each session if unused. You can also `/pin` a protocol to keep it hot or `/kill` it to drop to cold. All thresholds are configurable in [settings.json](configuration.md).
+
+##***REMOVED*** Scoping
+
+Protocols declare which projects they apply to via an `applies-to` field. For example, `git-identity` only loads in projects with a `.git/` directory. Meta-protocols like `breath-cycle` use `applies-to: [always]`.
+
+Available signals: `always`, `git`, `typescript`, `javascript`, `python`, `rust`, `go`, `frontend`, `docs`, `multi-repo`.
+
+See [docs/protocols.md](protocols.md) for how to write your own.
 
 ## Context Management
 

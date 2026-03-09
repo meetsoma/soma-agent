@@ -17,12 +17,13 @@ Thumbs.db
 *.swo
 
 # Soma project instance
-# Tracked: STATE.md, protocols/, plans/ (architecture truth)
-# Ignored: identity, memory, sessions (personal/ephemeral)
+# Tracked: STATE.md, protocols/ (architecture truth)
+# Ignored: identity, memory, plans, sessions (personal/internal)
 .soma/identity.md
 .soma/memory/
 .soma/sessions/
 .soma/preloads/
+.soma/plans/
 .soma/skills/
 .soma/extensions/
 .soma/.protocol-state.json
@@ -54,8 +55,7 @@ media
 !.soma/STATE.md
 !.soma/protocols/
 !.soma/protocols/**
-!.soma/plans/
-!.soma/plans/**
 
 # Git worktrees (feature branches checked out side-by-side)
 .worktrees/
+.soma/protocols-ref

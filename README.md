@@ -66,6 +66,10 @@ No context is lost. No cold starts. At 85% context, Soma auto-flushes and contin
 
 Patterns observed across sessions become **muscles** — reusable knowledge that loads automatically when relevant. Soma builds her own playbook from your work.
 
+### 📜 Protocols & Heat
+
+Protocols are behavioral rules (git identity, frontmatter standards, breath cycle). They load **by temperature**: hot protocols inject full content, warm ones show a breadcrumb reminder, cold ones are available but not loaded. Heat rises when protocols get used and decays when they don't — so active patterns stay in prompt and stale ones fade. Configure thresholds in `settings.json`.
+
 ### 🧠 Identity is Discovered
 
 Soma doesn't come with a personality config file. She discovers who she is through working with you. Her `identity.md` is written by her, not for her.
@@ -89,22 +93,18 @@ Each project gets its own `.soma/`. Different projects, different Somas.
 
 | Command | What it does |
 |---------|-------------|
-| `/flush` | Write preload + prepare for continuation |
-| `/soma status` | Show memory status (identity, preload, muscles) |
+| `/exhale` | Save state, write preload for next session (alias: `/flush`) |
+| `/inhale` | Start fresh — reload identity + protocols without restarting |
+| `/pin <name>` | Pin a protocol/muscle to hot (stays loaded) |
+| `/kill <name>` | Kill a protocol/muscle (drops to cold) |
+| `/soma status` | Show memory status (identity, preload, muscles, protocols) |
 | `/soma init` | Create `.soma/` in current directory |
+| `/preload` | List available preload files |
 | `/status` | Session stats (context %, turns, uptime) |
-| `/auto-continue` | New session with continuation prompt |
 
 ## Skills
 
-Soma supports skills — specialized instructions for specific tasks.
-
-```bash
-# Install a skill
-soma install skill <source>
-
-# Skills live in .soma/skills/ (project) or ~/.soma/agent/skills/ (global)
-```
+Soma supports skills — specialized instructions for specific tasks. Place them in `.soma/skills/` (project) or `~/.soma/agent/skills/` (global).
 
 See [docs/extending.md](docs/extending.md) for how to create your own skills and extensions.
 
@@ -112,10 +112,16 @@ See [docs/extending.md](docs/extending.md) for how to create your own skills and
 
 | Doc | Contents |
 |-----|----------|
-| [How It Works](docs/how-it-works.md) | Breath cycle, identity, muscles, context management |
 | [Getting Started](docs/getting-started.md) | Install, session modes, commands, `.soma/` layout |
+| [How It Works](docs/how-it-works.md) | Breath cycle, identity, muscles, context management |
+| [Identity](docs/identity.md) | Discovery, layering, project vs global |
+| [Protocols](docs/protocols.md) | Behavioral rules, heat system, writing your own |
 | [Memory Layout](docs/memory-layout.md) | Project vs user level, git strategy, data flow |
 | [Extending](docs/extending.md) | Skills, extensions, events, APIs |
+| [Muscles](docs/muscles.md) | Learned patterns, digest system, heat tiers |
+| [Configuration](docs/configuration.md) | Settings, heat thresholds, muscle budgets |
+| [Commands](docs/commands.md) | Slash commands, CLI flags, context warnings |
+| [Changelog](CHANGELOG.md) | Version history |
 
 ## Built on Pi
 

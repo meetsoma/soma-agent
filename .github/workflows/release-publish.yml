@@ -1,0 +1,141 @@
+name: Release & Publish
+
+# Triggers when a version tag is pushed to main
+# Requires: NPM_TOKEN secret set in repo settings
+# Requires: CLI_REPO_TOKEN (PAT with repo access to meetsoma/cli)
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Test — Protocols
+        run: bash tests/test-protocols.sh
+
+      - name: Test — Muscles
+        run: |
+          if [ -d ".soma/memory/muscles" ]; then
+            bash tests/test-muscles.sh
+          else
+            echo "Muscle directory gitignored — skipping in CI"
+          fi
+
+      - name: Test — Settings
+        run: bash tests/test-settings.sh
+
+      - name: Test — Init
+        run: bash tests/test-init.sh
+
+      - name: Test — Applies-to
+        run: bash tests/test-applies-to.sh
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: agent
+
+      # Check out both CLI repos side-by-side
+      - uses: actions/checkout@v4
+        with:
+          repository: meetsoma/cli
+          token: ${{ secrets.CLI_REPO_TOKEN }}
+          path: cli
+
+      - uses: actions/checkout@v4
+        with:
+          repository: meetsoma/cli-pro
+          token: ${{ secrets.CLI_REPO_TOKEN }}
+          path: cli-pro
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          echo "version=$TAG" >> "$GITHUB_OUTPUT"
+          if [[ "$TAG" == *-* ]]; then
+            echo "tag=beta" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Publishing v$TAG"
+
+      - name: Sync docs from agent → CLI packages
+        run: |
+          for pkg in cli cli-pro; do
+            mkdir -p "$pkg/docs"
+            for doc in getting-started.md how-it-works.md identity.md protocols.md memory-layout.md extending.md muscles.md configuration.md commands.md; do
+              [ -f "agent/docs/$doc" ] && cp "agent/docs/$doc" "$pkg/docs/$doc"
+            done
+            [ -f "agent/CHANGELOG.md" ] && cp "agent/CHANGELOG.md" "$pkg/docs/CHANGELOG.md"
+          done
+          echo "✓ Docs synced"
+
+      - name: Bump version in CLI packages
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          for pkg in cli cli-pro; do
+            cd "$pkg"
+            npm version "$VERSION" --no-git-tag-version --allow-same-version
+            cd ..
+          done
+          echo "✓ Both packages at v$VERSION"
+
+      - name: Publish meetsoma (public)
+        working-directory: cli
+        run: npm publish --access public --tag ${{ steps.version.outputs.tag }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @gravicity.ai/soma (enterprise)
+        working-directory: cli-pro
+        run: npm publish --access public --tag ${{ steps.version.outputs.tag }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Commit version bumps back to CLI repos
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          for pkg in cli cli-pro; do
+            cd "$pkg"
+            git config user.name "meetsoma[bot]"
+            git config user.email "meetsoma[bot]@users.noreply.github.com"
+            git add -A
+            if git diff --cached --quiet; then
+              echo "No changes in $pkg"
+            else
+              git commit -m "release: v$VERSION — version bump + docs sync"
+              git tag "v$VERSION"
+              git push origin HEAD
+              git push origin "v$VERSION"
+              echo "✓ $pkg pushed v$VERSION"
+            fi
+            cd ..
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: ${{ steps.version.outputs.prerelease == 'true' }}

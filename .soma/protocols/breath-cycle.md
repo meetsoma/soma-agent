@@ -6,6 +6,9 @@ updated: 2026-03-09
 heat-default: hot
 applies-to: [always]
 breadcrumb: "Sessions have 3 phases: inhale (boot, load identity + memory + protocols), hold (work, track context), exhale (flush state, update heat, write preload). Never skip exhale."
+source: meetsoma/agent@0.2.0
+source-version: 0.2.0
+edited-by: system
 ---
 
 # Breath Cycle Protocol

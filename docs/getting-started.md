@@ -1,9 +1,13 @@
 # Getting Started
 
+<!-- tldr -->
+`npm i -g meetsoma` → `cd your-project` → `soma`. First run creates `.soma/` and discovers identity. Use `soma -c` to continue with last session's context. `/breathe` saves + continues, `/exhale` saves + stops, `/pin` keeps protocols hot, `/kill` drops them cold.
+<!-- /tldr -->
+
 ## Install
 
 ```bash
-npm install -g @gravicity.ai/soma
+npm install -g meetsoma
 ```
 
 ## First Run
@@ -23,7 +27,7 @@ On first run, Soma will ask to create a `.soma/` directory. Say yes. She'll writ
 soma
 ```
 
-Starts clean. Loads identity only. No replay of previous context.
+Starts fresh. Loads identity, hot protocols, and active muscles. No replay of previous session context.
 
 ### Resume Session
 
@@ -49,12 +53,14 @@ Pick from previous sessions to resume.
 
 | Command | What it does |
 |---------|-------------|
-| `/flush` | Write preload + prepare for continuation |
-| `/soma status` | Show memory status (identity, preload, muscles) |
+| `/inhale` | Start fresh — shows preload status, suggests `soma -c` |
+| `/breathe` | Save state + auto-continue into fresh session |
+| `/exhale` | Save state, write preload, session ends (alias: `/flush`) |
+| `/pin <name>` | Pin a protocol/muscle to hot (stays loaded) |
+| `/kill <name>` | Kill a protocol/muscle (drops to cold) |
+| `/soma status` | Show memory status (identity, preload, muscles, protocols) |
 | `/soma init` | Create `.soma/` in current directory |
 | `/preload` | List available preload files |
-| `/status` | Show session stats (context %, turns, uptime) |
-| `/auto-continue` | Create new session with continuation prompt |
 
 ## The `.soma/` Directory
 
@@ -62,14 +68,15 @@ Created by `soma init` or on first run:
 
 ```
 .soma/
-├── identity.md              ← who Soma becomes (she writes this)
+├── identity.md              ← who Soma becomes (discovered through use)
 ├── STATE.md                 ← project architecture truth
+├── settings.json            ← configurable thresholds (optional)
+├── protocols/               ← behavioral rules (heat-tracked)
 ├── memory/
 │   ├── muscles/             ← patterns learned from experience
 │   ├── preload-next.md      ← continuation for next session
-│   ├── continuation-prompt.md ← exact next steps
 │   └── sessions/            ← daily logs
-└── skills/                  ← project-specific skills
+└── scripts/                 ← dev tooling (search, scan, etc.)
 ```
 
 ### What's Private vs Public
