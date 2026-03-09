@@ -21,9 +21,22 @@ Soma is the **reference implementation** of Curtis's protocol inventions (AMP, A
 
 ### Architecture Note (2026-03-09)
 
-Core extraction complete: 7 TypeScript modules in `core/` + 3 thin extension wrappers. Protocol two-tier system formalized (published specs vs operational `.soma/protocols/` files). Git identity protocol ensures correct commit attribution across personal/business/agent identities.
+Core extraction complete: **9 TypeScript modules** in `core/` + 3 thin extension wrappers. Full heat system operational end-to-end.
 
-Heat bootstrap (G1) and session shutdown save (G3) shipped — `.protocol-state.json` now created on first boot and saved on exit. Frontmatter convention solidified: tooling fields in YAML, attribution in trailing comments, three body loading tiers (breadcrumb → TL;DR → full). Dev tooling: `soma-search.sh` (memory query), `soma-scan.sh` (frontmatter scanner), `soma-tldr.sh` (agent TL;DR generator). Full gap analysis in `docs/plans/runtime-gaps.md`.
+**Core modules:** discovery, identity, preload, protocols, muscles, settings, init, utils, index.
+
+**Heat system (complete):**
+- Bootstrap: `.protocol-state.json` seeds from `heat-default` on first boot (G1)
+- Mid-session: `tool_result` hook auto-detects usage + `/pin` `/kill` commands (G2)
+- Save: heat persists on `/exhale` AND `session_shutdown` with decay (G3)
+- Settings: `core/settings.ts` reads thresholds from `settings.json` chain (G7)
+- Loading: protocols by heat (hot=full, warm=breadcrumb, cold=name). Muscles by heat within token budget (hot=full, warm=digest) (G4)
+
+**Commands:** `/exhale` (save state, ~~`/flush`~~), `/inhale` (fresh session), `/pin`/`/kill` (heat override), `/soma status`
+
+**Dev tooling:** `soma-search.sh` (memory query), `soma-scan.sh` (frontmatter scanner), `soma-tldr.sh` (agent TL;DR generator) — surfaced at boot.
+
+**Remaining:** G6 (applies-to filtering) is the last runtime gap. Template install system planned (PI137).
 
 ## Org Map
 
@@ -42,7 +55,7 @@ github.com/meetsoma
 
 | Repo | Visibility | Stage | Has Code | Notes |
 |------|-----------|-------|----------|-------|
-| `agent` | **Private** | Active | ✅ | 7 core modules, 3 extensions, 4 operational protocols, 10+ plan docs, STATE.md |
+| `agent` | **Private** | Active | ✅ | 9 core modules, 3 extensions, 4 operational protocols, 15+ plan docs, full heat system |
 | `website` | Public | **Shipped** | ✅ | Astro 5, deployed to Vercel, HTTPS live |
 | `media` | Public | **Shipped** | ✅ | Full media kit pushed |
 | `.github` | Public | **Shipped** | ✅ | Org profile with ecosystem table |
