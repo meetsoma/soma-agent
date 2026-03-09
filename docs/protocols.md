@@ -1,5 +1,9 @@
 # Protocols
 
+<!-- tldr -->
+Behavioral rules in `.soma/protocols/` as markdown with YAML frontmatter. Loaded by heat: hot (≥8) = full body, warm (≥3) = breadcrumb, cold = name only. Heat rises on use (+1 auto-detect), decays per session if unused. Domain scoping via `applies-to` field. Write your own: add `name`, `heat-default`, `breadcrumb`, `applies-to` frontmatter. Configure thresholds in `settings.json`.
+<!-- /tldr -->
+
 Protocols are behavioral rules that guide Soma's actions. They live in `.soma/protocols/` as markdown files with YAML frontmatter.
 
 ## Built-in Protocols

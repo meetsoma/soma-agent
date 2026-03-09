@@ -1,5 +1,9 @@
 # Memory Layout
 
+<!-- tldr -->
+Two levels: project (`.soma/` in repo) and user (`~/.soma/agent/`). Project has: identity.md, STATE.md, protocols/, memory/ (muscles, preloads, sessions), settings.json, scripts/. User has: global settings, extensions (soma-boot, soma-header, soma-statusline), global skills. Identity + memory are gitignored (personal). STATE.md + skills are tracked (shareable).
+<!-- /tldr -->
+
 Soma uses two levels of storage: **project-level** (`.soma/` in your repo) and **user-level** (`~/.soma/agent/`).
 
 ## Project-Level: `.soma/`

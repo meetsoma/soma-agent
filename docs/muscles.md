@@ -1,5 +1,9 @@
 # Muscles
 
+<!-- tldr -->
+Learned patterns in `.soma/memory/muscles/` as markdown with frontmatter (type, status, topic, keywords, heat, loads). Loaded by heat within token budget (default: 2000). Hot (≥5) = full body, warm (≥1) = digest only, cold = name listed. Digest blocks between `<!-- digest:start -->` / `<!-- digest:end -->` markers. Write digests — they're what loads 90% of the time. `/pin` to keep hot, `/kill` to drop cold.
+<!-- /tldr -->
+
 Muscles are **learned patterns** — reusable knowledge that Soma builds from experience. Unlike protocols (which are behavioral rules you write), muscles emerge organically from work. They're Soma's playbook.
 
 ## How Muscles Form

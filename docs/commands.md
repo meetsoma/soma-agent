@@ -1,5 +1,9 @@
 # Commands
 
+<!-- tldr -->
+`/exhale` — save state + preload (alias: `/flush`). `/inhale` — fresh start. `/pin <name>` — bump heat +5. `/kill <name>` — drop heat to 0. `/soma` — show status. CLI: `meetsoma` (fresh), `meetsoma -c` (continue). Auto-exhale at 85% context. Warnings at 50/70/80%.
+<!-- /tldr -->
+
 Soma registers slash commands that control the breath cycle, heat system, and session management.
 
 ## Session Commands

@@ -1,5 +1,9 @@
 # Configuration
 
+<!-- tldr -->
+`settings.json` at any level in the soma chain (project → parent → global). Project overrides parent overrides global. Key settings: `protocols.hotThreshold` (default: 8), `protocols.warmThreshold` (3), `protocols.decayRate` (1), `muscles.tokenBudget` (2000), `muscles.maxFull` (2), `heat.autoDetect` (true). Only set what you want to change — defaults fill the rest.
+<!-- /tldr -->
+
 Soma's behavior is controlled through `settings.json` files. Settings are optional — Soma works with sensible defaults out of the box.
 
 ## Where Settings Live

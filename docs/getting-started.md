@@ -1,5 +1,9 @@
 # Getting Started
 
+<!-- tldr -->
+`npm i -g meetsoma` → `cd your-project` → `meetsoma`. First run creates `.soma/` and discovers identity. Use `meetsoma -c` to continue with last session's context. `/exhale` saves state, `/pin` keeps protocols hot, `/kill` drops them cold.
+<!-- /tldr -->
+
 ## Install
 
 ```bash

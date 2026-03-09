@@ -1,5 +1,9 @@
 # How Soma Works
 
+<!-- tldr -->
+Sessions are breaths: inhale (load identity + preload + protocols + muscles) → work → exhale (save state, decay heat, write preload). Fresh mode loads identity only. Continue mode (`-c`) adds last session's preload. Auto-exhale at 85% context. Heat system loads hot content fully, warm as breadcrumbs, cold stays dormant.
+<!-- /tldr -->
+
 ## The Core Idea
 
 Soma is an AI coding agent that **remembers**. Unlike tools that start fresh every session, Soma carries identity, context, and learned patterns across sessions.
