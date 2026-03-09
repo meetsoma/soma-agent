@@ -47,6 +47,25 @@ Soma monitors context usage and warns at thresholds:
 | `soma -c` | Continue — loads everything above + last session's preload |
 | `soma -r` | Resume — pick from previous sessions to restore |
 
+## Scripts
+
+Standalone bash tools in `scripts/` — usable outside the agent session.
+
+| Script | Description |
+|--------|-------------|
+| `soma-search.sh` | Query soma memory by type, status, tags, domain. Modes: `--brief`, `--deep` (TL;DR extraction), `--missing-tldr`. |
+| `soma-scan.sh` | Frontmatter scanner — audit protocols, muscles, plans for staleness and status. |
+| `soma-snapshot.sh` | Rolling zip snapshots of project directories. |
+| `soma-tldr.sh` | Generate or update TL;DR / digest sections in markdown files. |
+| `frontmatter-date-hook.sh` | Git pre-commit hook — auto-updates `updated:` field in modified `.md` files. |
+
+```bash
+# Examples
+scripts/soma-search.sh --type protocol --deep
+scripts/soma-scan.sh --stale
+scripts/soma-snapshot.sh . "pre-refactor"
+```
+
 ## The Breath Cycle
 
 Commands map to Soma's breath metaphor:
