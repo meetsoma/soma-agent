@@ -49,12 +49,13 @@ Pick from previous sessions to resume.
 
 | Command | What it does |
 |---------|-------------|
-| `/flush` | Write preload + prepare for continuation |
-| `/soma status` | Show memory status (identity, preload, muscles) |
+| `/exhale` | Save state, write preload for next session (alias: `/flush`) |
+| `/inhale` | Start fresh — reload identity + protocols without restarting |
+| `/soma status` | Show memory status (identity, preload, muscles, protocols) |
 | `/soma init` | Create `.soma/` in current directory |
-| `/preload` | List available preload files |
+| `/pin <name>` | Pin a protocol/muscle to hot (stays loaded) |
+| `/kill <name>` | Kill a protocol/muscle (drops to cold) |
 | `/status` | Show session stats (context %, turns, uptime) |
-| `/auto-continue` | Create new session with continuation prompt |
 
 ## The `.soma/` Directory
 
@@ -62,14 +63,15 @@ Created by `soma init` or on first run:
 
 ```
 .soma/
-├── identity.md              ← who Soma becomes (she writes this)
+├── identity.md              ← who Soma becomes (discovered through use)
 ├── STATE.md                 ← project architecture truth
+├── settings.json            ← configurable thresholds (optional)
+├── protocols/               ← behavioral rules (heat-tracked)
 ├── memory/
 │   ├── muscles/             ← patterns learned from experience
 │   ├── preload-next.md      ← continuation for next session
-│   ├── continuation-prompt.md ← exact next steps
 │   └── sessions/            ← daily logs
-└── skills/                  ← project-specific skills
+└── scripts/                 ← dev tooling (search, scan, etc.)
 ```
 
 ### What's Private vs Public

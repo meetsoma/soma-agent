@@ -10,25 +10,31 @@ Lives in your project root. Contains everything specific to this project.
 .soma/
 ├── identity.md              ← who Soma is in this project
 ├── STATE.md                 ← project architecture truth (ATLAS)
+├── settings.json            ← configurable thresholds (optional)
+├── .protocol-state.json     ← heat state for protocols (auto-managed)
+├── protocols/               ← behavioral rules (heat-tracked)
+│   ├── breath-cycle.md      ← hot: always loaded
+│   ├── git-identity.md      ← warm: breadcrumb in prompt
+│   └── _template.md         ← template for new protocols
 ├── memory/
 │   ├── muscles/             ← learned patterns (auto-discovered)
 │   │   └── deployment.md    ← example: learned deployment process
 │   ├── preload-next.md      ← state for next session inhale
-│   ├── continuation-prompt.md ← exact instructions for continuation
 │   └── sessions/
 │       └── 2026-03-08.md    ← daily work log
-├── skills/                  ← project-specific skills
-│   └── my-custom-skill/
-│       └── SKILL.md
+├── scripts/                 ← dev tooling (search, scan, TL;DR gen)
+├── skills/                  ← project-specific skills (optional)
 └── extensions/              ← project-specific extensions (optional)
 ```
 
 ### Marker Files
 
 Soma identifies a valid `.soma/` directory by looking for at least one of:
-- `identity.md`
 - `STATE.md`
+- `identity.md`
 - `memory/` directory
+- `protocols/` directory
+- `settings.json`
 
 ### Git Strategy
 
@@ -61,25 +67,24 @@ Global settings and runtime. Shared across all projects.
 ```
 Fresh session:
   ~/.soma/agent/extensions/ load
-  → walk up CWD for .soma/
+  → walk up CWD for .soma/ (project → parent → global chain)
   → load identity.md (always)
-  → inject into session as first message
+  → detect project signals (git, typescript, etc.)
+  → load protocols by heat (hot=full, warm=breadcrumb, cold=name)
+  → load muscles by heat within token budget
+  → surface scripts table
+  → inject into system prompt
 
 Resumed session (--continue):
   → same as above, plus:
   → load .soma/memory/preload-next.md
-  → inject preload after identity
+  → inject preload as continuation context
 
-Flush:
+Exhale (/exhale or auto at 85%):
   → agent writes .soma/memory/preload-next.md
-  → agent writes .soma/memory/continuation-prompt.md
+  → save protocol + muscle heat state (with decay for unused)
   → agent commits work
-  → "FLUSH COMPLETE" triggers auto-continue
-
-Auto-continue:
-  → new session created
-  → continuation-prompt.md injected as first message
-  → seamless handoff
+  → auto-continues into fresh session
 ```
 
 ## Multiple Projects
