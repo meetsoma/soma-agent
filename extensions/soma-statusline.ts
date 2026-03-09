@@ -230,12 +230,11 @@ export default function somaStatuslineExtension(pi: ExtensionAPI) {
 				const memDir = soma ? `${soma.path}/memory` : ".soma/memory";
 
 				pi.sendUserMessage(
-					`[AUTO-FLUSH — context at ${pct.toFixed(0)}%]\n\n` +
-					`Context is critically full. Flush NOW.\n\n` +
+					`[AUTO-EXHALE — context at ${pct.toFixed(0)}%]\n\n` +
+					`Context is critically full. Exhale NOW.\n\n` +
 					`1. Write \`${memDir}/preload-next.md\` — what shipped, key decisions, next priorities.\n` +
-					`2. Write \`${memDir}/continuation-prompt.md\` — instructions for fresh session.\n` +
-					`3. Commit all work.\n` +
-					`4. Say "FLUSH COMPLETE".`,
+					`2. Commit all work.\n` +
+					`3. Say "FLUSH COMPLETE".`,
 					{ deliverAs: "followUp" }
 				);
 			} else if (pct >= 80) {
