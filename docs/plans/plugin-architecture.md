@@ -1,7 +1,7 @@
 ---
 type: plan
 status: draft
-updated: 2026-03-10
+updated: 2026-03-09
 created: 2026-03-10
 tags: [architecture, plugins, skills, extensions, rituals, protocols, soma-init, slash-commands]
 ---
@@ -16,9 +16,9 @@ tags: [architecture, plugins, skills, extensions, rituals, protocols, soma-init,
 
 Let's be honest about the current state:
 
-**Extensions:** Three TypeScript files (`soma-boot.ts`, `soma-header.ts`, `soma-statusline.ts`) that hook into Pi's lifecycle. They work. They're manually installed to `~/.soma/agent/extensions/`. There's no install command, no versioning, no update mechanism.
+**Extensions:** Three TypeScript files (`soma-boot.ts`, `soma-header.ts`, `soma-statusline.ts`) that hook into Pi's lifecycle. They work. They're manually installed to `~/.soma/extensions/`. There's no install command, no versioning, no update mechanism.
 
-**Skills:** Markdown files copied to `~/.soma/agent/skills/`. Pi's skill resolver finds them by matching task descriptions to skill descriptions. Works, but discovery is manual — you have to know skills exist to install them.
+**Skills:** Markdown files copied to `~/.soma/skills/`. Pi's skill resolver finds them by matching task descriptions to skill descriptions. Works, but discovery is manual — you have to know skills exist to install them.
 
 **Rituals:** A concept in a doc. Nothing implemented. We said `/publish` would be the first one. It doesn't exist yet.
 
@@ -83,15 +83,15 @@ soma skill install favicon-gen
 1. CLI reads skill index (cached locally, refreshed periodically)
 2. Finds `favicon-gen` in the index
 3. Fetches the skill files from GitHub (sparse checkout or raw API)
-4. Writes to `~/.soma/agent/skills/favicon-gen/`
-5. Writes a local manifest (`~/.soma/agent/skills/.installed.json`) for tracking
+4. Writes to `~/.soma/skills/favicon-gen/`
+5. Writes a local manifest (`~/.soma/skills/.installed.json`) for tracking
 
 **Versioning:** Skills have a `version` field. `soma skill update` checks for newer versions. Simple semver comparison, not a full package manager.
 
 **Where do they install?**
 ```
-~/.soma/agent/skills/           ← user-global skills (most common)
-.soma/skills/                   ← project-local skills (override)
+~/.soma/skills/                 ← user-global skills (most common)
+<root>/skills/                  ← project-local skills (override)
 ```
 Project-local skills shadow user-global ones (same name = project wins).
 
@@ -110,7 +110,7 @@ Keep it simple. Extensions are what Soma ships with. If you want to customize, y
 Each extension is an npm package. `soma extension install @gravicity/soma-git-hooks`. Gets messy — dependency management, runtime compatibility, security.
 
 **C) Single-file extensions with a stable API**
-Extensions are `.ts` files that conform to a contract. The contract is Pi's extension API. Users drop files into `~/.soma/agent/extensions/`. No package manager needed.
+Extensions are `.ts` files that conform to a contract. The contract is Pi's extension API. Users drop files into `~/.soma/extensions/`. No package manager needed.
 
 **Leaning toward A for now, C eventually.** Extensions are power-user territory. Don't over-engineer the distribution before there's demand. Skills are the community play.
 
@@ -184,11 +184,18 @@ Cons: Fragile. Depends on the agent "remembering" the ritual. If the skill isn't
 
 ### 5. How does `soma init` work?
 
-**What it does:** Creates a `.soma/` directory in the current project with the right scaffolding.
+**What it does:** Creates the soma root directory in the current project with the right scaffolding.
+
+```bash
+soma init                    # creates .soma/ (default)
+soma init --root .claude     # creates .claude/ (for Claude Code users)
+soma init --root .cursor     # creates .cursor/ (for Cursor users)
+soma init --root custom/     # any path
+```
 
 **What gets created:**
 ```
-.soma/
+<root>/                  ← .soma/ by default, configurable
 ├── identity.md          ← project identity (templated)
 ├── STATE.md             ← project architecture truth (empty template)
 ├── settings.json        ← project config (protocol thresholds, etc.)
@@ -334,8 +341,8 @@ This is a Phase 2 website feature. The current site works without it. But it's i
        │
 ┌──────▼───────────────────────────────────────────────────────┐
 │                  ~/.soma/ (User Global)                       │
-│  identity.md · agent/skills/ · agent/extensions/ ·           │
-│  protocols/ · .protocol-state.json                           │
+│  identity.md · skills/ · extensions/ · protocols/ ·           │
+│  .protocol-state.json · settings.json                        │
 └──────────────────────────────────────────────────────────────┘
 ```
 
