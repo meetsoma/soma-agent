@@ -42,6 +42,8 @@ An AI coding agent with self-growing memory. Built on Pi (0.57.1) with custom `p
 │  ├── protocols.ts    — discovery, heat, injection    │
 │  ├── muscles.ts      — muscle discovery, loading,    │
 │  │                      heat, digest, token budget   │
+│  ├── settings.ts     — read + merge settings.json   │
+│  │                      from soma chain              │
 │  ├── init.ts         — scaffold new .soma/           │
 │  ├── utils.ts        — safeRead, fmtDuration         │
 │  └── index.ts        — public API re-exports         │
@@ -129,7 +131,7 @@ Configured via `~/.gitconfig` `includeIf` rules. See `curtismercier/protocols/gi
 | Quiet startup | `~/.soma/agent/settings.json` | `true` |
 | Collapse changelog | `~/.soma/agent/settings.json` | `true` |
 
-**Note:** `settings.json` is written by `core/init.ts` but NOT read at runtime yet (G7).
+**Note:** `settings.json` written by `core/init.ts`, read at runtime by `core/settings.ts` (G7 shipped). Project settings override parent, which override global. Missing fields use built-in defaults.
 
 ## What's Working
 
@@ -146,10 +148,10 @@ Configured via `~/.gitconfig` `includeIf` rules. See `curtismercier/protocols/gi
 | Gap | Ref | Blocking? |
 |-----|-----|-----------|
 | ~~Heat never bootstraps~~ | G1 | ✅ Shipped — `bootstrapProtocolState()` + `syncProtocolState()` |
-| Heat never updates mid-session | G2 | Yes — no learning |
+| ~~Heat never updates mid-session~~ | G2 | ✅ Shipped — auto-detect from tool_result + /pin /kill commands |
 | ~~Heat only saves on /flush~~ | G3 | ✅ Shipped — `session_shutdown` hook |
 | ~~Muscles don't load at boot~~ | G4 | ✅ Shipped — `core/muscles.ts` + boot integration |
-| Settings.json not read | G7 | No — defaults work |
+| ~~Settings.json not read~~ | G7 | ✅ Shipped — `core/settings.ts` reads + merges from chain |
 | `applies-to` filtering missing | G6 | No — all protocols load |
 | Muscle promotion | G8 | No — future |
 | Ritual system | G9 | No — future |

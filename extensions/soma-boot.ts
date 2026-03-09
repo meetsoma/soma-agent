@@ -30,8 +30,12 @@ import {
 	buildMuscleInjection,
 	trackMuscleLoads,
 	decayMuscleHeat,
+	bumpMuscleHeat,
+	recordHeatEvent,
+	loadSettings,
 	initSoma,
 	type SomaDir,
+	type SomaSettings,
 	type ProtocolState,
 } from "../core/index.js";
 
@@ -55,9 +59,12 @@ const SCRIPT_DESCRIPTIONS: Record<string, string> = {
 export default function somaBootExtension(pi: ExtensionAPI) {
 
 	let soma: SomaDir | null = null;
+	let settings: SomaSettings | null = null;
 	let protocolState: ProtocolState | null = null;
 	let protocolsReferenced = new Set<string>();
 	let musclesReferenced = new Set<string>();
+	let knownProtocolNames: string[] = [];
+	let knownMuscleNames: string[] = [];
 	let booted = false;
 	let lastContextWarningPct = 0;
 
@@ -93,6 +100,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const parts: string[] = [];
 		const chain = getSomaChain();
 
+		// Settings (merged from chain: project overrides parent overrides global)
+		settings = loadSettings(chain);
+
 		// Identity (layered: project → parent → global)
 		const identity = buildLayeredIdentity(chain);
 		if (identity) {
@@ -113,21 +123,24 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 		// Protocols (discover from chain, build injection)
 		const protocols = discoverProtocolChain(chain);
+		knownProtocolNames = protocols.map(p => p.name);
 		if (protocols.length > 0) {
 			protocolState = loadProtocolState(soma);
 
+			const protoThresholds = settings.protocols;
+
 			if (!protocolState) {
 				// G1: First boot — bootstrap state from heat-default values
-				protocolState = bootstrapProtocolState(protocols);
+				protocolState = bootstrapProtocolState(protocols, protoThresholds);
 				saveProtocolState(soma, protocolState);
 			} else {
 				// Sync: add entries for any new protocols discovered since last boot
-				if (syncProtocolState(protocolState, protocols)) {
+				if (syncProtocolState(protocolState, protocols, protoThresholds)) {
 					saveProtocolState(soma, protocolState);
 				}
 			}
 
-			const injection = buildProtocolInjection(protocols, protocolState);
+			const injection = buildProtocolInjection(protocols, protocolState, protoThresholds);
 			if (injection.systemPromptBlock.trim()) {
 				parts.push(`\n---\n${injection.systemPromptBlock}`);
 			}
@@ -135,8 +148,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 		// Muscles (discover from chain, load by heat within token budget)
 		const muscles = discoverMuscleChain(chain);
+		knownMuscleNames = muscles.map(m => m.name);
 		if (muscles.length > 0) {
-			const muscleInjection = buildMuscleInjection(muscles);
+			const muscleInjection = buildMuscleInjection(muscles, settings.muscles);
 			if (muscleInjection.systemPromptBlock.trim()) {
 				parts.push(`\n---\n${muscleInjection.systemPromptBlock}`);
 			}
@@ -233,13 +247,154 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 	pi.on("session_shutdown", async () => {
 		if (!soma) return;
+		const decay = settings?.protocols.decayRate ?? 1;
 		// Decay protocol heat
 		if (protocolState) {
-			applyDecay(protocolState, protocolsReferenced);
+			applyDecay(protocolState, protocolsReferenced, decay);
 			saveProtocolState(soma, protocolState);
 		}
 		// Decay muscle heat
-		decayMuscleHeat(soma, musclesReferenced);
+		decayMuscleHeat(soma, musclesReferenced, decay);
+	});
+
+	// -------------------------------------------------------------------
+	// G2: Mid-session heat tracking — auto-detect from tool results (PI132)
+	// -------------------------------------------------------------------
+
+	// Detection rules: map tool actions to protocol/muscle names
+	const HEAT_RULES: Array<{
+		match: (toolName: string, input: any, output: string) => boolean;
+		target: string;  // protocol or muscle name
+		type: "protocol" | "muscle";
+	}> = [
+		// frontmatter-standard: agent writes a file with YAML frontmatter
+		{
+			match: (tool, input) =>
+				tool === "write" &&
+				typeof input?.content === "string" &&
+				input.content.startsWith("---\n"),
+			target: "frontmatter-standard",
+			type: "protocol",
+		},
+		// git-identity: agent runs git config or git commit
+		{
+			match: (tool, input) =>
+				tool === "bash" &&
+				typeof input?.command === "string" &&
+				/git (config|commit|push|remote)/.test(input.command),
+			target: "git-identity",
+			type: "protocol",
+		},
+		// breath-cycle: agent writes a preload file
+		{
+			match: (tool, input) =>
+				tool === "write" &&
+				typeof input?.path === "string" &&
+				/preload|continuation/.test(input.path),
+			target: "breath-cycle",
+			type: "protocol",
+		},
+		// svg-logo-design muscle: agent writes SVG
+		{
+			match: (tool, input) =>
+				tool === "write" &&
+				typeof input?.path === "string" &&
+				input.path.endsWith(".svg"),
+			target: "svg-logo-design",
+			type: "muscle",
+		},
+		// github-app-auth muscle: agent uses gh-app-token or GH_APP_TOKEN
+		{
+			match: (tool, input) =>
+				tool === "bash" &&
+				typeof input?.command === "string" &&
+				/gh-app-token|GH_APP_TOKEN/.test(input.command),
+			target: "github-app-auth",
+			type: "muscle",
+		},
+	];
+
+	pi.on("tool_result", async (event) => {
+		if (!soma || !protocolState || !settings?.heat.autoDetect) return;
+
+		const toolName = event.toolName;
+		const input = event.input as any;
+		const output = typeof event.output === "string" ? event.output : "";
+		const bump = settings.heat.autoDetectBump;
+
+		for (const rule of HEAT_RULES) {
+			if (!rule.match(toolName, input, output)) continue;
+
+			if (rule.type === "protocol" && knownProtocolNames.includes(rule.target)) {
+				if (!protocolsReferenced.has(rule.target)) {
+					protocolsReferenced.add(rule.target);
+					recordHeatEvent(protocolState, rule.target, "applied");
+				}
+			} else if (rule.type === "muscle" && knownMuscleNames.includes(rule.target)) {
+				if (!musclesReferenced.has(rule.target)) {
+					musclesReferenced.add(rule.target);
+					bumpMuscleHeat(soma, rule.target, bump);
+				}
+			}
+		}
+	});
+
+	// -------------------------------------------------------------------
+	// /pin and /kill commands — manual heat overrides (PI132)
+	// -------------------------------------------------------------------
+
+	pi.registerCommand("pin", {
+		description: "Pin a protocol or muscle to hot — keeps it loaded across sessions",
+		handler: async (args, ctx) => {
+			const name = args.trim();
+			if (!name) {
+				ctx.ui.notify("Usage: /pin <protocol-or-muscle-name>", "info");
+				return;
+			}
+			if (!soma || !protocolState) {
+				ctx.ui.notify("No soma booted", "error");
+				return;
+			}
+
+			if (knownProtocolNames.includes(name)) {
+				recordHeatEvent(protocolState, name, "pinned");
+				saveProtocolState(soma, protocolState);
+				protocolsReferenced.add(name);
+				ctx.ui.notify(`📌 ${name} pinned (heat locked hot)`, "info");
+			} else if (knownMuscleNames.includes(name)) {
+				bumpMuscleHeat(soma, name, settings?.heat.pinBump ?? 5);
+				musclesReferenced.add(name);
+				ctx.ui.notify(`📌 ${name} pinned (heat bumped to hot)`, "info");
+			} else {
+				ctx.ui.notify(`Unknown protocol or muscle: ${name}`, "error");
+			}
+		},
+	});
+
+	pi.registerCommand("kill", {
+		description: "Kill a protocol or muscle — drops heat to zero",
+		handler: async (args, ctx) => {
+			const name = args.trim();
+			if (!name) {
+				ctx.ui.notify("Usage: /kill <protocol-or-muscle-name>", "info");
+				return;
+			}
+			if (!soma || !protocolState) {
+				ctx.ui.notify("No soma booted", "error");
+				return;
+			}
+
+			if (knownProtocolNames.includes(name)) {
+				recordHeatEvent(protocolState, name, "killed");
+				saveProtocolState(soma, protocolState);
+				ctx.ui.notify(`💀 ${name} killed (heat → 0)`, "info");
+			} else if (knownMuscleNames.includes(name)) {
+				bumpMuscleHeat(soma, name, -15); // Force to 0 (clamped in bumpMuscleHeat)
+				ctx.ui.notify(`💀 ${name} killed (heat → 0)`, "info");
+			} else {
+				ctx.ui.notify(`Unknown protocol or muscle: ${name}`, "error");
+			}
+		},
 	});
 
 	// -------------------------------------------------------------------
@@ -258,13 +413,14 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const logPath = join(memDir, "sessions", `${today}.md`);
 
 		// Save protocol heat state on exhale
+		const decay = settings?.protocols.decayRate ?? 1;
 		if (protocolState && soma) {
-			applyDecay(protocolState, protocolsReferenced);
+			applyDecay(protocolState, protocolsReferenced, decay);
 			saveProtocolState(soma, protocolState);
 		}
 		// Decay muscle heat on exhale
 		if (soma) {
-			decayMuscleHeat(soma, musclesReferenced);
+			decayMuscleHeat(soma, musclesReferenced, decay);
 		}
 
 		pi.sendUserMessage(

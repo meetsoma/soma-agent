@@ -66,4 +66,11 @@ export {
 } from "./muscles.js";
 export type { Muscle, MuscleInjection, MuscleLoadConfig } from "./muscles.js";
 
+export {
+	loadSettings,
+	loadSettingsFile,
+	getDefaultSettings,
+} from "./settings.js";
+export type { SomaSettings } from "./settings.js";
+
 export { safeRead, fmtDuration } from "./utils.js";

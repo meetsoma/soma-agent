@@ -81,6 +81,18 @@ export function initSoma(cwd: string, options: InitOptions = {}): string {
 				maxBreadcrumbsInPrompt: 10,
 				maxFullProtocolsInPrompt: 3,
 			},
+			muscles: {
+				tokenBudget: 2000,
+				maxFull: 2,
+				maxDigest: 8,
+				fullThreshold: 5,
+				digestThreshold: 1,
+			},
+			heat: {
+				autoDetect: true,
+				autoDetectBump: 1,
+				pinBump: 5,
+			},
 		};
 		writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n");
 	}

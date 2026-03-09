@@ -22,7 +22,7 @@ and we're not following our own protocols. This plan maps every gap and sequence
 | # | Gap | Impact | Fix |
 |---|-----|--------|-----|
 | G1 | ~~**Heat never initializes**~~ ✅ | `.protocol-state.json` bootstrapped on first boot. `bootstrapProtocolState()` seeds from `heat-default`. `syncProtocolState()` handles new protocols appearing later. | Shipped 2026-03-09. `core/protocols.ts` + `soma-boot.ts`. |
-| G2 | **Heat never updates mid-session** | `recordHeatEvent()` exists but nothing calls it. Protocol usage untracked. | Need a detection mechanism. Simplest: agent self-reports via `/protocol-used <name>`. Better: extension detects protocol references in assistant messages. |
+| G2 | ~~**Heat never updates mid-session**~~ ✅ | `tool_result` hook auto-detects protocol/muscle usage (frontmatter writes → frontmatter-standard, git commands → git-identity, etc). `/pin` and `/kill` commands for manual override. Settings control `heat.autoDetect`, `heat.autoDetectBump`, `heat.pinBump`. | Shipped 2026-03-09. `soma-boot.ts` tool_result handler + /pin + /kill. |
 | G3 | ~~**Heat only saves on /flush**~~ ✅ | Saves on `/exhale` (~~`/flush`~~) AND `session_shutdown`. Decay applied to unused protocols on both paths. | Shipped 2026-03-09. `soma-boot.ts` `session_shutdown` hook. |
 | G4 | ~~**Muscles never load at boot**~~ ✅ | `core/muscles.ts` discovers muscles, sorts by heat, loads within token budget (digest-first). `soma-boot.ts` loads at boot, tracks load counts, decays heat on shutdown/flush. | Shipped 2026-03-09. `core/muscles.ts` + `soma-boot.ts`. |
 | G5 | **ATLAS files stale** | Both `STATE.md` (internal) and `products/soma/agent/STATE.md` (ecosystem) are out of date. Missing core extraction, protocols, git identity. | Update both. This session or next. |
@@ -32,7 +32,7 @@ and we're not following our own protocols. This plan maps every gap and sequence
 | # | Gap | Impact | Fix |
 |---|-----|--------|-----|
 | G6 | **No `applies-to` filtering** | Every protocol loads regardless of context. Git-identity loads when editing CSS. | Add `applies-to` frontmatter field. Filter in `discoverProtocols()` based on project signals (has `.git/`? has `package.json`? framework detection). |
-| G7 | **No `settings.json` reading** | `core/init.ts` writes one, but nothing reads it at runtime. Thresholds are hardcoded. | `core/settings.ts` module. Read at boot, merge with defaults. Pass to protocol/muscle loaders. |
+| G7 | ~~**No `settings.json` reading**~~ ✅ | `core/settings.ts` reads and merges from soma chain (project → parent → global). Defaults built-in. Sections: protocols, muscles, heat. `soma-boot.ts` passes settings to all loaders. | Shipped 2026-03-09. `core/settings.ts` + init.ts updated. |
 | G8 | **No muscle promotion** | Muscles stay project-level forever. No cross-project learning. | Track loads across projects (needs global state file at `~/.soma/`). Promote when threshold hit. Future — not blocking. |
 | G9 | **No ritual system** | Three-layer model has rituals defined but no runtime. | Phase 2. Not blocking anything right now. |
 
@@ -52,13 +52,11 @@ Phase 1 — Foundation ✅ (2026-03-09)
   G1: Bootstrap heat state on first boot       ← done: bootstrapProtocolState() + syncProtocolState()
   G3: Save heat on session_shutdown too        ← done: session_shutdown hook
 
-Phase 2 — Core Runtime
-  G4: Muscle loading at boot                   ← ✅ shipped 2026-03-09
-  G7: Settings.json reading                    ← new module, 30 min
-  G6: applies-to filtering                     ← extend protocols.ts, 30 min
-
-Phase 3 — Adaptive Heat
-  G2: Mid-session heat tracking                ← needs design decision (self-report vs auto-detect)
+Phase 2 — Core Runtime ✅ (2026-03-09)
+  G4: Muscle loading at boot                   ← ✅ shipped
+  G7: Settings.json reading                    ← ✅ shipped
+  G2: Mid-session heat tracking                ← ✅ shipped (hybrid: auto-detect + /pin /kill)
+  G6: applies-to filtering                     ← remaining — extend protocols.ts
 
 Phase 4 — Advanced (future)
   G8: Muscle promotion

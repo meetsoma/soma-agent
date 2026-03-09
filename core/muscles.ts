@@ -337,7 +337,7 @@ export function bumpMuscleHeat(soma: SomaDir, muscleName: string, amount: number
 
 	const fm = extractFrontmatter(content);
 	const currentHeat = parseInt(fm["heat"] || "0", 10) || 0;
-	const newHeat = Math.min(currentHeat + amount, 15);
+	const newHeat = Math.max(0, Math.min(currentHeat + amount, 15));
 
 	const updated = content.replace(
 		/^(---\n[\s\S]*?)heat:\s*\d+([\s\S]*?\n---)/,
