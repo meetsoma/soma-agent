@@ -9,7 +9,8 @@
 #   3. Protocol state sync — new protocols get added to existing state
 #   4. Frontmatter extraction — all protocols have required fields
 #   5. TL;DR sections — all protocols 50+ lines have TL;DR
-#   6. Muscle frontmatter — all muscles have required fields
+#   5. Search script — query by type, tags, deep mode
+#   6. Scan script — frontmatter scanner across project
 #   7. Protocol state file — valid JSON with version and protocols
 #   8. Boot integration — soma --version boots clean
 
@@ -138,7 +139,61 @@ for f in "$SOMA_DIR"/memory/muscles/*.md; do
 done
 
 # ---------------------------------------------------------------------------
-# 6. Protocol State File
+# 5. Search Script
+# ---------------------------------------------------------------------------
+section "Search Script"
+
+SEARCH="$PROJECT_DIR/scripts/soma-search.sh"
+if [[ -x "$SEARCH" ]]; then
+  result=$(bash "$SEARCH" 2>&1)
+  echo "$result" | grep -q "docs found" && pass "soma-search.sh runs" \
+    || fail "soma-search.sh failed to run"
+
+  # Type filter
+  result=$(bash "$SEARCH" --type protocol 2>&1)
+  proto_found=$(echo "$result" | grep "docs found" | grep -o '[0-9]*')
+  [[ "$proto_found" -ge 4 ]] && pass "--type protocol finds ≥4" \
+    || fail "--type protocol found $proto_found (expected ≥4)"
+
+  # Deep mode extracts TL;DR
+  result=$(bash "$SEARCH" --deep --type protocol 2>&1)
+  echo "$result" | grep -q "breath-cycle" && pass "--deep shows breath-cycle TL;DR" \
+    || fail "--deep missing breath-cycle"
+
+  # Tags filter
+  result=$(bash "$SEARCH" --tags git 2>&1)
+  echo "$result" | grep -q "docs found" && pass "--tags filter returns results" \
+    || fail "--tags filter failed"
+
+  # Missing TL;DR finder
+  result=$(bash "$SEARCH" --missing-tldr 2>&1)
+  echo "$result" | grep -q "docs found" && pass "--missing-tldr runs" \
+    || fail "--missing-tldr failed"
+else
+  fail "soma-search.sh not found at scripts/soma-search.sh"
+fi
+
+# ---------------------------------------------------------------------------
+# 6. Scan Script
+# ---------------------------------------------------------------------------
+section "Scan Script"
+
+SCAN="$PROJECT_DIR/scripts/soma-scan.sh"
+if [[ -x "$SCAN" ]]; then
+  result=$(bash "$SCAN" --type protocol 2>&1)
+  echo "$result" | grep -q "protocol" && pass "soma-scan.sh finds protocols" \
+    || fail "soma-scan.sh found nothing"
+
+  # Staleness filter runs
+  result=$(bash "$SCAN" --stale 2>&1)
+  echo "$result" | grep -q "docs shown" && pass "--stale filter runs" \
+    || fail "--stale filter failed"
+else
+  fail "soma-scan.sh not found at scripts/soma-scan.sh"
+fi
+
+# ---------------------------------------------------------------------------
+# 7. Protocol State File
 # ---------------------------------------------------------------------------
 section "Protocol State (.protocol-state.json)"
 
