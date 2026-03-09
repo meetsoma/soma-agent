@@ -2,7 +2,7 @@
 type: plan
 status: complete
 created: 2026-03-10
-updated: 2026-03-10
+updated: 2026-03-09
 tags: [directory, organization, workspace, cleanup]
 priority: high
 ---
@@ -159,7 +159,7 @@ mv ~/Gravicity/Soma/logos ~/Gravicity/products/soma/agent/.soma/
 mv ~/Gravicity/Soma ~/Gravicity/archives/soma-personal
 
 # 7. Update ~/.soma/ symlinks
-cd ~/.soma/agent/extensions
+cd ~/.soma/extensions
 rm soma-boot.ts soma-header.ts soma-statusline.ts
 ln -s ~/Gravicity/products/soma/agent/extensions/soma-boot.ts .
 ln -s ~/Gravicity/products/soma/agent/extensions/soma-header.ts .

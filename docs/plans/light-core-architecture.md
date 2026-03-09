@@ -1,7 +1,7 @@
 ---
 type: plan
 status: draft
-updated: 2026-03-10
+updated: 2026-03-09
 created: 2026-03-10
 tags: [architecture, core, parent-child, memory-flow, light-core, body-that-grows]
 ---
@@ -60,7 +60,11 @@ That's ~6 files of actual logic. Everything else is a plugin.
 
 The header, statusline, greeting — those are extensions that happen to ship in the default install. But they're removable. Someone could run Soma with zero extensions and it would still work — it just wouldn't be pretty.
 
-## The `.soma/` Anatomy
+## The Root Directory Anatomy
+
+> The root directory is `.soma/` by default but configurable. Claude Code users can use `.claude/`, Cursor users `.cursor/`, or any custom path. The internal structure is identical. `soma init --root .claude` scaffolds into `.claude/` instead. Discovery scans for `.soma/` first, then aliases (`.claude/`, `.cursor/`). See `protocol-architecture.md` → Agnostic Root for the full design.
+>
+> Throughout this doc, `.soma/` means "the soma root directory, whatever it's called."
 
 ```
 .soma/                          ← this IS the body
@@ -249,7 +253,7 @@ Skills also follow the hierarchy. When the agent needs a skill, it looks:
 ```
 1. .soma/skills/              ← project-level (most specific)
 2. ../.soma/skills/           ← parent workspace level
-3. ~/.soma/agent/skills/      ← user global
+3. ~/.soma/skills/             ← user global
 4. (remote registry)          ← fetch and install if not found locally
 ```
 

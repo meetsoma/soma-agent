@@ -2,7 +2,7 @@
 type: plan
 status: draft
 created: 2026-03-10
-updated: 2026-03-10
+updated: 2026-03-09
 tags: [architecture, protocols, heat-tracking, system-prompt, plugin, enterprise]
 related: [plugin-architecture, light-core-architecture, breath-cycle]
 ---
@@ -25,10 +25,12 @@ With protocols, Soma's plugin architecture becomes four layers:
 
 | Layer | What | Format | Installs To | Who Makes Them |
 |-------|------|--------|-------------|----------------|
-| **Extensions** | Runtime hooks into Pi lifecycle | `.ts` | `~/.soma/agent/extensions/` | Power users / Soma core |
-| **Skills** | Knowledge + procedures | `.md` | `~/.soma/agent/skills/` | Anyone |
-| **Rituals** | Multi-step skills with `/trigger` | `.md` | `~/.soma/agent/skills/` | Anyone |
-| **Protocols** | Behavioral rules / standards | `.md` | `.soma/protocols/` | Anyone |
+| **Extensions** | Runtime hooks into Pi lifecycle | `.ts` | `<root>/extensions/` | Power users / Soma core |
+| **Skills** | Knowledge + procedures | `.md` | `<root>/skills/` | Anyone |
+| **Rituals** | Multi-step skills with `/trigger` | `.md` | `<root>/skills/` | Anyone |
+| **Protocols** | Behavioral rules / standards | `.md` | `<root>/protocols/` | Anyone |
+
+> **`<root>`** = `.soma/` by default. Configurable per project or globally. Can point to `.claude/`, `.cursor/`, or any custom path. The internal structure is the same regardless of root name. See **Agnostic Root** section below.
 
 ### How They Differ
 
@@ -38,6 +40,45 @@ With protocols, Soma's plugin architecture becomes four layers:
 **Extensions** = "I hook into lifecycle event X" → always running
 
 Skills are **reactive** (loaded when needed). Protocols are **ambient** (shape behavior continuously). That's the core distinction.
+
+---
+
+## Agnostic Root Directory
+
+Soma's directory convention is `.soma/` but the structure works with any root name. Users already on Claude Code have `.claude/`. Cursor users have `.cursor/`. Soma shouldn't force a migration — it should meet people where they are.
+
+```json
+// ~/.soma/settings.json (global config)
+{
+  "root": {
+    "global": "~/.soma",
+    "project_default": ".soma",
+    "aliases": [".claude", ".cursor"],
+    "scan_order": [".soma", ".claude", ".cursor"]
+  }
+}
+```
+
+**How discovery works:**
+1. Look for `<project_default>/` first (`.soma/` by default)
+2. If not found, check `aliases` in order (`.claude/`, `.cursor/`)
+3. First match wins — that's your project root
+4. If nothing found and `soma init` runs, create `<project_default>/`
+
+**What this means:**
+- Someone using Claude Code can `soma init --root .claude` and everything installs into `.claude/skills/`, `.claude/protocols/`, etc.
+- Or they keep `.claude/` for Claude stuff and `.soma/` for Soma stuff — their choice
+- The internal directory structure (`skills/`, `protocols/`, `extensions/`, `memory/`, `identity.md`, `settings.json`) is identical regardless of root
+
+**Per-project override:**
+```json
+// .soma/settings.json (or .claude/settings.json)
+{
+  "root": ".claude"
+}
+```
+
+This is a v2 feature. v1 ships with `.soma/` hardcoded. But the architecture accounts for it now so we don't have to refactor later.
 
 ---
 
@@ -230,16 +271,174 @@ This means the agent's behavioral context **evolves across sessions** based on w
   ├── frontmatter-standard.md
   └── .protocol-state.json
 
-.soma/protocols/                ← project-local protocols (override/extend)
+<root>/protocols/               ← project-local protocols (override/extend)
   ├── api-naming.md             ← project-specific
   ├── deployment-checklist.md   ← project-specific
   └── .protocol-state.json      ← separate heat tracking per project
 ```
 
+> `<root>` is `.soma/` by default but can be `.claude/`, `.cursor/`, or custom. See **Agnostic Root** below.
+
 Resolution order:
 1. Project protocols loaded first
-2. Global protocols loaded if not shadowed by project (same name = project wins)
-3. Heat tracked separately per scope (a protocol can be hot globally but cold in a specific project)
+2. Parent protocols loaded if not shadowed by project (same name = project wins)
+3. Global protocols loaded if not shadowed by project or parent
+4. Heat tracked separately per scope (a protocol can be hot globally but cold in a specific project)
+
+---
+
+## Parent-Child Protocol Flow
+
+### The Problem
+
+A workspace has many projects. Each has its own `.soma/protocols/`. The parent workspace needs awareness of what behavioral rules its children follow — but shouldn't duplicate them.
+
+### The Convention
+
+```
+Gravicity/                              ← workspace
+├── .soma/                              ← parent
+│   ├── protocols/
+│   │   ├── breath-cycle.md             ← parent's own protocols
+│   │   ├── frontmatter-standard.md
+│   │   └── @children/                  ← child protocol references
+│   │       ├── agent/                  ← symlinks to child protocols
+│   │       │   ├── heat-tracking.md → ../../../products/soma/agent/.soma/protocols/heat-tracking.md
+│   │       │   └── api-naming.md → ...
+│   │       └── website/
+│   │           └── seo-standard.md → ...
+│   ├── .protocol-state.json            ← parent heat (includes child breadcrumbs)
+│   └── settings.json
+│
+├── products/soma/agent/                ← child
+│   └── .soma/
+│       ├── protocols/
+│       │   ├── heat-tracking.md        ← child's own protocol
+│       │   └── api-naming.md
+│       ├── .protocol-state.json        ← child's own heat tracking
+│       └── settings.json               ← { "protocols": { "flowUp": true } }
+│
+└── products/soma/website/              ← child
+    └── .soma/
+        ├── protocols/
+        │   └── seo-standard.md
+        └── settings.json               ← { "protocols": { "flowUp": true } }
+```
+
+### How It Works
+
+**`@children/` directory** holds symlinks to child protocols. Not copies — live references. Parent reads the child's actual file through the symlink. When the child updates their protocol, the parent sees it immediately.
+
+The `@` prefix is convention — it signals "these aren't mine, they're references."
+
+**Child controls what flows up** (consistent with memory flow rules):
+
+```json
+// child .soma/settings.json
+{
+  "protocols": {
+    "flowUp": true,
+    "flowFilter": {
+      "mode": "include",
+      "rules": [
+        { "scope": "shared" },
+        { "heat": { "min": 5 } }
+      ]
+    }
+  }
+}
+```
+
+- `flowUp: false` — child protocols stay private. Parent never sees them.
+- `flowUp: true` + filter — only protocols matching rules are visible to parent.
+- Protocols need `scope: shared` in frontmatter to be eligible (local by default, safe by default).
+
+### Parent Boot Behavior
+
+When parent `.soma/` boots (inhale), protocol discovery:
+
+1. Scan own `protocols/` (parent's protocols)
+2. Scan `protocols/@children/*/` (symlinked child protocols)
+3. For child protocols: **only load breadcrumbs**, never full content
+4. Apply parent's heat model — child protocols have their own heat in parent's `.protocol-state.json`
+5. A child protocol that's HOT in the child might be COLD in the parent (different heat contexts)
+
+**Key rule: parent loads child protocols as breadcrumbs only.** The full protocol content belongs to the child's context. The parent just needs awareness — "agent follows api-naming conventions, website follows seo-standard." This keeps the parent's system prompt lean.
+
+### Wiring: `soma set parent`
+
+Connection is explicit. No magic scanning.
+
+```bash
+# In a child project
+cd ~/Gravicity/products/soma/agent
+soma set parent ~/Gravicity
+
+# What this does:
+# 1. Reads child's settings.json → gets flowUp config
+# 2. For each protocol with scope: shared → creates symlink in parent's @children/{dirname}/
+# 3. Updates parent's settings.json children list
+# 4. Writes connection to child's settings.json: { "parent": "../../" }
+```
+
+```bash
+# CLI commands (future)
+soma set parent <path>          # wire this project as child of parent
+soma unset parent               # remove parent connection
+soma children list              # (from parent) show connected children
+soma children sync              # (from parent) refresh @children/ symlinks
+soma protocols list --tree      # show full hierarchy: global → parent → project
+```
+
+### What the Script Does (v1 — shell, not full CLI)
+
+```bash
+# soma-set-parent.sh — wire parent-child protocol flow
+# Usage: soma-set-parent.sh <parent-soma-path>
+
+# 1. Validate both .soma/ dirs exist
+# 2. Read child protocols with scope: shared
+# 3. Create parent/.soma/protocols/@children/{child-name}/ dir
+# 4. Symlink each shared protocol
+# 5. Update both settings.json files
+```
+
+This is a one-time setup command. After wiring, the symlinks are live. No ongoing sync needed — the symlink IS the connection.
+
+### Heat Across the Hierarchy
+
+Each level has its own `.protocol-state.json`. A protocol's heat is contextual:
+
+```
+frontmatter-standard:
+  global (~/.soma):        heat 10 (HOT — you use it everywhere)
+  parent (Gravicity):      heat 8  (HOT — workspace standard)  
+  child (agent):           heat 7  (WARM — used but not critical here)
+  child (website):         heat 3  (WARM — less relevant for content site)
+
+api-naming:
+  global:                  heat 0  (COLD — not a global concern)
+  parent:                  heat 4  (WARM — aware via @children/ breadcrumb)
+  child (agent):           heat 9  (HOT — used constantly in API work)
+  child (website):         heat 0  (COLD — doesn't apply)
+```
+
+The parent doesn't inherit child heat. It tracks its own heat for child protocols based on how often the *parent* context references them. A protocol can be hot in one child and cold in the parent — that's correct. The parent only needs awareness, not full engagement.
+
+### Symlink Resilience
+
+Symlinks break if the child moves. Mitigation:
+- `soma children sync` re-scans and repairs broken symlinks
+- `.protocol-state.json` stores the original path — can warn on broken links
+- If a symlink is broken at boot, skip it with a warning, don't crash
+
+### Why Not Copy?
+
+Copies go stale. The child updates a protocol and the parent has an old version. Symlinks are live. The tradeoff (fragility on move) is worth it — you rarely move project directories, and when you do, `soma children sync` fixes it.
+
+### Why Not Full Content at Parent?
+
+Token budget. A workspace with 5 children, each with 3 protocols, means 15 extra protocol files. At ~300 tokens each, that's 4500 tokens just for child protocol awareness. Breadcrumbs at ~20 tokens each = 300 tokens. 15x reduction. The parent needs to know *what rules children follow*, not memorize every rule.
 
 ---
 
