@@ -40,12 +40,15 @@ An AI coding agent with self-growing memory. Built on Pi (0.57.1) with custom `p
 │  ├── identity.ts     — load + layer identity files   │
 │  ├── preload.ts      — session resumption            │
 │  ├── protocols.ts    — discovery, heat, injection    │
+│  ├── muscles.ts      — muscle discovery, loading,    │
+│  │                      heat, digest, token budget   │
 │  ├── init.ts         — scaffold new .soma/           │
 │  ├── utils.ts        — safeRead, fmtDuration         │
 │  └── index.ts        — public API re-exports         │
 │                                                      │
 │  Extensions (products/soma/agent/extensions/)          │
-│  ├── soma-boot.ts       — identity, preload, protos  │
+│  ├── soma-boot.ts       — identity, preload, protos, │
+│  │                        muscles, heat decay        │
 │  ├── soma-header.ts     — branded σῶμα header        │
 │  └── soma-statusline.ts — footer + context monitor   │
 │                                                      │
@@ -97,7 +100,7 @@ Three loading tiers per doc:
 
 Frontmatter convention: files keep `type`, `status`, `updated`, `tags` for tooling (`soma-scan.sh`). Runtime-only fields (`name`, `heat-default`, `breadcrumb`, `scope`, `tier`) for the protocol loader. Attribution metadata (`author`, `license`, `version`, `created`, `upstream`) in trailing HTML comment.
 
-**Runtime gaps (remaining):** Muscles don't load at boot (G4), `applies-to` filtering not implemented (G6), settings.json not read (G7). Heat bootstrap (G1) and session_shutdown save (G3) shipped 2026-03-09. See `docs/plans/runtime-gaps.md`.
+**Runtime gaps (remaining):** `applies-to` filtering not implemented (G6), settings.json not read (G7), mid-session heat tracking (G2). Heat bootstrap (G1), session_shutdown save (G3), and muscle loading (G4) all shipped 2026-03-09. See `docs/plans/runtime-gaps.md`.
 
 ## Protocol Inventory
 
@@ -130,7 +133,7 @@ Configured via `~/.gitconfig` `includeIf` rules. See `curtismercier/protocols/gi
 
 ## What's Working
 
-- ✅ Boot: discovery → identity → preload → protocol injection
+- ✅ Boot: discovery → identity → preload → protocol injection → muscle loading
 - ✅ Header: σῶμα brand, memory status dots, protocol count
 - ✅ Statusline: model, context %, cost, git, uptime
 - ✅ Context warnings: 50% → 70% → 80% → 85% auto-flush
@@ -144,7 +147,7 @@ Configured via `~/.gitconfig` `includeIf` rules. See `curtismercier/protocols/gi
 | ~~Heat never bootstraps~~ | G1 | ✅ Shipped — `bootstrapProtocolState()` + `syncProtocolState()` |
 | Heat never updates mid-session | G2 | Yes — no learning |
 | ~~Heat only saves on /flush~~ | G3 | ✅ Shipped — `session_shutdown` hook |
-| Muscles don't load at boot | G4 | Yes — AMP half-implemented |
+| ~~Muscles don't load at boot~~ | G4 | ✅ Shipped — `core/muscles.ts` + boot integration |
 | Settings.json not read | G7 | No — defaults work |
 | `applies-to` filtering missing | G6 | No — all protocols load |
 | Muscle promotion | G8 | No — future |

@@ -56,4 +56,14 @@ export {
 } from "./init.js";
 export type { InitOptions } from "./init.js";
 
+export {
+	discoverMuscles,
+	discoverMuscleChain,
+	buildMuscleInjection,
+	trackMuscleLoads,
+	bumpMuscleHeat,
+	decayMuscleHeat,
+} from "./muscles.js";
+export type { Muscle, MuscleInjection, MuscleLoadConfig } from "./muscles.js";
+
 export { safeRead, fmtDuration } from "./utils.js";

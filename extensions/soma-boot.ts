@@ -25,6 +25,10 @@ import {
 	syncProtocolState,
 	buildProtocolInjection,
 	applyDecay,
+	discoverMuscleChain,
+	buildMuscleInjection,
+	trackMuscleLoads,
+	decayMuscleHeat,
 	initSoma,
 	type SomaDir,
 	type ProtocolState,
@@ -39,6 +43,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let soma: SomaDir | null = null;
 	let protocolState: ProtocolState | null = null;
 	let protocolsReferenced = new Set<string>();
+	let musclesReferenced = new Set<string>();
 	let booted = false;
 	let lastContextWarningPct = 0;
 
@@ -114,6 +119,20 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 		}
 
+		// Muscles (discover from chain, load by heat within token budget)
+		const muscles = discoverMuscleChain(chain);
+		if (muscles.length > 0) {
+			const muscleInjection = buildMuscleInjection(muscles);
+			if (muscleInjection.systemPromptBlock.trim()) {
+				parts.push(`\n---\n${muscleInjection.systemPromptBlock}`);
+			}
+			// Track load counts for loaded muscles
+			const loaded = [...muscleInjection.hot, ...muscleInjection.warm];
+			if (loaded.length > 0) {
+				trackMuscleLoads(loaded);
+			}
+		}
+
 		if (parts.length > 0) {
 			booted = true;
 			pi.appendEntry("soma-boot", { timestamp: Date.now(), resumed: isResumed });
@@ -167,6 +186,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.on("session_switch", async () => {
 		lastContextWarningPct = 0;
 		protocolsReferenced = new Set();
+		musclesReferenced = new Set();
 	});
 
 	// -------------------------------------------------------------------
@@ -174,9 +194,14 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	// -------------------------------------------------------------------
 
 	pi.on("session_shutdown", async () => {
-		if (!soma || !protocolState) return;
-		applyDecay(protocolState, protocolsReferenced);
-		saveProtocolState(soma, protocolState);
+		if (!soma) return;
+		// Decay protocol heat
+		if (protocolState) {
+			applyDecay(protocolState, protocolsReferenced);
+			saveProtocolState(soma, protocolState);
+		}
+		// Decay muscle heat
+		decayMuscleHeat(soma, musclesReferenced);
 	});
 
 	// -------------------------------------------------------------------
@@ -201,6 +226,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			if (protocolState && soma) {
 				applyDecay(protocolState, protocolsReferenced);
 				saveProtocolState(soma, protocolState);
+			}
+			// Decay muscle heat on flush
+			if (soma) {
+				decayMuscleHeat(soma, musclesReferenced);
 			}
 
 			pi.sendUserMessage(
