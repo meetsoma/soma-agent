@@ -49,10 +49,11 @@ Every agent session follows three phases. No exceptions.
 6. Preload-next.md IS the continuation prompt (D011) — no separate file needed
 
 ### Pre-Publish Gate
-Before any public push or release, verify:
-1. Run all test suites — check for orphaned references to deleted files
-2. Classify files before bulk deletion — see `pre-publish-cleanup` muscle
-3. Scripts are tooling, not artifacts — don't delete operational scripts in cleanup sweeps
+Before any public push or release:
+1. **Default is preservation.** Archive, move, gitignore — deletion requires justification.
+2. Every file being removed: `grep -rn` tests and imports for references first.
+3. Run all test suites after any removal. Count should not silently drop.
+4. See `pre-publish-cleanup` muscle for the full framework.
 
 ## Critical Rule
 
