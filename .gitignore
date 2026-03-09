@@ -59,3 +59,12 @@ media
 # Git worktrees (feature branches checked out side-by-side)
 .worktrees/
 .soma/protocols-ref
+
+# Restored internal assets — design history, registries, early designs
+# Kept local for reference, not shipped to public repo
+.soma/logos/
+.soma/docs/
+.soma/registry/
+.soma/rituals/
+.soma/protocols.json
+.soma/soma-os-concept.md
