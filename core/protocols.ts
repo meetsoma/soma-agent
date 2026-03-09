@@ -114,7 +114,7 @@ export function discoverProtocols(soma: SomaDir): Protocol[] {
 
 	try {
 		const files = readdirSync(protocolDir).filter(
-			f => f.endsWith(".md") && !f.startsWith(".")
+			f => f.endsWith(".md") && !f.startsWith(".") && !f.startsWith("_") && f !== "README.md"
 		);
 
 		for (const file of files) {
