@@ -177,6 +177,28 @@
       "origin": "soma-core",
       "status": "active",
       "upstream": "curtismercier/protocols/amp/"
+    },
+    {
+      "name": "github",
+      "type": "skill",
+      "description": "Git and GitHub workflow strategies — branching, worktrees, merging, multi-repo ecosystems. Progressive sub-skills for project-specific patterns.",
+      "version": "1.0.0",
+      "author": "Curtis Mercier",
+      "license": "MIT",
+      "keywords": ["git", "github", "branching", "worktree", "merge", "workflow", "multi-repo"],
+      "category": "development",
+      "path": "skills/github/",
+      "origin": "soma-core",
+      "status": "available",
+      "sub_skills": [
+        "strategies/worktrees.md",
+        "strategies/branching.md",
+        "strategies/multi-repo.md",
+        "strategies/commit-conventions.md",
+        "projects/meetsoma-agent.md",
+        "projects/somas-daddy.md",
+        "projects/protocols.md"
+      ]
     }
   ],
   "categories": [
