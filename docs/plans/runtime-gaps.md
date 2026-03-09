@@ -2,7 +2,7 @@
 type: plan
 status: active
 created: 2026-03-07
-updated: 2026-03-07
+updated: 2026-03-09
 priority: high
 tags: [core, runtime, heat, muscles, protocols, atlas]
 ---
@@ -117,3 +117,60 @@ After Phase 2:
 - Settings.json controls thresholds
 - `applies-to` filters irrelevant protocols
 - Both ATLAS files current
+
+---
+
+## Evolution Note: Token-Efficient Loading (2026-03-07)
+
+### Problem
+Operational protocol frontmatter is heavy. Every `.soma/protocols/*.md` file repeats `author: Curtis Mercier`, `license: MIT`, `scope: shared`, `tier: free` — none of which the runtime reads. That's ~100 tokens per protocol burned on metadata the agent ignores.
+
+### Solution: Minimal Runtime Frontmatter
+
+**Agent-loaded files** (protocols, muscles) should have only fields the runtime code reads:
+
+```yaml
+---
+name: breath-cycle
+heat-default: hot
+applies-to: [always]
+breadcrumb: "Sessions: inhale → process → exhale → rest. Never skip exhale."
+---
+```
+
+Everything else (author, license, version, upstream, created, updated) goes in:
+- The `README.md` index (for humans browsing the directory)
+- A `defaults` block in `settings.json` (inherited, not repeated)
+- Or a comment at the bottom of the file (`<!-- author: Curtis Mercier | MIT | v1.0 -->`)
+
+### Digest-First Loading
+
+AMP spec already defines `<!-- digest:start/end -->` for muscles. Apply the same pattern to hot protocols:
+
+```markdown
+---
+name: breath-cycle
+heat-default: hot
+breadcrumb: "..."
+---
+
+<!-- digest:start -->
+Three phases: inhale (load identity + memory + protocols), hold (work, track context), exhale (flush state, write preload). Never skip exhale. Auto-flush at 85%.
+<!-- digest:end -->
+
+## Full Rules
+(only loaded if token budget allows)
+...
+```
+
+This gives three loading tiers:
+- **Cold** — name only (listed, not loaded)
+- **Warm** — breadcrumb field (1-2 sentences in system prompt)  
+- **Hot digest** — digest block (~50-100 tokens, enough to follow the protocol)
+- **Hot full** — entire body (only for the top 1-2 most critical protocols)
+
+### TL;DR Generation
+Vault has scripted TL;DR extraction (`_lib-protocols.sh` → `## TL;DR` sections). Soma should have equivalent: a utility that generates/updates `breadcrumb` and `digest` from the full body. Could be a muscle, a script, or part of `core/protocols.ts`.
+
+### Impact on Frontmatter Standard Protocol
+The frontmatter-standard protocol itself needs updating — it currently says "all .md files get type, status, created, updated." For agent-loaded files, the rule should be: **only runtime-read fields are required. Metadata is optional/inherited.**
