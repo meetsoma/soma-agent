@@ -40,6 +40,8 @@ export type { PreloadInfo } from "./preload.js";
 export {
 	discoverProtocols,
 	discoverProtocolChain,
+	detectProjectSignals,
+	protocolMatchesSignals,
 	loadProtocolState,
 	saveProtocolState,
 	bootstrapProtocolState,
@@ -49,7 +51,7 @@ export {
 	recordHeatEvent,
 	applyDecay,
 } from "./protocols.js";
-export type { Protocol, ProtocolHeatState, ProtocolState, ProtocolInjection } from "./protocols.js";
+export type { Protocol, ProtocolHeatState, ProtocolState, ProtocolInjection, ProjectSignal } from "./protocols.js";
 
 export {
 	initSoma,

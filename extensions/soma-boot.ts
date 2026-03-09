@@ -20,6 +20,7 @@ import {
 	buildLayeredIdentity,
 	findPreload,
 	discoverProtocolChain,
+	detectProjectSignals,
 	loadProtocolState,
 	saveProtocolState,
 	bootstrapProtocolState,
@@ -121,8 +122,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 		}
 
-		// Protocols (discover from chain, build injection)
-		const protocols = discoverProtocolChain(chain);
+		// Protocols (discover from chain, filter by project signals — G6)
+		const signals = detectProjectSignals(soma.projectDir);
+		const protocols = discoverProtocolChain(chain, signals);
 		knownProtocolNames = protocols.map(p => p.name);
 		if (protocols.length > 0) {
 			protocolState = loadProtocolState(soma);

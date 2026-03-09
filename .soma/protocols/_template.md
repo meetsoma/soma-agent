@@ -4,6 +4,7 @@ name: REPLACE
 status: draft
 updated: 2026-03-09
 heat-default: warm
+applies-to: [always]
 breadcrumb: "REPLACE — one to two sentences. This is ALL the agent sees when warm. Make it actionable."
 ---
 

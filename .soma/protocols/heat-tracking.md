@@ -4,6 +4,7 @@ name: heat-tracking
 status: active
 updated: 2026-03-09
 heat-default: hot
+applies-to: [always]
 tier: enterprise
 breadcrumb: "Protocols have temperature: cold (not loaded), warm (breadcrumb in prompt), hot (full in prompt). Heat rises on use (+1/+2), decays per session if unused (-1). Thresholds configurable in settings.json."
 ---

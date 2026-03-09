@@ -4,6 +4,7 @@ name: git-identity
 status: active
 updated: 2026-03-09
 heat-default: warm
+applies-to: [git]
 scope: shared
 tags: [git, attribution, identity, multi-repo]
 breadcrumb: "Commits must be attributed correctly. Personal repos (personal/, products/soma/): Curtis Mercier <curtis@gravicity.ai>. Business repos (clients/, infra/): Gravicity <accounts@gravicity.ca>. Check git config user.email before first commit in any repo. Never let bot identity land on personal repos."
