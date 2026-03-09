@@ -48,18 +48,11 @@ jobs:
         with:
           path: agent
 
-      # Check out both CLI repos side-by-side
       - uses: actions/checkout@v4
         with:
           repository: meetsoma/cli
           token: ${{ secrets.CLI_REPO_TOKEN }}
           path: cli
-
-      - uses: actions/checkout@v4
-        with:
-          repository: meetsoma/cli-pro
-          token: ${{ secrets.CLI_REPO_TOKEN }}
-          path: cli-pro
 
       - uses: actions/setup-node@v4
         with:
@@ -80,58 +73,44 @@ jobs:
           fi
           echo "Publishing v$TAG"
 
-      - name: Sync docs from agent → CLI packages
+      - name: Sync docs from agent → CLI package
         run: |
-          for pkg in cli cli-pro; do
-            mkdir -p "$pkg/docs"
-            for doc in getting-started.md how-it-works.md identity.md protocols.md memory-layout.md extending.md muscles.md configuration.md commands.md; do
-              [ -f "agent/docs/$doc" ] && cp "agent/docs/$doc" "$pkg/docs/$doc"
-            done
-            [ -f "agent/CHANGELOG.md" ] && cp "agent/CHANGELOG.md" "$pkg/docs/CHANGELOG.md"
+          mkdir -p cli/docs
+          for doc in getting-started.md how-it-works.md identity.md protocols.md memory-layout.md extending.md muscles.md configuration.md commands.md; do
+            [ -f "agent/docs/$doc" ] && cp "agent/docs/$doc" "cli/docs/$doc"
           done
+          [ -f "agent/CHANGELOG.md" ] && cp "agent/CHANGELOG.md" "cli/docs/CHANGELOG.md"
           echo "✓ Docs synced"
 
-      - name: Bump version in CLI packages
+      - name: Bump version in CLI package
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          for pkg in cli cli-pro; do
-            cd "$pkg"
-            npm version "$VERSION" --no-git-tag-version --allow-same-version
-            cd ..
-          done
-          echo "✓ Both packages at v$VERSION"
+          cd cli
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "✓ meetsoma at v$VERSION"
 
-      - name: Publish meetsoma (public)
+      - name: Publish meetsoma
         working-directory: cli
         run: npm publish --access public --tag ${{ steps.version.outputs.tag }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @gravicity.ai/soma (enterprise)
-        working-directory: cli-pro
-        run: npm publish --access public --tag ${{ steps.version.outputs.tag }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Commit version bumps back to CLI repos
+      - name: Commit version bump back to CLI repo
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          for pkg in cli cli-pro; do
-            cd "$pkg"
-            git config user.name "meetsoma[bot]"
-            git config user.email "meetsoma[bot]@users.noreply.github.com"
-            git add -A
-            if git diff --cached --quiet; then
-              echo "No changes in $pkg"
-            else
-              git commit -m "release: v$VERSION — version bump + docs sync"
-              git tag "v$VERSION"
-              git push origin HEAD
-              git push origin "v$VERSION"
-              echo "✓ $pkg pushed v$VERSION"
-            fi
-            cd ..
-          done
+          cd cli
+          git config user.name "meetsoma[bot]"
+          git config user.email "meetsoma[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes in cli"
+          else
+            git commit -m "release: v$VERSION — version bump + docs sync"
+            git tag "v$VERSION"
+            git push origin HEAD
+            git push origin "v$VERSION"
+            echo "✓ cli pushed v$VERSION"
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
