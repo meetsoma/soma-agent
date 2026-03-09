@@ -38,3 +38,10 @@ npm-debug.log*
 
 # Test
 coverage/
+
+# Sub-projects (separate repos)
+website/
+_reference-site/
+
+# Symlinks to personal content
+media
