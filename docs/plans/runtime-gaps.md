@@ -23,7 +23,7 @@ and we're not following our own protocols. This plan maps every gap and sequence
 |---|-----|--------|-----|
 | G1 | ~~**Heat never initializes**~~ ✅ | `.protocol-state.json` bootstrapped on first boot. `bootstrapProtocolState()` seeds from `heat-default`. `syncProtocolState()` handles new protocols appearing later. | Shipped 2026-03-09. `core/protocols.ts` + `soma-boot.ts`. |
 | G2 | **Heat never updates mid-session** | `recordHeatEvent()` exists but nothing calls it. Protocol usage untracked. | Need a detection mechanism. Simplest: agent self-reports via `/protocol-used <name>`. Better: extension detects protocol references in assistant messages. |
-| G3 | ~~**Heat only saves on /flush**~~ ✅ | Saves on `/flush` AND `session_shutdown`. Decay applied to unused protocols on both paths. | Shipped 2026-03-09. `soma-boot.ts` `session_shutdown` hook. |
+| G3 | ~~**Heat only saves on /flush**~~ ✅ | Saves on `/exhale` (~~`/flush`~~) AND `session_shutdown`. Decay applied to unused protocols on both paths. | Shipped 2026-03-09. `soma-boot.ts` `session_shutdown` hook. |
 | G4 | ~~**Muscles never load at boot**~~ ✅ | `core/muscles.ts` discovers muscles, sorts by heat, loads within token budget (digest-first). `soma-boot.ts` loads at boot, tracks load counts, decays heat on shutdown/flush. | Shipped 2026-03-09. `core/muscles.ts` + `soma-boot.ts`. |
 | G5 | **ATLAS files stale** | Both `STATE.md` (internal) and `products/soma/agent/STATE.md` (ecosystem) are out of date. Missing core extraction, protocols, git identity. | Update both. This session or next. |
 
@@ -40,7 +40,7 @@ and we're not following our own protocols. This plan maps every gap and sequence
 
 | # | Gap | Impact | Fix |
 |---|-----|--------|-----|
-| G10 | **Not following breath cycle** | We don't flush consistently. Preloads written sometimes. | Discipline. The tooling works (auto-flush at 85%). We just need to respect it. |
+| G10 | **Not following breath cycle** | We don't exhale consistently. Preloads written sometimes. | Discipline + `/exhale` command (D012). The tooling works (auto-exhale at 85%). |
 | G11 | **Not following frontmatter standard** | New files sometimes skip frontmatter. | Discipline + the warm breadcrumb reminds us. |
 | G12 | **Not updating ATLAS on arch changes** | Core extraction shipped without STATE.md update. | Discipline. Fix G5 now, then enforce: "same commit" rule. |
 

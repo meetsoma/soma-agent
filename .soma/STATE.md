@@ -48,7 +48,7 @@ An AI coding agent with self-growing memory. Built on Pi (0.57.1) with custom `p
 │                                                      │
 │  Extensions (products/soma/agent/extensions/)          │
 │  ├── soma-boot.ts       — identity, preload, protos, │
-│  │                        muscles, heat decay        │
+│  │                        muscles, scripts, heat     │
 │  ├── soma-header.ts     — branded σῶμα header        │
 │  └── soma-statusline.ts — footer + context monitor   │
 │                                                      │
@@ -133,11 +133,12 @@ Configured via `~/.gitconfig` `includeIf` rules. See `curtismercier/protocols/gi
 
 ## What's Working
 
-- ✅ Boot: discovery → identity → preload → protocol injection → muscle loading
+- ✅ Boot: discovery → identity → preload → protocols → muscles → scripts → ready
 - ✅ Header: σῶμα brand, memory status dots, protocol count
 - ✅ Statusline: model, context %, cost, git, uptime
-- ✅ Context warnings: 50% → 70% → 80% → 85% auto-flush
-- ✅ /flush, /preload, /soma, /status, /auto-continue commands
+- ✅ Context warnings: 50% → 70% → 80% → 85% auto-exhale
+- ✅ Script awareness: `.soma/scripts/` surfaced at boot with descriptions
+- ✅ /exhale (~~`/flush`~~), /inhale, /preload, /soma, /status, /auto-continue commands (D012)
 - ✅ Core modules importable from extensions via symlink chain
 
 ## What's NOT Working

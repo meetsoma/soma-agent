@@ -12,6 +12,7 @@
  */
 
 import { join } from "path";
+import { existsSync, readdirSync } from "fs";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import {
 	findSomaDir,
@@ -37,6 +38,19 @@ import {
 // ---------------------------------------------------------------------------
 // Extension
 // ---------------------------------------------------------------------------
+
+// Script descriptions for boot injection (tooling awareness)
+const SCRIPT_DESCRIPTIONS: Record<string, string> = {
+	"soma-search.sh": "Query memory by type/status/tags/domain. `--deep` for TL;DR, `--brief` for breadcrumbs, `--missing-tldr` for audit",
+	"soma-scan.sh": "Scan frontmatter across docs. `--stale` for outdated, `--type`/`--status` filters",
+	"soma-tldr.sh": "Generate TL;DR/digest sections via Haiku. `--scan` gaps, `--batch` all, `--dry-run`",
+	"gh-app-token.sh": "Source to get `$GH_APP_TOKEN` for meetsoma[bot] auth (1hr)",
+	"soma-init.sh": "Scaffold new .soma/ directory for a project",
+	"soma-skill.sh": "Manage soma skills (install, list)",
+	"soma-snapshot.sh": "Rolling backup snapshots of .soma/",
+	"protocol-sync.sh": "Sync operational protocols from upstream specs",
+	"frontmatter-date-hook.sh": "Git pre-commit hook: auto-update `updated:` in frontmatter",
+};
 
 export default function somaBootExtension(pi: ExtensionAPI) {
 
@@ -133,6 +147,30 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 		}
 
+		// Scripts (tooling awareness — agent needs to know it has hands)
+		const scriptsDir = join(soma.path, "scripts");
+		if (existsSync(scriptsDir)) {
+			try {
+				const scripts = readdirSync(scriptsDir).filter(f => f.endsWith(".sh"));
+				if (scripts.length > 0) {
+					const scriptLines = [
+						"## Available Scripts\n",
+						`Location: \`${scriptsDir}/\`\n`,
+						"| Script | What it does |",
+						"|--------|-------------|",
+						...scripts.map(s => {
+							const desc = SCRIPT_DESCRIPTIONS[s] || "—";
+							return `| \`${s}\` | ${desc} |`;
+						}),
+						"",
+						"Run with `bash <path>`. Use `--help` for options.",
+						"",
+					];
+					parts.push(`\n---\n${scriptLines.join("\n")}`);
+				}
+			} catch { /* ignore */ }
+		}
+
 		if (parts.length > 0) {
 			booted = true;
 			pi.appendEntry("soma-boot", { timestamp: Date.now(), resumed: isResumed });
@@ -205,49 +243,55 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	});
 
 	// -------------------------------------------------------------------
-	// /flush command
+	// /exhale command (was /flush — breath-cycle alignment, D012)
 	// -------------------------------------------------------------------
 
+	const exhaleHandler = async (_args: string, ctx: any) => {
+		if (!soma) {
+			ctx.ui.notify("No .soma/ found. Run /soma init first.", "error");
+			return;
+		}
+
+		const memDir = join(soma.path, "memory");
+		const preloadPath = join(memDir, "preload-next.md");
+		const today = new Date().toISOString().split("T")[0];
+		const logPath = join(memDir, "sessions", `${today}.md`);
+
+		// Save protocol heat state on exhale
+		if (protocolState && soma) {
+			applyDecay(protocolState, protocolsReferenced);
+			saveProtocolState(soma, protocolState);
+		}
+		// Decay muscle heat on exhale
+		if (soma) {
+			decayMuscleHeat(soma, musclesReferenced);
+		}
+
+		pi.sendUserMessage(
+			`[EXHALE — save session state]\n\n` +
+			`**Step 1:** Commit all uncommitted work.\n\n` +
+			`**Step 2:** Write \`${preloadPath}\` — compact session state:\n` +
+			`- What shipped this session\n` +
+			`- Key files changed\n` +
+			`- What's next (priority order)\n` +
+			`- What NOT to re-read\n\n` +
+			`**Step 3:** Append to \`${logPath}\` — daily session log.\n\n` +
+			`**Step 4:** Say "FLUSH COMPLETE".`,
+			{ deliverAs: "followUp" }
+		);
+
+		ctx.ui.notify("Exhale initiated — heat will be saved, preload is your continuation prompt", "info");
+	};
+
+	pi.registerCommand("exhale", {
+		description: "Exhale — save session state for next inhale (breath-cycle protocol)",
+		handler: exhaleHandler,
+	});
+
+	// Backward compat: /flush still works (D012)
 	pi.registerCommand("flush", {
-		description: "Write session state for next session continuation",
-		handler: async (_args, ctx) => {
-			if (!soma) {
-				ctx.ui.notify("No .soma/ found. Run /soma init first.", "error");
-				return;
-			}
-
-			const memDir = join(soma.path, "memory");
-			const preloadPath = join(memDir, "preload-next.md");
-			const contPath = join(memDir, "continuation-prompt.md");
-			const today = new Date().toISOString().split("T")[0];
-			const logPath = join(memDir, "sessions", `${today}.md`);
-
-			// Save protocol heat state on flush
-			if (protocolState && soma) {
-				applyDecay(protocolState, protocolsReferenced);
-				saveProtocolState(soma, protocolState);
-			}
-			// Decay muscle heat on flush
-			if (soma) {
-				decayMuscleHeat(soma, musclesReferenced);
-			}
-
-			pi.sendUserMessage(
-				`[FLUSH]\n\n` +
-				`**Step 1:** Commit all uncommitted work.\n\n` +
-				`**Step 2:** Write \`${preloadPath}\` — compact session state:\n` +
-				`- What shipped this session\n` +
-				`- Key files changed\n` +
-				`- What's next (priority order)\n` +
-				`- What NOT to re-read\n\n` +
-				`**Step 3:** Write \`${contPath}\` — instructions to yourself for the next session.\n\n` +
-				`**Step 4:** Append to \`${logPath}\` — daily session log.\n\n` +
-				`**Step 5:** Say "FLUSH COMPLETE".`,
-				{ deliverAs: "followUp" }
-			);
-
-			ctx.ui.notify("Flush initiated — protocol heat will be saved", "info");
-		},
+		description: "Alias for /exhale — save session state",
+		handler: exhaleHandler,
 	});
 
 	// -------------------------------------------------------------------
@@ -268,6 +312,33 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				ctx.ui.notify(`${preload.name} (${Math.floor(preload.ageHours)}h ago${stale})`, "info");
 			} else {
 				ctx.ui.notify("No preloads found", "info");
+			}
+		},
+	});
+
+	// -------------------------------------------------------------------
+	// /inhale command — start fresh session (breath-cycle alignment, D012)
+	// -------------------------------------------------------------------
+
+	pi.registerCommand("inhale", {
+		description: "Inhale — start fresh session, loading identity + memory + protocols",
+		handler: async (_args, ctx) => {
+			if (!soma) {
+				ctx.ui.notify("No .soma/ — nothing to inhale. Run /soma init first.", "info");
+				return;
+			}
+
+			const preload = findPreload(soma);
+			if (preload && !preload.stale) {
+				ctx.ui.notify(
+					`🫁 Fresh preload ready (${Math.floor(preload.ageHours)}h ago). Hit Ctrl+N to inhale — preload will auto-load.`,
+					"info"
+				);
+			} else {
+				ctx.ui.notify(
+					"🫁 No fresh preload. Hit Ctrl+N for clean inhale (identity + protocols only).",
+					"info"
+				);
 			}
 		},
 	});
