@@ -31,7 +31,7 @@ and we're not following our own protocols. This plan maps every gap and sequence
 
 | # | Gap | Impact | Fix |
 |---|-----|--------|-----|
-| G6 | **No `applies-to` filtering** | Every protocol loads regardless of context. Git-identity loads when editing CSS. | Add `applies-to` frontmatter field. Filter in `discoverProtocols()` based on project signals (has `.git/`? has `package.json`? framework detection). |
+| G6 | ~~**No `applies-to` filtering**~~ ✅ | `detectProjectSignals()` scans project dir for markers (git, typescript, python, rust, go, frontend, docs, multi-repo). `protocolMatchesSignals()` filters. Frontmatter: `applies-to: [always]` or `[git]`. Empty = always. | Shipped 2026-03-09. `core/protocols.ts` + boot integration. |
 | G7 | ~~**No `settings.json` reading**~~ ✅ | `core/settings.ts` reads and merges from soma chain (project → parent → global). Defaults built-in. Sections: protocols, muscles, heat. `soma-boot.ts` passes settings to all loaders. | Shipped 2026-03-09. `core/settings.ts` + init.ts updated. |
 | G8 | **No muscle promotion** | Muscles stay project-level forever. No cross-project learning. | Track loads across projects (needs global state file at `~/.soma/`). Promote when threshold hit. Future — not blocking. |
 | G9 | **No ritual system** | Three-layer model has rituals defined but no runtime. | Phase 2. Not blocking anything right now. |
@@ -56,7 +56,7 @@ Phase 2 — Core Runtime ✅ (2026-03-09)
   G4: Muscle loading at boot                   ← ✅ shipped
   G7: Settings.json reading                    ← ✅ shipped
   G2: Mid-session heat tracking                ← ✅ shipped (hybrid: auto-detect + /pin /kill)
-  G6: applies-to filtering                     ← remaining — extend protocols.ts
+  G6: applies-to filtering                     ← ✅ shipped: detectProjectSignals() + protocolMatchesSignals()
 
 Phase 4 — Advanced (future)
   G8: Muscle promotion

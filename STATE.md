@@ -36,7 +36,7 @@ Core extraction complete: **9 TypeScript modules** in `core/` + 3 thin extension
 
 **Dev tooling:** `soma-search.sh` (memory query), `soma-scan.sh` (frontmatter scanner), `soma-tldr.sh` (agent TL;DR generator) — surfaced at boot.
 
-**Remaining:** G6 (applies-to filtering) is the last runtime gap. Template install system planned (PI137).
+**All Tier 2 runtime gaps shipped** (G1–G4, G6, G7, G2). G6 adds `applies-to` frontmatter + `detectProjectSignals()` for domain scoping. Template install system planned (PI137).
 
 ## Org Map
 

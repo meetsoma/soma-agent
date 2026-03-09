@@ -102,7 +102,7 @@ Three loading tiers per doc:
 
 Frontmatter convention: files keep `type`, `status`, `updated`, `tags` for tooling (`soma-scan.sh`). Runtime-only fields (`name`, `heat-default`, `breadcrumb`, `scope`, `tier`) for the protocol loader. Attribution metadata (`author`, `license`, `version`, `created`, `upstream`) in trailing HTML comment.
 
-**Runtime status:** Core engine complete. G1 (bootstrap), G2 (mid-session tracking), G3 (shutdown save), G4 (muscle loading), G7 (settings) all shipped 2026-03-09. Only G6 (applies-to filtering) remains. Full gap analysis: `docs/plans/runtime-gaps.md`.
+**Runtime status:** Core engine complete. All Tier 2 runtime gaps shipped 2026-03-09: G1 (bootstrap), G2 (mid-session tracking), G3 (shutdown save), G4 (muscle loading), G6 (applies-to filtering), G7 (settings). Full gap analysis: `docs/plans/runtime-gaps.md`.
 
 ### Heat System (how it works)
 
@@ -120,13 +120,13 @@ Protocols store heat in `.protocol-state.json`. Muscles store heat in frontmatte
 
 ## Protocol Inventory
 
-| Protocol | Heat Default | Upstream Spec | Status |
-|----------|-------------|---------------|--------|
-| breath-cycle | hot | `curtismercier/protocols/breath-cycle/` | Operational ✅ |
-| heat-tracking | hot | (self-referential) | Operational ✅ |
-| frontmatter-standard | warm | `curtismercier/protocols/atlas/` | Operational ✅ |
-| git-identity | warm | `curtismercier/protocols/git-identity/` | Operational ✅ |
-| collaborative-flow | cold | — | Draft (in `drafts/`) |
+| Protocol | Heat Default | Applies-to | Upstream Spec | Status |
+|----------|-------------|-----------|---------------|--------|
+| breath-cycle | hot | always | `curtismercier/protocols/breath-cycle/` | Operational ✅ |
+| heat-tracking | hot | always | (self-referential) | Operational ✅ |
+| frontmatter-standard | warm | always | `curtismercier/protocols/atlas/` | Operational ✅ |
+| git-identity | warm | git | `curtismercier/protocols/git-identity/` | Operational ✅ |
+| collaborative-flow | cold | — | — | Draft (in `drafts/`) |
 
 ## Git Identity
 
@@ -166,7 +166,7 @@ Configured via `~/.gitconfig` `includeIf` rules. See `curtismercier/protocols/gi
 | ~~Heat only saves on /flush~~ | G3 | ✅ Shipped — `session_shutdown` hook |
 | ~~Muscles don't load at boot~~ | G4 | ✅ Shipped — `core/muscles.ts` + boot integration |
 | ~~Settings.json not read~~ | G7 | ✅ Shipped — `core/settings.ts` reads + merges from chain |
-| `applies-to` filtering missing | G6 | No — all protocols load |
+| ~~`applies-to` filtering missing~~ | G6 | ✅ Shipped — `detectProjectSignals()` + `protocolMatchesSignals()` + frontmatter `applies-to` field |
 | Muscle promotion | G8 | No — future |
 | Ritual system | G9 | No — future |
 
