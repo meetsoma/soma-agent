@@ -53,13 +53,13 @@ Global settings and runtime. Shared across all projects.
 ```
 ~/.soma/agent/
 ├── settings.json            ← compaction, startup, changelog prefs
+├── core/                    ← symlink → agent/core/ (runtime modules)
 ├── extensions/              ← globally installed extensions
-│   ├── soma-boot.ts         ← identity + preload loading
-│   ├── soma-header.ts       ← branded startup header
+│   ├── soma-boot.ts         ← identity + preload + protocols + muscles
+│   ├── soma-header.ts       ← branded σῶμα header
 │   └── soma-statusline.ts   ← footer with context/cost/git
 ├── skills/                  ← globally installed skills
-├── sessions/                ← Pi session JSONL files
-└── auth.json                ← API keys (auto-managed)
+└── sessions/                ← Pi session JSONL files
 ```
 
 ## How Memory Flows

@@ -1,6 +1,6 @@
 ---
 type: plan
-status: active
+status: stable
 created: 2026-03-10
 updated: 2026-03-09
 tags: [architecture, protocols, heat-tracking, system-prompt, plugin, enterprise]

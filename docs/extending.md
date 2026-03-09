@@ -8,13 +8,14 @@ Skills are specialized instructions that load when a task matches their descript
 
 ### Installing Skills
 
-```bash
-# Install from a git repo
-soma install skill <repo-url>
+Place skill directories in one of these locations:
 
-# Skills install to ~/.soma/agent/skills/ (global)
-# Or .soma/skills/ (project-local)
-```
+| Location | Scope |
+|----------|-------|
+| `.soma/skills/` | Project-local (only loads in this project) |
+| `~/.soma/agent/skills/` | Global (loads for all projects) |
+
+> **Planned:** `soma install skill <source>` command for automated installation from registries (PI115).
 
 ### Creating Skills
 

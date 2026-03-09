@@ -1,6 +1,6 @@
 ---
 type: plan
-status: active
+status: stable
 updated: 2026-03-09
 created: 2026-03-10
 tags: [architecture, core, parent-child, memory-flow, light-core, body-that-grows]

@@ -51,11 +51,13 @@ Pick from previous sessions to resume.
 |---------|-------------|
 | `/exhale` | Save state, write preload for next session (alias: `/flush`) |
 | `/inhale` | Start fresh — reload identity + protocols without restarting |
-| `/soma status` | Show memory status (identity, preload, muscles, protocols) |
-| `/soma init` | Create `.soma/` in current directory |
 | `/pin <name>` | Pin a protocol/muscle to hot (stays loaded) |
 | `/kill <name>` | Kill a protocol/muscle (drops to cold) |
+| `/soma status` | Show memory status (identity, preload, muscles, protocols) |
+| `/soma init` | Create `.soma/` in current directory |
+| `/preload` | List available preload files |
 | `/status` | Show session stats (context %, turns, uptime) |
+| `/auto-continue` | Create new session with continuation preload |
 
 ## The `.soma/` Directory
 

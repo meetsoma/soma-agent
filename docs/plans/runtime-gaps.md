@@ -1,6 +1,6 @@
 ---
 type: plan
-status: active
+status: stable
 created: 2026-03-07
 updated: 2026-03-09
 priority: high
@@ -25,7 +25,7 @@ and we're not following our own protocols. This plan maps every gap and sequence
 | G2 | ~~**Heat never updates mid-session**~~ ✅ | `tool_result` hook auto-detects protocol/muscle usage (frontmatter writes → frontmatter-standard, git commands → git-identity, etc). `/pin` and `/kill` commands for manual override. Settings control `heat.autoDetect`, `heat.autoDetectBump`, `heat.pinBump`. | Shipped 2026-03-09. `soma-boot.ts` tool_result handler + /pin + /kill. |
 | G3 | ~~**Heat only saves on /flush**~~ ✅ | Saves on `/exhale` (~~`/flush`~~) AND `session_shutdown`. Decay applied to unused protocols on both paths. | Shipped 2026-03-09. `soma-boot.ts` `session_shutdown` hook. |
 | G4 | ~~**Muscles never load at boot**~~ ✅ | `core/muscles.ts` discovers muscles, sorts by heat, loads within token budget (digest-first). `soma-boot.ts` loads at boot, tracks load counts, decays heat on shutdown/flush. | Shipped 2026-03-09. `core/muscles.ts` + `soma-boot.ts`. |
-| G5 | **ATLAS files stale** | Both `STATE.md` (internal) and `products/soma/agent/STATE.md` (ecosystem) are out of date. Missing core extraction, protocols, git identity. | Update both. This session or next. |
+| G5 | ~~**ATLAS files stale**~~ ✅ | Both STATE.md files updated to reflect full core engine, heat system, applies-to filtering, all Tier 2 gaps shipped. | Shipped 2026-03-09. Updated across multiple sessions. |
 
 ### Tier 2 — Missing Features (Designed, Not Built)
 

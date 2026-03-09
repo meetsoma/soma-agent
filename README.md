@@ -94,11 +94,12 @@ Each project gets its own `.soma/`. Different projects, different Somas.
 | Command | What it does |
 |---------|-------------|
 | `/exhale` | Save state, write preload for next session (alias: `/flush`) |
-| `/inhale` | Start fresh session (reloads identity + protocols) |
-| `/soma status` | Show memory status (identity, preload, muscles, protocols) |
-| `/soma init` | Create `.soma/` in current directory |
+| `/inhale` | Start fresh — reload identity + protocols without restarting |
 | `/pin <name>` | Pin a protocol/muscle to hot (stays loaded) |
 | `/kill <name>` | Kill a protocol/muscle (drops to cold) |
+| `/soma status` | Show memory status (identity, preload, muscles, protocols) |
+| `/soma init` | Create `.soma/` in current directory |
+| `/preload` | List available preload files |
 | `/status` | Session stats (context %, turns, uptime) |
 
 ## Skills
