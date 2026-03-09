@@ -48,3 +48,6 @@ media
 
 # Soma local memory
 .soma/
+
+# Git worktrees (feature branches checked out side-by-side)
+.worktrees/
