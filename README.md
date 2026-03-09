@@ -114,11 +114,14 @@ See [docs/extending.md](docs/extending.md) for how to create your own skills and
 |-----|----------|
 | [Getting Started](docs/getting-started.md) | Install, session modes, commands, `.soma/` layout |
 | [How It Works](docs/how-it-works.md) | Breath cycle, identity, muscles, context management |
+| [Identity](docs/identity.md) | Discovery, layering, project vs global |
 | [Protocols](docs/protocols.md) | Behavioral rules, heat system, writing your own |
 | [Memory Layout](docs/memory-layout.md) | Project vs user level, git strategy, data flow |
 | [Extending](docs/extending.md) | Skills, extensions, events, APIs |
+| [Muscles](docs/muscles.md) | Learned patterns, digest system, heat tiers |
 | [Configuration](docs/configuration.md) | Settings, heat thresholds, muscle budgets |
 | [Commands](docs/commands.md) | Slash commands, CLI flags, context warnings |
+| [Changelog](CHANGELOG.md) | Version history |
 
 ## Built on Pi
 
