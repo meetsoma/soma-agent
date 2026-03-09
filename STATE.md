@@ -15,7 +15,9 @@ rule: Update this file whenever repos, infrastructure, skills, or cross-repo rel
 
 ## What meetsoma Is
 
-The public-facing GitHub org for **Soma** — an AI coding agent with self-growing memory. Built on Pi, extended with three layers (extensions, skills, rituals), shipped by Gravicity.
+The public-facing GitHub org for **Soma** — an AI coding agent with self-growing memory. Built on Pi, extended with three layers (extensions, skills, rituals). Created by Curtis Mercier, shipped under the Gravicity brand.
+
+Soma is the **reference implementation** of Curtis's protocol inventions (AMP, ATLAS, Three-Layer Model, Breath Cycle, Identity System). The protocols are Curtis's personal IP. Soma implements them as open source (MIT) and source-available (BSL) software.
 
 ## Org Map
 
@@ -95,6 +97,25 @@ soma skill list --remote        # what's available in registry
 
 **Current:** Manual copy to `~/.soma/agent/skills/`
 **Next:** PI081 (resolution config) → PI115 (install command) → PI102 (community ecosystem)
+**Design doc:** `products/soma/.soma/plans/plugin-architecture.md`
+
+### Ritual System (Planned — PI110)
+
+Rituals are multi-step skills triggered by `/` commands. Phase 1: prompt-pattern matching (agent recognizes `/publish` and loads the ritual skill). Phase 2: Soma CLI wrapper intercepts `/` commands for state tracking and discoverability.
+
+**First ritual:** `/publish` — write → commit → push → deploy a blog post.
+
+### `soma init` (Planned — PI117)
+
+Scaffolds `.soma/` in a project:
+```
+.soma/
+├── identity.md     ← project identity (templated)
+├── STATE.md        ← architecture truth (empty template)
+├── memory/
+│   └── muscles/    ← learned patterns
+└── extensions/     ← project-level hooks
+```
 
 ## Cross-Repo Flows
 
