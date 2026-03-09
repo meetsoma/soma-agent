@@ -1,0 +1,42 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [dev, main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Test — Protocols
+        run: bash tests/test-protocols.sh
+
+      - name: Test — Muscles
+        run: bash tests/test-muscles.sh
+
+      - name: Test — Settings
+        run: bash tests/test-settings.sh
+
+      - name: Test — Init
+        run: bash tests/test-init.sh
+
+      - name: Test — Applies-to
+        run: bash tests/test-applies-to.sh
+
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Changelog check
+        run: |
+          if ! git diff origin/${{ github.base_ref }}...HEAD --name-only | grep -q CHANGELOG.md; then
+            echo "::warning::No CHANGELOG.md update in this PR — is this intentional?"
+          fi
