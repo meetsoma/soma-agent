@@ -117,6 +117,8 @@ See [docs/extending.md](docs/extending.md) for how to create your own skills and
 | [Protocols](docs/protocols.md) | Behavioral rules, heat system, writing your own |
 | [Memory Layout](docs/memory-layout.md) | Project vs user level, git strategy, data flow |
 | [Extending](docs/extending.md) | Skills, extensions, events, APIs |
+| [Configuration](docs/configuration.md) | Settings, heat thresholds, muscle budgets |
+| [Commands](docs/commands.md) | Slash commands, CLI flags, context warnings |
 
 ## Built on Pi
 
