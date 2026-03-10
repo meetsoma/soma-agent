@@ -140,3 +140,9 @@ Heat solves a fundamental problem: agents have limited context windows, but user
 With heat, the system self-organizes. Protocols you use daily stay hot and fully loaded. Muscles you haven't touched in a week cool down to digests, then to just names. If you need them again, one use warms them back up.
 
 The result: **the agent's prompt reflects what you actually do, not what you once configured.**
+
+## Related
+
+- [Configuration](configuration.md) — all heat thresholds, boot steps, context warnings
+- [Protocols](protocols.md) — writing protocols, domain scoping, frontmatter
+- [Muscles](muscles.md) — writing muscles, digest system, token budget

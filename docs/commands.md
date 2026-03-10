@@ -1,7 +1,7 @@
 # Commands
 
 <!-- tldr -->
-`/inhale` — start fresh. `/breathe` — save + auto-continue. `/exhale` — save + stop (alias: `/flush`). `/pin <name>` — bump heat +5. `/kill <name>` — drop heat to 0. `/soma` — show status. CLI: `soma` (fresh), `soma -c` (continue). Auto-exhale at 85% context. Warnings at 50/70/80%.
+`/inhale` — start fresh. `/breathe` — save + auto-continue. `/exhale` — save + stop (alias: `/flush`). `/pin <name>` — bump heat +5. `/kill <name>` — drop heat to 0. `/soma` — show status. CLI: `soma` (fresh), `soma -c` (continue). Context warnings and auto-exhale thresholds are configurable in `settings.json`.
 <!-- /tldr -->
 
 Soma registers slash commands that control the breath cycle, heat system, and session management.
@@ -30,14 +30,15 @@ Soma registers slash commands that control the breath cycle, heat system, and se
 
 ## Context Warnings
 
-Soma monitors context usage and warns at thresholds:
+Soma monitors context usage and warns at configurable thresholds:
 
-| Usage | Behavior |
-|-------|----------|
-| 50% | Gentle note: "Context halfway" |
-| 70% | Reminder to plan an exhale |
-| 80% | Strong suggestion to exhale soon |
-| 85% | Auto-exhale triggers — state saves, session rotates |
+| Setting | Default | Behavior |
+|---------|---------|----------|
+| `context.notifyAt` | 50% | Gentle note: "Context halfway" |
+| `context.urgentAt` | 80% | Strong suggestion to exhale soon (injected into prompt) |
+| `context.autoExhaleAt` | 85% | Auto-exhale triggers — state saves, session rotates |
+
+Override in `settings.json` — see [Configuration](configuration.md#context-warnings).
 
 ## CLI Flags
 
@@ -70,7 +71,7 @@ scripts/soma-snapshot.sh . "pre-refactor"
 
 Commands map to Soma's breath metaphor:
 
-1. **Inhale** — session starts, context loads (identity → protocols → muscles → preload if `-c`)
+1. **Inhale** — session starts, boot steps run in order (identity → preload → protocols → muscles → scripts → git-context). Configurable in [Configuration](configuration.md#boot-sequence).
 2. **Work** — the session. Heat shifts based on what you use.
 3. **Breathe** — context filling up? `/breathe` saves state and continues seamlessly.
 4. **Exhale** — done for now? `/exhale` saves state and ends the session.

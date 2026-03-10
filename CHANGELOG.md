@@ -6,6 +6,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Configurable boot sequence** — `settings.boot.steps` controls what loads on session start. Default: `["identity", "preload", "protocols", "muscles", "scripts", "git-context"]`. Remove or reorder steps to customize.
+- **Git context on boot** — new `git-context` boot step injects recent commits and changed files into the agent's prompt. Configurable: `since` (e.g. `"24h"`, `"last-session"`, `"7d"`), `diffMode` (`"stat"`, `"full"`, `"none"`), `maxCommits`, `maxDiffLines`.
+- **Configurable context warnings** — `settings.context` controls notification, warning, and auto-exhale thresholds (was hardcoded to 50/70/80/85%).
+- **Configurable preload staleness** — `settings.preload.staleAfterHours` (was hardcoded to 48h).
+- **Heat system docs** — new standalone `docs/heat-system.md` with complete guide to temperature-based loading.
+- **Agent verification protocol** — draft spec for source-code-as-credential authentication (`protocols/agent-verification.md`).
+
+### Changed
+- Boot extension refactored from monolithic function to step-based pipeline.
+- Configuration docs expanded significantly — now covers boot, git-context, context warnings, preload settings with examples.
+- All docs cross-linked: heat-system ↔ configuration ↔ protocols ↔ muscles ↔ commands.
+
+---
+
 ## [0.2.0] — 2026-03-09
 
 ### Added

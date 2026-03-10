@@ -71,18 +71,20 @@ Global settings and runtime. Shared across all projects.
 Fresh session (soma):
   ~/.soma/agent/extensions/ load
   → walk up CWD for .soma/ (project → parent → global chain)
-  → load identity.md (always)
-  → detect project signals (git, typescript, etc.)
-  → load protocols by heat (hot=full, warm=breadcrumb, cold=name)
-  → load muscles by heat within token budget
-  → inject into system prompt
+  → run boot steps (configurable in settings.json):
+    1. identity — load identity.md (layered)
+    2. preload — skip (fresh session)
+    3. protocols — load by heat (hot=full, warm=breadcrumb, cold=name)
+    4. muscles — load by heat within token budget
+    5. scripts — list available .soma/scripts/
+    6. git-context — inject recent commits + changed files
+  → inject all into system prompt
 
 Continue session (soma -c):
   → same as above, plus:
-  → load .soma/memory/preload-next.md
-  → inject preload as continuation context
+  → step 2 loads .soma/memory/preload-next.md as continuation context
 
-Breathe (/breathe or auto at 85%):
+Breathe (/breathe or auto at configurable threshold):
   → agent writes .soma/memory/preload-next.md
   → save protocol + muscle heat state (with decay for unused)
   → agent commits work
