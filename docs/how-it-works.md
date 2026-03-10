@@ -1,7 +1,7 @@
 # How Soma Works
 
 <!-- tldr -->
-Sessions are breaths: inhale (load identity + protocols + muscles + preload if `-c`) → work → breathe or exhale (save state, decay heat, write preload). Fresh mode loads identity, protocols, and muscles. Continue mode (`-c`) adds last session's preload. `/breathe` saves + continues, `/exhale` saves + stops. Auto-exhale at 85% context. Heat system loads hot content fully, warm as breadcrumbs, cold stays dormant.
+Sessions are breaths: inhale (configurable boot steps: identity, preload, protocols, muscles, scripts, git-context) → work → breathe or exhale (save state, decay heat, write preload). Git context loads recent commits/diffs automatically. Heat system loads hot content fully, warm as breadcrumbs, cold stays dormant. Context warnings and preload staleness are configurable. All thresholds in `settings.json`.
 <!-- /tldr -->
 
 ## The Core Idea
@@ -24,17 +24,44 @@ Session 3 (inhale) ← ...and so on
 
 ### Inhale (Session Start)
 
-When Soma starts, she loads:
-- **Identity** (`identity.md`) — who she is, always loaded
-- **Protocols** — behavioral rules, loaded by heat (hot = full, warm = breadcrumb)
-- **Muscles** — learned patterns, loaded by heat within token budget
-- **Preload** (`preload-next.md`) — what happened last session, only on `--continue`
+When Soma boots, she runs a configurable sequence of **boot steps**:
 
-Fresh sessions (`soma`) load identity, protocols, and muscles. Resumed sessions (`soma -c`) add the preload on top — picking up exactly where you left off.
+| Step | What Loads | Default |
+|------|-----------|---------|
+| `identity` | Layered identity (project → parent → global) | ✅ On |
+| `preload` | Last session's state (on `--continue` only) | ✅ On |
+| `protocols` | Behavioral rules, sorted by heat tier | ✅ On |
+| `muscles` | Learned patterns, within token budget | ✅ On |
+| `scripts` | Available `.soma/scripts/` with descriptions | ✅ On |
+| `git-context` | Recent commits and changed files from git | ✅ On |
+
+The boot sequence is configurable in `settings.json` — remove steps you don't want, reorder to change priority. See [Configuration](configuration.md#boot-sequence).
+
+Fresh sessions (`soma`) load everything except preload. Resumed sessions (`soma -c`) add the preload on top.
+
+#### Git Context
+
+On every boot, Soma checks recent git history and injects a summary of what changed. This gives the agent immediate awareness of the project state without relying on the preload alone.
+
+By default, it shows the last 24 hours of commits and a file-change summary (`--stat`). Configurable:
+
+```json
+{
+  "boot": {
+    "gitContext": {
+      "since": "last-session",
+      "diffMode": "full",
+      "maxCommits": 20
+    }
+  }
+}
+```
+
+Set `"enabled": false` to disable. See [Configuration](configuration.md#git-context).
 
 ### Exhale
 
-When context fills up (~85%), Soma automatically breathes — saving state and continuing into a fresh session. You can also trigger this manually:
+When context fills up, Soma automatically breathes — saving state and continuing into a fresh session. You can also trigger this manually:
 
 - **`/breathe`** — save state + auto-continue (seamless rotation)
 - **`/exhale`** — save state + stop (alias: `/flush`)
@@ -72,7 +99,9 @@ Every protocol has a temperature:
 - 🟡 **Warm** (3–7) — breadcrumb reminder only (one sentence)
 - ❄️ **Cold** (0–2) — name listed, content not loaded
 
-Heat rises when protocols get used (+1 per action, +2 per explicit reference) and decays by 1 each session if unused. You can also `/pin` a protocol to keep it hot or `/kill` it to drop to cold. All thresholds are configurable in [settings.json](configuration.md).
+Heat rises when protocols get used (+1 per action, +2 per explicit reference) and decays by 1 each session if unused. You can also `/pin` a protocol to keep it hot or `/kill` it to drop to cold. All thresholds are configurable in [Configuration](configuration.md#protocols-heat-thresholds).
+
+See [Heat System](heat-system.md) for the complete guide.
 
 ### Domain Scoping
 
@@ -80,17 +109,16 @@ Protocols declare which projects they apply to via an `applies-to` field. For ex
 
 Available signals: `always`, `git`, `typescript`, `javascript`, `python`, `rust`, `go`, `frontend`, `docs`, `multi-repo`.
 
-See [docs/protocols.md](protocols.md) for how to write your own.
+See [Protocols](protocols.md) for how to write your own.
 
 ## Context Management
 
-Soma monitors context usage and provides escalating warnings:
+Soma monitors context usage and provides escalating warnings. All thresholds are configurable in [Configuration](configuration.md#context-warnings):
 
-| Threshold | Action |
-|-----------|--------|
-| 50% | Info notification |
-| 70% | Wrap-up warning |
-| 80% | Flush soon warning |
-| 85% | **Auto-flush** — writes preload, commits, continues |
+| Threshold | Default | Action |
+|-----------|---------|--------|
+| `notifyAt` | 50% | Info notification |
+| `urgentAt` | 80% | "Wrap up" warning injected into prompt |
+| `autoExhaleAt` | 85% | **Auto-flush** — writes preload, commits, continues |
 
-This prevents context loss and enables seamless multi-session work.
+For longer sessions, push thresholds up. For aggressive context management, pull them down.

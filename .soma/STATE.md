@@ -103,7 +103,7 @@ Three loading tiers per doc:
 
 Frontmatter convention: files keep `type`, `status`, `updated`, `tags` for tooling (`soma-scan.sh`). Runtime-only fields (`name`, `heat-default`, `breadcrumb`, `scope`, `tier`) for the protocol loader. Attribution metadata (`author`, `license`, `version`, `created`, `upstream`) in trailing HTML comment.
 
-**Runtime status:** Core engine complete. All Tier 2 runtime gaps shipped 2026-03-09: G1 (bootstrap), G2 (mid-session tracking), G3 (shutdown save), G4 (muscle loading), G6 (applies-to filtering), G7 (settings). Full gap analysis: `docs/plans/runtime-gaps.md`.
+**Runtime status:** Core engine complete. All Tier 2 runtime gaps shipped 2026-03-09: G1 (bootstrap), G2 (mid-session tracking), G3 (shutdown save), G4 (muscle loading), G6 (applies-to filtering), G7 (settings). Boot sequence now configurable via `settings.boot.steps`. Git context, context warning thresholds, and preload staleness also configurable. Full gap analysis: `docs/plans/runtime-gaps.md`.
 
 ### Heat System (how it works)
 
@@ -150,10 +150,12 @@ Configured via `~/.gitconfig` `includeIf` rules. See `curtismercier/protocols/gi
 
 ## What's Working
 
-- ✅ Boot: discovery → identity → preload → protocols → muscles → scripts → ready
+- ✅ Boot: configurable step pipeline (identity → preload → protocols → muscles → scripts → git-context)
+- ✅ Git context: recent commits + changed files injected on boot (configurable since/diffMode/limits)
 - ✅ Header: σῶμα brand, memory status dots, protocol count
 - ✅ Statusline: model, context %, cost, git, uptime
-- ✅ Context warnings: 50% → 70% → 80% → 85% auto-exhale
+- ✅ Context warnings: configurable thresholds (default 50/80/85%, via `settings.context`)
+- ✅ Preload staleness: configurable (default 48h, via `settings.preload.staleAfterHours`)
 - ✅ Script awareness: `.soma/scripts/` surfaced at boot with descriptions
 - ✅ /exhale (~~`/flush`~~), /inhale, /preload, /soma, /status, /auto-continue commands (D012)
 - ✅ Core modules importable from extensions via symlink chain

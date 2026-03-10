@@ -37,11 +37,11 @@ Every protocol has a temperature that determines how it loads:
 | Session end (used protocol) | No change |
 | Session end (pinned protocol) | No change |
 
-Heat state is stored in `.soma/.protocol-state.json` and persists across sessions.
+Heat state is stored in `.soma/.protocol-state.json` and persists across sessions. For the full deep-dive, see [Heat System](heat-system.md).
 
 ### Thresholds
 
-Default thresholds can be overridden in `settings.json`:
+Default thresholds can be overridden in `settings.json` — see [Configuration](configuration.md#protocols-heat-thresholds):
 
 ```json
 {

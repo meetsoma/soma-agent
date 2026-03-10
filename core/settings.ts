@@ -63,6 +63,43 @@ export interface SomaSettings {
 		/** Heat bump for explicit /pin (default: 5) */
 		pinBump: number;
 	};
+
+	/** Boot sequence settings */
+	boot: {
+		/** Ordered list of boot steps to run on session start */
+		steps: string[];
+		/** Git context settings — inject recent changes on boot */
+		gitContext: {
+			/** Whether to load git context on boot (default: true) */
+			enabled: boolean;
+			/** How far back to look — "last-session" uses preload timestamp, or a git ref/timespec (default: "24h") */
+			since: string;
+			/** Max diff lines to include (default: 50) */
+			maxDiffLines: number;
+			/** Max commit log entries (default: 10) */
+			maxCommits: number;
+			/** Show full diff or just --stat summary (default: "stat") */
+			diffMode: "stat" | "full" | "none";
+		};
+	};
+
+	/** Context warning thresholds (percentages) */
+	context: {
+		/** Notify threshold (default: 50) */
+		notifyAt: number;
+		/** Warning threshold (default: 70) */
+		warnAt: number;
+		/** Urgent threshold (default: 80) */
+		urgentAt: number;
+		/** Auto-exhale threshold (default: 85) */
+		autoExhaleAt: number;
+	};
+
+	/** Preload settings */
+	preload: {
+		/** Hours before a preload is considered stale (default: 48) */
+		staleAfterHours: number;
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +130,25 @@ const DEFAULTS: SomaSettings = {
 		autoDetect: true,
 		autoDetectBump: 1,
 		pinBump: 5,
+	},
+	boot: {
+		steps: ["identity", "preload", "protocols", "muscles", "scripts", "git-context"],
+		gitContext: {
+			enabled: true,
+			since: "24h",
+			maxDiffLines: 50,
+			maxCommits: 10,
+			diffMode: "stat",
+		},
+	},
+	context: {
+		notifyAt: 50,
+		warnAt: 70,
+		urgentAt: 80,
+		autoExhaleAt: 85,
+	},
+	preload: {
+		staleAfterHours: 48,
 	},
 };
 
