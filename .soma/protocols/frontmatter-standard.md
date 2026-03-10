@@ -71,4 +71,4 @@ Every Markdown document in a Soma-managed workspace MUST have YAML frontmatter.
 
 Protocol and muscle `.md` files keep full frontmatter for tooling (scan, search, sync). But only the **breadcrumb** or **digest block** gets injected into the system prompt — the rest stays on disk. Token efficiency comes from the loading tier, not from stripping the file.
 
-<!-- v1.0.0 | created: 2026-03-10 | MIT | Curtis Mercier | upstream: curtismercier/protocols/atlas/ -->
+<!-- v1.0.0 | created: 2026-03-10 | MIT -->

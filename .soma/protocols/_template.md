@@ -26,4 +26,4 @@ edited-by: system
 
 <!-- Explicit exclusions. -->
 
-<!-- version | created: YYYY-MM-DD | MIT | Curtis Mercier | upstream: -->
+<!-- version | created: YYYY-MM-DD | MIT | upstream: -->

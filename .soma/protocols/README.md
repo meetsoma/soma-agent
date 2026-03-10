@@ -15,7 +15,7 @@ Every protocol exists in two forms:
 
 | Tier | Location | Audience | Size |
 |------|----------|----------|------|
-| **Spec** | `curtismercier/protocols/<name>/README.md` | Humans, implementors | 3-10KB, educational |
+| **Spec** | `protocols/<name>/README.md` | Humans, implementors | 3-10KB, educational |
 | **Operational** | `.soma/protocols/<name>.md` | The agent, at runtime | 1-3KB, compressed rules |
 
 The spec is the full rationale, examples, edge cases. The operational file is the distilled "just follow these rules" version that fits in a system prompt.
@@ -45,7 +45,7 @@ breadcrumb: "<1-2 sentence TL;DR for warm loading>"
 
 **Trailing comment** — human reference only, not consumed by anything:
 ```markdown
-<!-- v1.0.0 | created: 2026-03-10 | MIT | Curtis Mercier | upstream: curtismercier/protocols/<name>/ -->
+<!-- v1.0.0 | created: 2026-03-10 | MIT -->
 ```
 
 ### Token efficiency

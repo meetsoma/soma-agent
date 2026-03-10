@@ -3,44 +3,45 @@ type: protocol
 name: git-identity
 status: active
 created: 2026-02-01
-updated: 2026-03-09
+updated: 2026-03-10
 heat-default: warm
 applies-to: [git]
-scope: shared
+scope: local
 source: meetsoma/agent@0.2.0
 source-version: 0.2.0
 edited-by: system
 tags: [git, attribution, identity, multi-repo]
-breadcrumb: "Commits must be attributed correctly. Personal repos (personal/, products/soma/): Curtis Mercier <curtis@gravicity.ai>. Business repos (clients/, infra/): Gravicity <accounts@gravicity.ca>. Check git config user.email before first commit in any repo. Never let bot identity land on personal repos."
+breadcrumb: "Commits must be attributed correctly. Define identities in .soma/identity.md or settings. Check git config user.email before first commit. Never let bot identity land on human-driven repos."
 ---
 
 # Git Identity Protocol
 
 ## TL;DR
-- Three identities: **personal** (Curtis Mercier / curtis@gravicity.ai), **business** (Gravicity / accounts@gravicity.ca), **agent** (Soma / soma-agent@gravicity.ai)
-- Personal: `personal/*`, `products/soma/*`, `curtismercier/*`, `meetsoma/*`
-- Business: `clients/*`, `infra/*`, `Gravicity/*`
-- Agent: autonomous-only commits. Human drives → human identity, always
+- Define your identities in `.soma/identity.md` (personal, business, agent)
+- Map identities to repo patterns (e.g. `clients/*` → business identity)
 - Check `git config user.email` before first commit in any repo
-- Fix before push: `git commit --amend --author="..." --no-edit`
+- Human drives → human identity. Agent acts alone → agent identity
+- Fix before push: `git commit --amend --author="Name <email>" --no-edit`
 
 ## Rule
 
-Every commit must be attributed to the correct identity. Three identities exist:
+Every commit must be attributed to the correct identity. Define your identities and repo mappings in `.soma/identity.md` or your project's `.soma/settings.json`.
 
-| Identity | Name | Email | Repos |
-|----------|------|-------|-------|
-| personal | Curtis Mercier | curtis@gravicity.ai | `personal/*`, `products/soma/*`, `curtismercier/*`, `meetsoma/*` |
-| business | Gravicity | accounts@gravicity.ca | `clients/*`, `infra/*`, `Gravicity/*` |
-| agent | Soma | soma-agent@gravicity.ai | Autonomous-only commits (scheduled, auto-maintenance) |
+### Identity Types
+
+| Identity | When to use | Repos |
+|----------|------------|-------|
+| **personal** | Your own projects, open source | Define your personal repo patterns |
+| **business** | Client work, company repos | Define your business repo patterns |
+| **agent** | Autonomous-only commits (scheduled, auto-maintenance) | Only when no human is driving |
 
 ### Before First Commit
 
-Run `git config user.email` in the repo. If it doesn't match the expected identity above, fix it:
+Run `git config user.email` in the repo. If it doesn't match the expected identity for this repo pattern, fix it:
 
 ```bash
-git config user.name "Curtis Mercier"
-git config user.email "curtis@gravicity.ai"
+git config user.name "Your Name"
+git config user.email "your@email.com"
 ```
 
 ### Agent-Assisted vs Autonomous
@@ -51,7 +52,7 @@ git config user.email "curtis@gravicity.ai"
 
 ### Fix Misattribution
 
-Before push: `git commit --amend --author="Curtis Mercier <curtis@gravicity.ai>" --no-edit`
+Before push: `git commit --amend --author="Name <email>" --no-edit`
 After push: `git filter-branch` + force-push (solo repos only).
 
 ## When to Apply
@@ -65,5 +66,3 @@ After push: `git filter-branch` + force-push (solo repos only).
 
 - Third-party repos where you're using their contribution identity
 - Forks where upstream expects a specific email
-
-<!-- v1.0.0 | created: 2026-03-07 | MIT | Curtis Mercier | upstream: curtismercier/protocols/git-identity/ -->
