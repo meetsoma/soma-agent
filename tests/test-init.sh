@@ -102,6 +102,67 @@ else
 fi
 
 echo ""
+echo "═══ Default Protocols ═══"
+
+# Check built-in protocol fallbacks in init.ts
+if grep -q "BUILTIN_BREATH_CYCLE" "$INIT_TS"; then
+    pass "has built-in breath-cycle fallback"
+else
+    fail "missing built-in breath-cycle fallback"
+fi
+
+if grep -q "BUILTIN_PROTOCOL_TEMPLATE" "$INIT_TS"; then
+    pass "has built-in protocol template fallback"
+else
+    fail "missing built-in protocol template fallback"
+fi
+
+if grep -q "scaffoldProtocols" "$INIT_TS"; then
+    pass "has scaffoldProtocols function"
+else
+    fail "missing scaffoldProtocols function"
+fi
+
+# Check template files exist
+PROTO_TEMPLATE_DIR="$TEMPLATE_DIR/protocols"
+if [[ -d "$PROTO_TEMPLATE_DIR" ]]; then
+    pass "protocols template directory exists"
+else
+    fail "protocols template directory missing"
+fi
+
+if [[ -f "$PROTO_TEMPLATE_DIR/breath-cycle.md" ]]; then
+    pass "template: protocols/breath-cycle.md"
+else
+    fail "missing template: protocols/breath-cycle.md"
+fi
+
+if [[ -f "$PROTO_TEMPLATE_DIR/_template.md" ]]; then
+    pass "template: protocols/_template.md"
+else
+    fail "missing template: protocols/_template.md"
+fi
+
+# breath-cycle template should have key content
+if grep -q "heat-default: hot" "$PROTO_TEMPLATE_DIR/breath-cycle.md" 2>/dev/null; then
+    pass "breath-cycle is hot by default"
+else
+    fail "breath-cycle should be hot by default"
+fi
+
+if grep -q "## TL;DR" "$PROTO_TEMPLATE_DIR/breath-cycle.md" 2>/dev/null; then
+    pass "breath-cycle has TL;DR"
+else
+    fail "breath-cycle missing TL;DR"
+fi
+
+if grep -q "Never skip exhale" "$PROTO_TEMPLATE_DIR/breath-cycle.md" 2>/dev/null; then
+    pass "breath-cycle has critical rule"
+else
+    fail "breath-cycle missing critical rule"
+fi
+
+echo ""
 echo "═══ Init Options ═══"
 
 # Check InitOptions has templateDir
