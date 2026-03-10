@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Soma project instance
+# Tracked: STATE.md, protocols/ (architecture truth)
+# Ignored: identity, memory, plans, sessions (personal/internal)
+.soma/identity.md
+.soma/memory/
+.soma/sessions/
+.soma/preloads/
+.soma/plans/
+.soma/skills/
+.soma/extensions/
+.soma/.protocol-state.json
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+**/secrets/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test
+coverage/
+
+# Sub-projects (separate repos)
+website/
+_reference-site/
+
+# Symlinks to personal content
+media
+
+# Soma dev workspace — .soma/ is OUR working memory, not the product
+# Tracked (architecture truth): STATE.md, protocols/
+# Everything else is personal/dev tooling — lives in somas-daddy or vault
+!.soma/STATE.md
+!.soma/protocols/
+!.soma/protocols/**
+
+# Git worktrees (feature branches checked out side-by-side)
+.worktrees/
+.soma/protocols-ref
+
+# Restored internal assets — design history, registries, early designs
+# Kept local for reference, not shipped to public repo
+.soma/logos/
+.soma/docs/
+.soma/registry/
+.soma/rituals/
+.soma/protocols.json
+.soma/soma-os-concept.md
+protocols/agent-verification.md
+docs/github-apps.md

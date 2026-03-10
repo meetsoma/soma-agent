@@ -1,0 +1,79 @@
+/**
+ * Soma Core
+ *
+ * The minimal runtime that makes Soma work. Everything else is a plugin.
+ *
+ * Modules:
+ *   discovery  — find .soma/ directories (project, parent, global)
+ *   identity   — load and layer identity files
+ *   preload    — session resumption via preload files
+ *   protocols  — behavioral rules, heat tracking, system prompt injection
+ *   init       — scaffold new .soma/ directories
+ *   utils      — shared helpers
+ */
+
+export {
+	findSomaDir,
+	findParentSomaDir,
+	findGlobalSomaDir,
+	getSomaChain,
+	DEFAULT_ROOT,
+	SCAN_ORDER,
+	MARKERS,
+} from "./discovery.js";
+export type { SomaDir } from "./discovery.js";
+
+export {
+	loadIdentity,
+	loadIdentityChain,
+	buildLayeredIdentity,
+	hasIdentity,
+} from "./identity.js";
+export type { IdentityInfo } from "./identity.js";
+
+export {
+	findPreload,
+	hasPreload,
+} from "./preload.js";
+export type { PreloadInfo } from "./preload.js";
+
+export {
+	discoverProtocols,
+	discoverProtocolChain,
+	detectProjectSignals,
+	protocolMatchesSignals,
+	loadProtocolState,
+	saveProtocolState,
+	bootstrapProtocolState,
+	syncProtocolState,
+	getProtocolHeat,
+	buildProtocolInjection,
+	recordHeatEvent,
+	applyDecay,
+} from "./protocols.js";
+export type { Protocol, ProtocolHeatState, ProtocolState, ProtocolInjection, ProjectSignal } from "./protocols.js";
+
+export {
+	initSoma,
+	resolveTemplateDir,
+} from "./init.js";
+export type { InitOptions } from "./init.js";
+
+export {
+	discoverMuscles,
+	discoverMuscleChain,
+	buildMuscleInjection,
+	trackMuscleLoads,
+	bumpMuscleHeat,
+	decayMuscleHeat,
+} from "./muscles.js";
+export type { Muscle, MuscleInjection, MuscleLoadConfig } from "./muscles.js";
+
+export {
+	loadSettings,
+	loadSettingsFile,
+	getDefaultSettings,
+} from "./settings.js";
+export type { SomaSettings } from "./settings.js";
+
+export { safeRead, fmtDuration } from "./utils.js";

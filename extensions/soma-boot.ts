@@ -1,0 +1,739 @@
+/**
+ * Soma Boot Extension
+ *
+ * Single source of truth for session lifecycle:
+ *   - Discovery + identity + preload + protocols + muscles + scripts + git-context
+ *   - Context warnings (50% → 70% → 80% → 85% auto-flush)
+ *   - FLUSH COMPLETE detection + auto-continue
+ *   - Preload watcher (tool_result)
+ *   - /exhale, /breathe, /inhale, /pin, /kill, /soma, /preload, /auto-continue
+ *   - Heat tracking (auto-detect + decay)
+ *
+ * Statusline extension ONLY handles: footer rendering, cache keepalive, /status, /keepalive
+ */
+
+import { join } from "path";
+import { existsSync, readdirSync } from "fs";
+import { execSync } from "child_process";
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import {
+	findSomaDir,
+	getSomaChain,
+	buildLayeredIdentity,
+	findPreload,
+	discoverProtocolChain,
+	detectProjectSignals,
+	loadProtocolState,
+	saveProtocolState,
+	bootstrapProtocolState,
+	syncProtocolState,
+	buildProtocolInjection,
+	applyDecay,
+	discoverMuscleChain,
+	buildMuscleInjection,
+	trackMuscleLoads,
+	decayMuscleHeat,
+	bumpMuscleHeat,
+	recordHeatEvent,
+	loadSettings,
+	initSoma,
+	type SomaDir,
+	type SomaSettings,
+	type ProtocolState,
+} from "../core/index.js";
+
+// ---------------------------------------------------------------------------
+// Extension
+// ---------------------------------------------------------------------------
+
+// Script descriptions for boot injection
+const SCRIPT_DESCRIPTIONS: Record<string, string> = {
+	"soma-search.sh": "Query memory by type/status/tags/domain. `--deep` for TL;DR, `--brief` for breadcrumbs, `--missing-tldr` for audit",
+	"soma-scan.sh": "Scan frontmatter across docs. `--stale` for outdated, `--type`/`--status` filters",
+	"soma-tldr.sh": "Generate TL;DR/digest sections via Haiku. `--scan` gaps, `--batch` all, `--dry-run`",
+	"soma-audit.sh": "Ecosystem audit — PII, code drift, stale refs, overlap, docs mismatch, test coverage",
+	"soma-init.sh": "Scaffold new .soma/ directory for a project",
+	"soma-snapshot.sh": "Rolling backup snapshots of .soma/",
+	"frontmatter-date-hook.sh": "Git pre-commit hook: auto-update `updated:` in frontmatter",
+};
+
+export default function somaBootExtension(pi: ExtensionAPI) {
+
+	let soma: SomaDir | null = null;
+	let settings: SomaSettings | null = null;
+	let protocolState: ProtocolState | null = null;
+	let protocolsReferenced = new Set<string>();
+	let musclesReferenced = new Set<string>();
+	let knownProtocolNames: string[] = [];
+	let knownMuscleNames: string[] = [];
+	let booted = false;
+
+	// Context warning state
+	let lastContextWarningPct = 0;
+	let wrapUpSent = false;
+	let autoFlushSent = false;
+
+	// Flush/continue state
+	let flushCompleteDetected = false;
+	let preloadWrittenThisSession = false;
+	let preloadPath: string | null = null;
+	let breathePending = false;
+
+	// -------------------------------------------------------------------
+	// Session start: discover, load identity + preload + protocols
+	// -------------------------------------------------------------------
+
+	pi.on("session_start", async (_event, ctx) => {
+		soma = findSomaDir();
+
+		if (!soma) {
+			const shouldInit = await ctx.ui.confirm(
+				"🌱 Soma",
+				"No memory found in this project. Create one?"
+			);
+			if (shouldInit) {
+				const somaPath = initSoma(process.cwd());
+				soma = findSomaDir();
+				ctx.ui.notify(`🌱 Soma planted at ${somaPath}`, "info");
+				pi.sendUserMessage(
+					`You have a fresh memory system at \`${somaPath}\`.\n` +
+					`There's an empty identity file at \`${somaPath}/identity.md\`.\n` +
+					`Based on what you know about yourself and this workspace, ` +
+					`write a brief identity — who are you, what do you help with, ` +
+					`what's your style? Keep it under 20 lines.`,
+					{ deliverAs: "followUp" }
+				);
+			}
+			return;
+		}
+
+		// Build boot context
+		const parts: string[] = [];
+		const chain = getSomaChain();
+
+		settings = loadSettings(chain);
+
+		const isResumed = ctx.sessionManager.getEntries().some(
+			(e: any) => e.type === "message"
+		);
+
+		const steps = settings.boot.steps;
+
+		for (const step of steps) {
+			switch (step) {
+
+			case "identity": {
+				const identity = buildLayeredIdentity(chain);
+				if (identity) parts.push(identity);
+				break;
+			}
+
+			case "preload": {
+				if (isResumed) {
+					const staleHours = settings.preload.staleAfterHours;
+					const preload = findPreload(soma, staleHours);
+					if (preload) {
+						const staleTag = preload.stale ? " ⚠️ stale" : "";
+						parts.push(`\n---\n# Session Preload (${preload.name})${staleTag}\n${preload.content}`);
+					}
+				}
+				break;
+			}
+
+			case "protocols": {
+				const signals = detectProjectSignals(soma.projectDir);
+				const protocols = discoverProtocolChain(chain, signals);
+				knownProtocolNames = protocols.map(p => p.name);
+				if (protocols.length > 0) {
+					protocolState = loadProtocolState(soma);
+					const protoThresholds = settings.protocols;
+
+					if (!protocolState) {
+						protocolState = bootstrapProtocolState(protocols, protoThresholds);
+						saveProtocolState(soma, protocolState);
+					} else {
+						if (syncProtocolState(protocolState, protocols, protoThresholds)) {
+							saveProtocolState(soma, protocolState);
+						}
+					}
+
+					const injection = buildProtocolInjection(protocols, protocolState, protoThresholds);
+					if (injection.systemPromptBlock.trim()) {
+						parts.push(`\n---\n${injection.systemPromptBlock}`);
+					}
+				}
+				break;
+			}
+
+			case "muscles": {
+				const muscles = discoverMuscleChain(chain);
+				knownMuscleNames = muscles.map(m => m.name);
+				if (muscles.length > 0) {
+					const muscleInjection = buildMuscleInjection(muscles, settings.muscles);
+					if (muscleInjection.systemPromptBlock.trim()) {
+						parts.push(`\n---\n${muscleInjection.systemPromptBlock}`);
+					}
+					const loaded = [...muscleInjection.hot, ...muscleInjection.warm];
+					if (loaded.length > 0) trackMuscleLoads(loaded);
+				}
+				break;
+			}
+
+			case "scripts": {
+				const scriptsDir = join(soma.path, "scripts");
+				if (existsSync(scriptsDir)) {
+					try {
+						const scripts = readdirSync(scriptsDir).filter(f => f.endsWith(".sh"));
+						if (scripts.length > 0) {
+							const scriptLines = [
+								"## Available Scripts\n",
+								`Location: \`${scriptsDir}/\`\n`,
+								"| Script | What it does |",
+								"|--------|-------------|",
+								...scripts.map(s => {
+									const desc = SCRIPT_DESCRIPTIONS[s] || "—";
+									return `| \`${s}\` | ${desc} |`;
+								}),
+								"",
+								"Run with `bash <path>`. Use `--help` for options.",
+								"",
+							];
+							parts.push(`\n---\n${scriptLines.join("\n")}`);
+						}
+					} catch { /* ignore */ }
+				}
+				break;
+			}
+
+			case "git-context": {
+				const gc = settings.boot.gitContext;
+				if (!gc.enabled) break;
+
+				try {
+					const cwd = soma.projectDir;
+					execSync("git rev-parse --is-inside-work-tree", { cwd, stdio: "pipe" });
+
+					const lines: string[] = ["## Recent Changes (git)\n"];
+
+					if (gc.maxCommits > 0) {
+						let sinceArg = "";
+						if (gc.since === "last-session") {
+							const preload = findPreload(soma, settings.preload.staleAfterHours);
+							if (preload) {
+								const since = new Date(Date.now() - preload.ageHours * 3600000);
+								sinceArg = `--since="${since.toISOString()}"`;
+							} else {
+								sinceArg = '--since="24 hours ago"';
+							}
+						} else if (/^\d+h$/.test(gc.since)) {
+							sinceArg = `--since="${parseInt(gc.since)} hours ago"`;
+						} else if (/^\d+d$/.test(gc.since)) {
+							sinceArg = `--since="${parseInt(gc.since)} days ago"`;
+						} else {
+							sinceArg = `--since="${gc.since}"`;
+						}
+
+						const log = execSync(
+							`git log --oneline ${sinceArg} -${gc.maxCommits} 2>/dev/null`,
+							{ cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
+						).trim();
+
+						if (log) {
+							lines.push("### Commits\n");
+							lines.push("```");
+							lines.push(log);
+							lines.push("```\n");
+						}
+					}
+
+					if (gc.diffMode !== "none" && gc.maxDiffLines > 0) {
+						const diffCmd = gc.diffMode === "full"
+							? `git diff HEAD~5 --no-color 2>/dev/null | head -${gc.maxDiffLines}`
+							: `git diff HEAD~5 --stat --no-color 2>/dev/null | head -${gc.maxDiffLines}`;
+
+						const diff = execSync(diffCmd, {
+							cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"]
+						}).trim();
+
+						if (diff) {
+							lines.push("### Changed Files\n");
+							lines.push("```");
+							lines.push(diff);
+							lines.push("```\n");
+						}
+					}
+
+					if (lines.length > 1) {
+						parts.push(`\n---\n${lines.join("\n")}`);
+					}
+				} catch { /* not a git repo */ }
+				break;
+			}
+
+			default:
+				break;
+			}
+		}
+
+		if (parts.length > 0) {
+			booted = true;
+			pi.appendEntry("soma-boot", { timestamp: Date.now(), resumed: isResumed });
+
+			const greetStyle = isResumed
+				? `You've resumed a Soma session. Your identity, preload, and protocols are above. Orient briefly and await instructions.`
+				: `You've booted into a fresh Soma session. Your identity and protocols are above. Greet the user briefly and await instructions.`;
+
+			pi.sendUserMessage(
+				`[Soma Boot${isResumed ? " — resumed" : ""}]\n\n${parts.join("\n")}\n\n${greetStyle}`,
+				{ deliverAs: "followUp" }
+			);
+		}
+	});
+
+	// -------------------------------------------------------------------
+	// Context warnings — single source, escalating thresholds
+	// 50%: UI notify | 70%: UI notify | 80%: system prompt warn | 85%: auto-flush
+	// -------------------------------------------------------------------
+
+	pi.on("before_agent_start", async (event, ctx) => {
+		if (!soma || !booted) return;
+
+		const usage = ctx.getContextUsage?.();
+		if (!usage?.percent) return;
+		const pct = usage.percent;
+
+		const thresholds = settings?.context ?? { notifyAt: 50, warnAt: 70, urgentAt: 80, autoExhaleAt: 85 };
+		const additions: string[] = [];
+
+		if (pct >= thresholds.autoExhaleAt && !autoFlushSent) {
+			autoFlushSent = true;
+
+			const memDir = join(soma.path, "memory");
+			const preloadTarget = join(memDir, "preload-next.md");
+
+			// System prompt injection
+			additions.push(
+				`\n## ⚠️ CONTEXT CRITICAL (${Math.round(pct)}%)\n` +
+				`Context nearly full. Stop new work. Flush NOW.`
+			);
+
+			// Detailed flush instructions via user message
+			pi.sendUserMessage(
+				`[AUTO-FLUSH — context at ${Math.round(pct)}%]\n\n` +
+				`Context is critically full. Flush NOW. Do not start new work.\n\n` +
+				`1. Commit all uncommitted work.\n` +
+				`2. Write \`${preloadTarget}\` — what shipped, key decisions, next priorities.\n` +
+				`3. Say "FLUSH COMPLETE" — system will offer to continue.`,
+				{ deliverAs: "followUp" }
+			);
+
+			ctx.ui.notify(`🔴 Context at ${Math.round(pct)}% — AUTO-FLUSH`, "error");
+			lastContextWarningPct = pct;
+		} else if (pct >= thresholds.urgentAt && lastContextWarningPct < thresholds.urgentAt) {
+			additions.push(
+				`\n## ⚠️ Context High (${Math.round(pct)}%)\n` +
+				`Wrap up current task. Prepare to flush.`
+			);
+			ctx.ui.notify(`⚠️ Context ${Math.round(pct)}% — flush soon`, "warning");
+			lastContextWarningPct = pct;
+		} else if (pct >= thresholds.warnAt && lastContextWarningPct < thresholds.warnAt) {
+			ctx.ui.notify(`Context ${Math.round(pct)}%`, "info");
+			lastContextWarningPct = pct;
+		} else if (pct >= thresholds.notifyAt && lastContextWarningPct < thresholds.notifyAt) {
+			ctx.ui.notify(`Context: ${Math.round(pct)}% — pace yourself`, "info");
+			lastContextWarningPct = pct;
+		}
+
+		if (additions.length > 0) {
+			return { systemPrompt: event.systemPrompt + "\n" + additions.join("\n") };
+		}
+	});
+
+	// -------------------------------------------------------------------
+	// FLUSH COMPLETE detection — watches assistant messages
+	// -------------------------------------------------------------------
+
+	pi.on("message_end", async (event) => {
+		if (event.message.role !== "assistant") return;
+		const content = event.message.content;
+		if (typeof content === "string") {
+			if (content.includes("FLUSH COMPLETE")) flushCompleteDetected = true;
+		} else if (Array.isArray(content)) {
+			if (content.some((block: any) => block.type === "text" && block.text?.includes("FLUSH COMPLETE"))) {
+				flushCompleteDetected = true;
+			}
+		}
+	});
+
+	// -------------------------------------------------------------------
+	// Preload watcher — detects when agent writes preload-next.md
+	// -------------------------------------------------------------------
+
+	pi.on("tool_result", async (event, ctx) => {
+		if (event.toolName !== "write" || event.isError) return;
+		const writePath = (event.input as any)?.path as string;
+		if (!writePath) return;
+		const filename = writePath.split("/").pop() || "";
+
+		if (filename.startsWith("preload-next") && filename.endsWith(".md")) {
+			preloadWrittenThisSession = true;
+			preloadPath = writePath;
+			ctx.ui.notify(`✅ Preload written: ${filename}`, "info");
+		}
+	});
+
+	// -------------------------------------------------------------------
+	// After agent finishes — offer auto-continue if flush complete
+	// -------------------------------------------------------------------
+
+	pi.on("agent_end", async (_event, ctx) => {
+		if (flushCompleteDetected && preloadWrittenThisSession) {
+			ctx.ui.notify(
+				"🟢 FLUSH COMPLETE — preload ready. Type /auto-continue or Ctrl+N",
+				"info"
+			);
+		}
+	});
+
+	// -------------------------------------------------------------------
+	// /breathe auto-rotate — detects preload written after /breathe
+	// -------------------------------------------------------------------
+
+	pi.on("turn_end", async (_event, ctx) => {
+		if (!breathePending) return;
+
+		if (preloadWrittenThisSession) {
+			breathePending = false;
+			ctx.ui.notify("🫁 Preload saved — rotating to fresh session...", "info");
+			setTimeout(() => {
+				ctx.newSession({ continueSession: true });
+			}, 1500);
+		}
+	});
+
+	// -------------------------------------------------------------------
+	// Session lifecycle resets
+	// -------------------------------------------------------------------
+
+	pi.on("session_switch", async (event, ctx) => {
+		if (event.reason === "new") {
+			lastContextWarningPct = 0;
+			wrapUpSent = false;
+			autoFlushSent = false;
+			flushCompleteDetected = false;
+			preloadWrittenThisSession = false;
+			breathePending = false;
+			protocolsReferenced = new Set();
+			musclesReferenced = new Set();
+
+			// If preload exists, notify (user can /auto-continue)
+			if (soma) {
+				const preload = findPreload(soma);
+				if (preload && !preload.stale) {
+					ctx.ui.notify(
+						`📋 Preload available (${Math.floor(preload.ageHours)}h ago). Use /auto-continue to load.`,
+						"info"
+					);
+				}
+			}
+		}
+	});
+
+	pi.on("session_shutdown", async () => {
+		if (!soma) return;
+		const decay = settings?.protocols.decayRate ?? 1;
+		if (protocolState) {
+			applyDecay(protocolState, protocolsReferenced, decay);
+			saveProtocolState(soma, protocolState);
+		}
+		decayMuscleHeat(soma, musclesReferenced, decay);
+	});
+
+	// -------------------------------------------------------------------
+	// Mid-session heat tracking — auto-detect from tool results
+	// -------------------------------------------------------------------
+
+	const HEAT_RULES: Array<{
+		match: (toolName: string, input: any, output: string) => boolean;
+		target: string;
+		type: "protocol" | "muscle";
+	}> = [
+		{
+			match: (tool, input) =>
+				tool === "write" && typeof input?.content === "string" && input.content.startsWith("---\n"),
+			target: "frontmatter-standard",
+			type: "protocol",
+		},
+		{
+			match: (tool, input) =>
+				tool === "bash" && typeof input?.command === "string" && /git (config|commit|push|remote)/.test(input.command),
+			target: "git-identity",
+			type: "protocol",
+		},
+		{
+			match: (tool, input) =>
+				tool === "write" && typeof input?.path === "string" && /preload|continuation/.test(input.path),
+			target: "breath-cycle",
+			type: "protocol",
+		},
+		{
+			match: (tool, input) =>
+				tool === "write" && typeof input?.path === "string" && input.path.endsWith(".svg"),
+			target: "svg-logo-design",
+			type: "muscle",
+		},
+	];
+
+	pi.on("tool_result", async (event) => {
+		if (!soma || !protocolState || !settings?.heat.autoDetect) return;
+
+		const toolName = event.toolName;
+		const input = event.input as any;
+		const output = typeof event.output === "string" ? event.output : "";
+		const bump = settings.heat.autoDetectBump;
+
+		for (const rule of HEAT_RULES) {
+			if (!rule.match(toolName, input, output)) continue;
+
+			if (rule.type === "protocol" && knownProtocolNames.includes(rule.target)) {
+				if (!protocolsReferenced.has(rule.target)) {
+					protocolsReferenced.add(rule.target);
+					recordHeatEvent(protocolState, rule.target, "applied");
+				}
+			} else if (rule.type === "muscle" && knownMuscleNames.includes(rule.target)) {
+				if (!musclesReferenced.has(rule.target)) {
+					musclesReferenced.add(rule.target);
+					bumpMuscleHeat(soma, rule.target, bump);
+				}
+			}
+		}
+	});
+
+	// -------------------------------------------------------------------
+	// Commands
+	// -------------------------------------------------------------------
+
+	// /pin — bump heat to hot
+	pi.registerCommand("pin", {
+		description: "Pin a protocol or muscle to hot — keeps it loaded across sessions",
+		handler: async (args, ctx) => {
+			const name = args.trim();
+			if (!name) { ctx.ui.notify("Usage: /pin <protocol-or-muscle-name>", "info"); return; }
+			if (!soma || !protocolState) { ctx.ui.notify("No soma booted", "error"); return; }
+
+			if (knownProtocolNames.includes(name)) {
+				recordHeatEvent(protocolState, name, "pinned");
+				saveProtocolState(soma, protocolState);
+				protocolsReferenced.add(name);
+				ctx.ui.notify(`📌 ${name} pinned (heat locked hot)`, "info");
+			} else if (knownMuscleNames.includes(name)) {
+				bumpMuscleHeat(soma, name, settings?.heat.pinBump ?? 5);
+				musclesReferenced.add(name);
+				ctx.ui.notify(`📌 ${name} pinned (heat bumped to hot)`, "info");
+			} else {
+				ctx.ui.notify(`Unknown protocol or muscle: ${name}`, "error");
+			}
+		},
+	});
+
+	// /kill — drop heat to zero
+	pi.registerCommand("kill", {
+		description: "Kill a protocol or muscle — drops heat to zero",
+		handler: async (args, ctx) => {
+			const name = args.trim();
+			if (!name) { ctx.ui.notify("Usage: /kill <protocol-or-muscle-name>", "info"); return; }
+			if (!soma || !protocolState) { ctx.ui.notify("No soma booted", "error"); return; }
+
+			if (knownProtocolNames.includes(name)) {
+				recordHeatEvent(protocolState, name, "killed");
+				saveProtocolState(soma, protocolState);
+				ctx.ui.notify(`💀 ${name} killed (heat → 0)`, "info");
+			} else if (knownMuscleNames.includes(name)) {
+				bumpMuscleHeat(soma, name, -15);
+				ctx.ui.notify(`💀 ${name} killed (heat → 0)`, "info");
+			} else {
+				ctx.ui.notify(`Unknown protocol or muscle: ${name}`, "error");
+			}
+		},
+	});
+
+	// /exhale — save state, session ends
+	const exhaleHandler = async (_args: string, ctx: any) => {
+		if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
+
+		const memDir = join(soma.path, "memory");
+		const target = join(memDir, "preload-next.md");
+		const today = new Date().toISOString().split("T")[0];
+		const logPath = join(memDir, "sessions", `${today}.md`);
+
+		// Save heat
+		const decay = settings?.protocols.decayRate ?? 1;
+		if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay); saveProtocolState(soma, protocolState); }
+		decayMuscleHeat(soma, musclesReferenced, decay);
+
+		pi.sendUserMessage(
+			`[EXHALE — save session state]\n\n` +
+			`**Step 1:** Commit all uncommitted work.\n\n` +
+			`**Step 2:** Write \`${target}\` — compact session state:\n` +
+			`- What shipped this session\n` +
+			`- Key files changed\n` +
+			`- What's next (priority order)\n` +
+			`- What NOT to re-read\n\n` +
+			`**Step 3:** Append to \`${logPath}\` — daily session log.\n\n` +
+			`**Step 4:** Say "FLUSH COMPLETE".`,
+			{ deliverAs: "followUp" }
+		);
+
+		ctx.ui.notify("Exhale initiated — write preload, then FLUSH COMPLETE", "info");
+	};
+
+	pi.registerCommand("exhale", { description: "Exhale — save session state", handler: exhaleHandler });
+	pi.registerCommand("flush", { description: "Alias for /exhale", handler: exhaleHandler });
+
+	// /rest — disable keepalive + exhale (going to bed)
+	pi.registerCommand("rest", {
+		description: "Rest — disable keepalive, save state, end session",
+		handler: async (args, ctx) => {
+			// Disable keepalive via cross-extension signal
+			const ka = (globalThis as any).__somaKeepalive;
+			if (ka) { ka.enabled = false; }
+			ctx.ui.notify("💤 Keepalive disabled — entering rest mode", "info");
+
+			// Trigger exhale
+			await exhaleHandler(args, ctx);
+		},
+	});
+
+	// /breathe — exhale + auto-continue
+	pi.registerCommand("breathe", {
+		description: "Breathe — save state and continue in a fresh session",
+		handler: async (_args, ctx) => {
+			if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
+
+			const memDir = join(soma.path, "memory");
+			const target = join(memDir, "preload-next.md");
+			const today = new Date().toISOString().split("T")[0];
+			const logPath = join(memDir, "sessions", `${today}.md`);
+
+			// Save heat
+			const decay = settings?.protocols.decayRate ?? 1;
+			if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay); saveProtocolState(soma, protocolState); }
+			decayMuscleHeat(soma, musclesReferenced, decay);
+
+			breathePending = true;
+
+			pi.sendUserMessage(
+				`[BREATHE — save and continue]\n\n` +
+				`**Step 1:** Commit all uncommitted work.\n\n` +
+				`**Step 2:** Write \`${target}\` — compact session state:\n` +
+				`- What shipped this session\n` +
+				`- Key files changed\n` +
+				`- What's next (priority order)\n` +
+				`- What NOT to re-read\n\n` +
+				`**Step 3:** Append to \`${logPath}\` — daily session log.\n\n` +
+				`**Step 4:** Say "BREATHE COMPLETE" when done.`,
+				{ deliverAs: "followUp" }
+			);
+
+			ctx.ui.notify("🫁 Breathing — exhale then auto-continue into fresh session", "info");
+		},
+	});
+
+	// /auto-continue — manual trigger for new session + preload injection
+	pi.registerCommand("auto-continue", {
+		description: "Create new session and inject preload as continuation",
+		handler: async (_args, ctx) => {
+			if (!soma) { ctx.ui.notify("No .soma/ found", "error"); return; }
+
+			const preload = findPreload(soma);
+			if (!preload) {
+				ctx.ui.notify("⚠️ No preload found — nothing to continue from", "warning");
+				return;
+			}
+
+			// Reset state
+			flushCompleteDetected = false;
+			preloadWrittenThisSession = false;
+			lastContextWarningPct = 0;
+			wrapUpSent = false;
+			autoFlushSent = false;
+
+			ctx.ui.notify("🔄 Creating new session with preload...", "info");
+			try {
+				const result = await ctx.newSession({});
+				if (!result.cancelled) {
+					pi.sendUserMessage(preload.content, { deliverAs: "followUp" });
+					ctx.ui.notify("✅ Auto-continued — preload injected", "info");
+				}
+			} catch (err: any) {
+				ctx.ui.notify(`⚠️ Auto-continue failed: ${err?.message?.slice(0, 100)}`, "error");
+			}
+		},
+	});
+
+	// /preload — show available preloads
+	pi.registerCommand("preload", {
+		description: "List available preload files",
+		handler: async (_args, ctx) => {
+			if (!soma) { ctx.ui.notify("No .soma/ found", "info"); return; }
+			const preload = findPreload(soma);
+			if (preload) {
+				const stale = preload.stale ? " ⚠️stale" : "";
+				ctx.ui.notify(`${preload.name} (${Math.floor(preload.ageHours)}h ago${stale})`, "info");
+			} else {
+				ctx.ui.notify("No preloads found", "info");
+			}
+		},
+	});
+
+	// /inhale — orient for fresh session
+	pi.registerCommand("inhale", {
+		description: "Inhale — show preload status, suggest how to continue",
+		handler: async (_args, ctx) => {
+			if (!soma) { ctx.ui.notify("No .soma/ — nothing to inhale. Run /soma init first.", "info"); return; }
+			const preload = findPreload(soma);
+			if (preload && !preload.stale) {
+				ctx.ui.notify(
+					`🫁 Fresh preload ready (${Math.floor(preload.ageHours)}h ago). Use /auto-continue to load it.`,
+					"info"
+				);
+			} else {
+				ctx.ui.notify("🫁 No fresh preload. Ctrl+N for clean inhale (identity + protocols only).", "info");
+			}
+		},
+	});
+
+	// /soma — status and management
+	pi.registerCommand("soma", {
+		description: "Soma memory status and management",
+		getArgumentCompletions: (prefix) =>
+			["status", "init"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
+		handler: async (args, ctx) => {
+			const cmd = args.trim().toLowerCase() || "status";
+
+			if (cmd === "init") {
+				if (soma) { ctx.ui.notify(`Soma already planted at ${soma.path}`, "info"); return; }
+				const somaPath = initSoma(process.cwd());
+				soma = findSomaDir();
+				ctx.ui.notify(`🌱 Soma planted at ${somaPath}`, "info");
+				return;
+			}
+
+			if (cmd === "status") {
+				if (!soma) { ctx.ui.notify("No Soma found. Use /soma init", "info"); return; }
+				const preload = findPreload(soma);
+				const chain = getSomaChain();
+				const protocols = discoverProtocolChain(chain);
+				ctx.ui.notify([
+					`🌿 Soma: ${soma.path} (${soma.rootName}/)`,
+					`Chain: ${chain.length} level${chain.length !== 1 ? "s" : ""}`,
+					`Preload: ${preload ? "✓" : "none"}`,
+					`Protocols: ${protocols.length}`,
+				].join("\n"), "info");
+				return;
+			}
+
+			ctx.ui.notify("Usage: /soma status | /soma init", "info");
+		},
+	});
+}
