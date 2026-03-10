@@ -46,6 +46,7 @@ An AI coding agent with self-growing memory. Built on Pi (0.57.1) with custom `p
 │  ├── settings.ts     — read + merge settings.json   │
 │  │                      from soma chain              │
 │  ├── init.ts         — scaffold new .soma/           │
+│  ├── install.ts      — hub install + list (GitHub raw)│
 │  ├── utils.ts        — safeRead, fmtDuration         │
 │  └── index.ts        — public API re-exports         │
 │                                                      │
@@ -166,6 +167,8 @@ Configured via `~/.gitconfig` `includeIf` rules. See `protocols/git-identity/`.
 - ✅ Cache keepalive via statusline extension
 - ✅ Core modules importable from extensions via symlink chain
 - ✅ CLI v0.3.0 published to npm (`meetsoma@0.3.0`)
+- ✅ /install — fetch protocols, muscles, skills, templates from hub (GitHub raw URLs as registry)
+- ✅ /list — show local or remote content
 
 ## What's NOT Working
 
