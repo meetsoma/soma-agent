@@ -150,6 +150,91 @@ secrets/
 *.env
 `;
 
+const BUILTIN_BREATH_CYCLE = `---
+type: protocol
+name: breath-cycle
+status: active
+heat-default: hot
+applies-to: [always]
+breadcrumb: "Sessions have 3 phases: inhale (boot — load identity, memory, protocols), hold (work, track context), exhale (flush state, update heat, write preload). Never skip exhale."
+---
+
+# Breath Cycle Protocol
+
+## TL;DR
+- Three phases, no exceptions: **inhale** (boot identity + memory + protocols), **hold** (work + track context), **exhale** (flush state + write preload)
+- Exhale triggers at 85% context or on \\\`/exhale\\\` — never skip it, or session learnings are lost
+- Inhale loads: identity → preload → muscles (by heat) → protocols → STATE.md
+- Exhale writes: preload-next.md (continuation for next session) + heat state updates
+- This protocol is meta — it governs when all other protocols load and when their heat updates
+
+## Rule
+
+Every agent session follows three phases. No exceptions.
+
+### Inhale (Boot)
+1. Discover \\\`.soma/\\\` directory (walk up filesystem)
+2. Load identity (project → parent → global, layered)
+3. Load preload-next.md if exists and fresh
+4. Load muscles by heat (hottest first, within token budget)
+5. Scan protocols — inject hot protocols fully, warm as breadcrumbs
+6. Surface available scripts
+7. Load STATE.md for architecture context
+
+### Hold (Work)
+1. Monitor context usage
+2. Track which protocols are being applied
+3. Track which muscles are being referenced
+4. Do the actual work
+
+### Exhale (Flush)
+1. Triggered at 85% context or by \\\`/exhale\\\` command
+2. Write preload-next.md with session state
+3. Update protocol heat — bump used, decay unused
+4. Update muscle heat if muscles were referenced
+5. Note any patterns worth crystallizing as muscles
+
+## Critical Rule
+
+**Never skip exhale.** If context runs out before exhale, the session's learnings are lost. The 85% auto-trigger exists to prevent this. If the session ends early, exhale what you can.
+
+## When to Apply
+
+Always. This is the meta-protocol — it governs the session lifecycle and makes all other protocols work.
+
+## When NOT to Apply
+
+Never. This always applies.
+`;
+
+const BUILTIN_PROTOCOL_TEMPLATE = `---
+type: protocol
+name: REPLACE
+status: draft
+heat-default: warm
+applies-to: [always]
+breadcrumb: "REPLACE — one to two sentences. This is ALL the agent sees when warm. Make it actionable."
+---
+
+# REPLACE Protocol
+
+## TL;DR
+- Dense bullets summarizing the rule (3-7 lines)
+- This section is the first thing loaded on deeper reads
+
+## Rule
+
+<!-- Dense, imperative. What the agent must do. -->
+
+## When to Apply
+
+<!-- Contexts where this protocol activates. -->
+
+## When NOT to Apply
+
+<!-- Explicit exclusions. -->
+`;
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -223,6 +308,9 @@ export function initSoma(cwd: string, options: InitOptions = {}): string {
 		loadTemplate(templateDir, ".gitignore", vars) || BUILTIN_GITIGNORE
 	);
 
+	// Scaffold default protocols — breath-cycle is the meta-protocol every Soma needs
+	scaffoldProtocols(somaDir, templateDir, vars);
+
 	return somaDir;
 }
 
@@ -265,6 +353,30 @@ export function resolveTemplateDir(
 // ---------------------------------------------------------------------------
 // Internal
 // ---------------------------------------------------------------------------
+
+/**
+ * Scaffold default protocols into .soma/protocols/.
+ * breath-cycle ships by default — it's the meta-protocol that teaches
+ * Soma how to be Soma. _template.md gives format reference for new protocols.
+ * Template files override built-in if available.
+ */
+function scaffoldProtocols(
+	somaDir: string,
+	templateDir: string | null,
+	vars: Record<string, string>
+): void {
+	const protoDir = join(somaDir, "protocols");
+
+	writeIfMissing(
+		join(protoDir, "breath-cycle.md"),
+		loadTemplate(templateDir, "protocols/breath-cycle.md", vars) || BUILTIN_BREATH_CYCLE
+	);
+
+	writeIfMissing(
+		join(protoDir, "_template.md"),
+		loadTemplate(templateDir, "protocols/_template.md", vars) || BUILTIN_PROTOCOL_TEMPLATE
+	);
+}
 
 function today(): string {
 	return new Date().toISOString().slice(0, 10);
