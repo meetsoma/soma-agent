@@ -80,6 +80,9 @@ Soma doesn't come with a personality config file. She discovers who she is throu
 .soma/
 ├── identity.md          ← who Soma becomes (discovered, not configured)
 ├── STATE.md             ← project architecture truth
+├── protocols/           ← behavioral rules (heat-tracked)
+│   ├── breath-cycle.md  ← ships by default (the meta-protocol)
+│   └── _template.md     ← format reference for new protocols
 ├── memory/
 │   ├── muscles/         ← patterns learned from experience
 │   ├── preload-next.md  ← continuation for next session

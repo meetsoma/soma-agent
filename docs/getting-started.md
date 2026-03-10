@@ -72,6 +72,8 @@ Created by `soma init` or on first run:
 ├── STATE.md                 ← project architecture truth
 ├── settings.json            ← configurable thresholds (optional)
 ├── protocols/               ← behavioral rules (heat-tracked)
+│   ├── breath-cycle.md      ← ships by default (the meta-protocol)
+│   └── _template.md         ← format reference for new protocols
 ├── memory/
 │   ├── muscles/             ← patterns learned from experience
 │   ├── preload-next.md      ← continuation for next session
