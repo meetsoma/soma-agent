@@ -37,9 +37,13 @@ import {
 	recordHeatEvent,
 	loadSettings,
 	initSoma,
+	installItem,
+	listRemote,
+	listLocal,
 	type SomaDir,
 	type SomaSettings,
 	type ProtocolState,
+	type ContentType,
 } from "../core/index.js";
 
 // ---------------------------------------------------------------------------
@@ -749,6 +753,136 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 
 			ctx.ui.notify("Usage: /soma status | /soma init", "info");
+		},
+	});
+
+	// -------------------------------------------------------------------
+	// /install — fetch content from hub
+	// -------------------------------------------------------------------
+
+	const VALID_TYPES: ContentType[] = ["protocol", "muscle", "skill", "template"];
+
+	pi.registerCommand("install", {
+		description: "Install a protocol, muscle, skill, or template from the Soma Hub",
+		getArgumentCompletions: (prefix) =>
+			VALID_TYPES
+				.filter(t => t.startsWith(prefix))
+				.map(t => ({ value: t, label: `${t} — install a ${t} from hub` })),
+		handler: async (args, ctx) => {
+			if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
+
+			const parts = args.trim().split(/\s+/);
+			const force = parts.includes("--force");
+			const filtered = parts.filter(p => p !== "--force");
+
+			if (filtered.length < 2) {
+				ctx.ui.notify("Usage: /install <type> <name> [--force]\nTypes: protocol, muscle, skill, template", "info");
+				return;
+			}
+
+			const type = filtered[0] as ContentType;
+			const name = filtered[1];
+
+			if (!VALID_TYPES.includes(type)) {
+				ctx.ui.notify(`Invalid type: ${type}. Use: ${VALID_TYPES.join(", ")}`, "error");
+				return;
+			}
+
+			ctx.ui.notify(`📦 Installing ${type}: ${name}...`, "info");
+
+			try {
+				const result = await installItem(soma, type, name, { force });
+
+				if (result.success) {
+					const msgs = [`✅ Installed ${type}: ${name}`];
+					if (result.path) msgs.push(`   → ${result.path}`);
+
+					// Show dependency results for templates
+					if (result.dependencies && result.dependencies.length > 0) {
+						msgs.push(`   Dependencies:`);
+						for (const dep of result.dependencies) {
+							const icon = dep.success ? "✓" : dep.error?.includes("Already exists") ? "·" : "✗";
+							msgs.push(`     ${icon} ${dep.type}: ${dep.name}${dep.error ? ` (${dep.error})` : ""}`);
+						}
+					}
+
+					ctx.ui.notify(msgs.join("\n"), "info");
+
+					// Notify about reboot
+					if (type === "protocol" || type === "muscle") {
+						ctx.ui.notify("💡 New content will load on next session boot (or /breathe to rotate now)", "info");
+					}
+				} else {
+					ctx.ui.notify(`❌ ${result.error || "Install failed"}`, "error");
+				}
+			} catch (err: any) {
+				ctx.ui.notify(`❌ Install error: ${err.message}`, "error");
+			}
+		},
+	});
+
+	// -------------------------------------------------------------------
+	// /list — show installed or remote content
+	// -------------------------------------------------------------------
+
+	pi.registerCommand("list", {
+		description: "List installed or remote Soma content",
+		getArgumentCompletions: (prefix) =>
+			["local", "remote", ...VALID_TYPES]
+				.filter(o => o.startsWith(prefix))
+				.map(o => ({ value: o, label: o })),
+		handler: async (args, ctx) => {
+			const parts = args.trim().split(/\s+/).filter(Boolean);
+			const mode = parts[0] || "local";
+			const typeFilter = parts[1] as ContentType | undefined;
+
+			if (mode === "remote") {
+				ctx.ui.notify("🔍 Fetching from hub...", "info");
+				try {
+					const items = await listRemote(typeFilter);
+					if (items.length === 0) {
+						ctx.ui.notify("No remote content found.", "info");
+						return;
+					}
+
+					const grouped: Record<string, string[]> = {};
+					for (const item of items) {
+						if (!grouped[item.type]) grouped[item.type] = [];
+						grouped[item.type].push(item.name);
+					}
+
+					const lines = ["📡 Hub content:"];
+					for (const [type, names] of Object.entries(grouped)) {
+						lines.push(`  ${type}s: ${names.join(", ")}`);
+					}
+					lines.push(`\nInstall: /install <type> <name>`);
+					ctx.ui.notify(lines.join("\n"), "info");
+				} catch (err: any) {
+					ctx.ui.notify(`❌ Failed to fetch: ${err.message}`, "error");
+				}
+				return;
+			}
+
+			// Local listing
+			if (!soma) { ctx.ui.notify("No .soma/ found.", "info"); return; }
+
+			const items = listLocal(soma, typeFilter && VALID_TYPES.includes(typeFilter) ? typeFilter : undefined);
+			if (items.length === 0) {
+				ctx.ui.notify("No local content found. Try /list remote to see what's available.", "info");
+				return;
+			}
+
+			const grouped: Record<string, string[]> = {};
+			for (const item of items) {
+				if (!grouped[item.type]) grouped[item.type] = [];
+				grouped[item.type].push(item.name);
+			}
+
+			const lines = ["📋 Installed content:"];
+			for (const [type, names] of Object.entries(grouped)) {
+				lines.push(`  ${type}s: ${names.join(", ")}`);
+			}
+			ctx.ui.notify(lines.join("\n"), "info");
 		},
 	});
 }

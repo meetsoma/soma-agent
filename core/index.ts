@@ -76,4 +76,11 @@ export {
 } from "./settings.js";
 export type { SomaSettings } from "./settings.js";
 
+export {
+	installItem,
+	listRemote,
+	listLocal,
+} from "./install.js";
+export type { ContentType, InstallResult, RemoteItem, LocalItem } from "./install.js";
+
 export { safeRead, fmtDuration } from "./utils.js";
