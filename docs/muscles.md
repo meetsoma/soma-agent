@@ -75,7 +75,7 @@ No digest block? The muscle can only load as hot (full) or cold (not at all). Wr
 
 ## Heat & Loading Tiers
 
-Like protocols, muscles use the [heat system](/docs/protocols#heat-system) to decide what loads:
+Like protocols, muscles use the [heat system](heat-system.md) to decide what loads:
 
 | Tier | Heat | What Loads | When |
 |------|------|-----------|------|

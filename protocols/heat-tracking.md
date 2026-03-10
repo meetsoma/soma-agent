@@ -2,19 +2,34 @@
 type: protocol
 name: heat-tracking
 version: 1.0.0
-status: planned
+status: active
 created: 2026-03-10
-updated: 2026-03-10
+updated: 2026-03-09
 author: Curtis Mercier
 license: MIT
 heat-default: hot
-tier: enterprise
 breadcrumb: "Protocols have temperature: cold (not loaded), warm (breadcrumb in prompt), hot (full in prompt). Heat rises on use (+1/+2), decays per session if unused (-1). Thresholds configurable in settings.json."
 ---
 
 # Heat Tracking Protocol
 
 > This protocol is self-referential — it governs its own loading behavior.
+
+## Implementation Status
+
+| Component | Status |
+|-----------|--------|
+| Heat state file (`.protocol-state.json`) | ✅ `core/protocols.ts` |
+| Protocol sorting by heat (hot/warm/cold) | ✅ `buildProtocolInjection()` |
+| Muscle sorting by heat + token budget | ✅ `buildMuscleInjection()` |
+| Default thresholds + config | ✅ `DEFAULT_THRESHOLDS` + `settings.json` |
+| Session-end decay | ✅ `session_shutdown` + `/exhale` |
+| Heat event recording | ✅ `recordHeatEvent()` |
+| Auto-detect from tool results | ✅ `HEAT_RULES` in `tool_result` hook (5 rules) |
+| `/pin` and `/kill` commands | ✅ Manual overrides |
+| System prompt injection (hot=full, warm=breadcrumb) | ✅ Injection at boot |
+
+The full pipeline is wired end-to-end in `extensions/soma-boot.ts`. Heat auto-detection fires on tool results, decay runs on session end, and protocol/muscle injection is tiered by heat at boot.
 
 ## Rule
 
@@ -77,6 +92,8 @@ Heat state lives in `.soma/.protocol-state.json`. Updated during exhale phase of
 
 During every inhale (protocol loading) and every exhale (heat update). This protocol is always-on — it's the engine that makes the protocol system adaptive.
 
-## Enterprise Note
+## Free vs Pro
 
-Heat tracking is an enterprise feature. Free tier loads protocols statically (all or nothing). Enterprise gets the adaptive temperature system — protocols that matter rise, protocols that don't fade. The agent learns what behavioral rules actually get used.
+**Free tier (current):** Heat tracking works end-to-end. Auto-detection uses 5 hardcoded rules matching tool results (writes frontmatter → frontmatter-standard, runs git → git-identity, etc). Protocols and muscles sort by heat into hot/warm/cold tiers. Decay runs on session end. `/pin` and `/kill` for manual overrides.
+
+**Pro tier (future):** Custom HEAT_RULES — users define their own detection patterns. Richer heuristics (semantic analysis of what the agent is doing, not just tool-name matching). Custom thresholds per project. Heat analytics dashboard. Cross-session heat trends.
