@@ -2,7 +2,7 @@
 type: state
 method: atlas
 project: soma
-updated: 2026-03-09
+updated: 2026-03-10
 status: active
 rule: Update this file whenever architecture, memory structure, or extension behavior changes.
 ---
@@ -157,8 +157,15 @@ Configured via `~/.gitconfig` `includeIf` rules. See `protocols/git-identity/`.
 - ✅ Context warnings: configurable thresholds (default 50/80/85%, via `settings.context`)
 - ✅ Preload staleness: configurable (default 48h, via `settings.preload.staleAfterHours`)
 - ✅ Script awareness: `.soma/scripts/` surfaced at boot with descriptions
-- ✅ /exhale (~~`/flush`~~), /inhale, /preload, /soma, /status, /auto-continue commands (D012)
+- ✅ /exhale (~~`/flush`~~), /inhale, /preload, /soma, /status, /auto-continue, /rest commands
+- ✅ /breathe — exhale + auto-rotate into fresh session with preload injection
+- ✅ /inhale — loads preload-next.md into current conversation (not just status)
+- ✅ Auto-init — first run creates .soma/ without interactive prompt (Pi TUI timing workaround)
+- ✅ Extension scaffolding — `initSoma()` copies bundled extensions into .soma/extensions/
+- ✅ FLUSH COMPLETE + BREATHE COMPLETE detection in flush watcher
+- ✅ Cache keepalive via statusline extension
 - ✅ Core modules importable from extensions via symlink chain
+- ✅ CLI v0.3.0 published to npm (`meetsoma@0.3.0`)
 
 ## What's NOT Working
 
