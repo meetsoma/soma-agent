@@ -100,6 +100,30 @@ export interface SomaSettings {
 		/** Hours before a preload is considered stale (default: 48) */
 		staleAfterHours: number;
 	};
+
+	/** Session checkpoint settings — two-track version control */
+	checkpoints: {
+		/** .soma internal tracking */
+		soma: {
+			/** Auto-commit .soma on exhale (default: true) */
+			autoCommit: boolean;
+		};
+		/** Project code checkpoints */
+		project: {
+			/** Checkpoint style: commit, tag, or stash (default: "commit") */
+			style: "commit" | "tag" | "stash";
+			/** Auto-create checkpoint on exhale (default: false — prompt first) */
+			autoCheckpoint: boolean;
+			/** Commit message prefix (default: "checkpoint:") */
+			prefix: string;
+			/** Working branch name, null = current branch (default: null) */
+			workingBranch: string | null;
+		};
+		/** Show diffs from last checkpoint on boot (default: true) */
+		diffOnBoot: boolean;
+		/** Max diff lines to surface on boot (default: 80) */
+		maxDiffLines: number;
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -149,6 +173,19 @@ const DEFAULTS: SomaSettings = {
 	},
 	preload: {
 		staleAfterHours: 48,
+	},
+	checkpoints: {
+		soma: {
+			autoCommit: true,
+		},
+		project: {
+			style: "commit",
+			autoCheckpoint: false,
+			prefix: "checkpoint:",
+			workingBranch: null,
+		},
+		diffOnBoot: true,
+		maxDiffLines: 80,
 	},
 };
 

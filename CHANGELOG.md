@@ -9,6 +9,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [Unreleased]
 
 ### Added
+- **Session checkpoints protocol** — two-track version control: `.soma/` committed every exhale (local git), project code checkpointed locally, squashed before push. Configurable via `settings.checkpoints`.
+- **`soma-audit.sh`** — ecosystem health check orchestrating 11 focused audits: PII, code drift, stale content, stale terms, docs sync, command consistency, roadmap claims, overlap detection, settings validation, test coverage, frontmatter validation.
+- **Hub commands** — `/install <type> <name>` fetches from hub, `/list local|remote` browses content. Templates resolve dependencies automatically.
+- **Preact islands on hub** — `HubFilters` (type/tier/search) and `HubGrid` (reactive filtered cards) as interactive Preact islands with Nano Stores for cross-island state.
+- **View Transitions** — smooth page navigation across the website via `astro:transitions`.
+- **Checkpoint settings** — `SomaSettings.checkpoints` with configurable auto-commit, checkpoint style (commit/tag/stash), diff-on-boot, max diff lines.
+- **`.soma/` git tracking** — local git repos initialized in agent, website, and core `.soma/` directories for session-over-session diff visibility.
+- **Boot checkpoint diffs** — `git-context` boot step surfaces `.soma/` changes since last checkpoint when `diffOnBoot` is enabled.
 - **`/rest` command** — disable cache keepalive + exhale in one motion. For when you're done for the night. No pings fire after you walk away.
 - **`/keepalive` command** — toggle cache keepalive on/off/status. Prevents expensive prompt re-caching during idle periods.
 - **Cache keepalive system** — 300s TTL, 45s threshold, 30s cooldown. Auto-ping on idle. ◷ cache TTL display in footer.

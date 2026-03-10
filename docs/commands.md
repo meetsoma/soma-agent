@@ -1,7 +1,7 @@
 # Commands
 
 <!-- tldr -->
-`/inhale` — start fresh. `/breathe` — save + auto-continue. `/exhale` — save + stop (alias: `/flush`). `/rest` — disable keepalive + exhale (going to bed). `/pin <name>` — bump heat +5. `/kill <name>` — drop heat to 0. `/soma` — show status. CLI: `soma` (fresh), `soma -c` (continue). Context warnings and auto-exhale thresholds are configurable in `settings.json`.
+`/inhale` — start fresh. `/breathe` — save + auto-continue. `/exhale` — save + stop (alias: `/flush`). `/rest` — disable keepalive + exhale (going to bed). `/pin <name>` — bump heat +5. `/kill <name>` — drop heat to 0. `/install <type> <name>` — install from hub. `/list local|remote` — browse content. `/soma` — show status. CLI: `soma` (fresh), `soma -c` (continue). Context warnings and auto-exhale thresholds are configurable in `settings.json`.
 <!-- /tldr -->
 
 Soma registers slash commands that control the breath cycle, heat system, and session management.
@@ -21,6 +21,14 @@ Soma registers slash commands that control the breath cycle, heat system, and se
 |---------|-------------|
 | `/pin <name>` | Pin a protocol or muscle — bumps its heat by the configured `pinBump` (default: +5). Keeps it loaded in future sessions. |
 | `/kill <name>` | Drop a protocol or muscle's heat to zero. It won't load until used again. |
+
+## Hub Commands
+
+| Command | Description |
+|---------|-------------|
+| `/install <type> <name>` | Install a protocol, muscle, skill, or template from the Soma Hub. Templates resolve dependencies automatically. Use `--force` to overwrite. |
+| `/list local [type]` | Show installed content in your `.soma/`. Optionally filter by type (protocol, muscle, skill, template). |
+| `/list remote [type]` | Browse available content on the hub. Fetches from `meetsoma/community` on GitHub. |
 
 ## Info Commands
 
@@ -59,6 +67,7 @@ Standalone bash tools in `scripts/` — usable outside the agent session.
 
 | Script | Description |
 |--------|-------------|
+| `soma-audit.sh` | Ecosystem health check — runs 11 focused audits (PII, drift, stale content, docs sync, command consistency, etc.). `--list` to see audits, `--quiet` for summary only, or name specific audits to run. |
 | `soma-search.sh` | Query soma memory by type, status, tags, domain. Modes: `--brief`, `--deep` (TL;DR extraction), `--missing-tldr`. |
 | `soma-scan.sh` | Frontmatter scanner — audit protocols, muscles, plans for staleness and status. |
 | `soma-snapshot.sh` | Rolling zip snapshots of project directories. |
@@ -67,6 +76,8 @@ Standalone bash tools in `scripts/` — usable outside the agent session.
 
 ```bash
 # Examples
+scripts/soma-audit.sh --quiet        # ecosystem health check
+scripts/soma-audit.sh drift pii      # run specific audits
 scripts/soma-search.sh --type protocol --deep
 scripts/soma-scan.sh --stale
 scripts/soma-snapshot.sh . "pre-refactor"

@@ -145,7 +145,7 @@ const BUILTIN_SETTINGS = {
 
 const BUILTIN_GITIGNORE = `# Session data (personal, not shared)
 memory/preload-*.md
-memory/continuation-prompt.md
+memory/preload-next.md
 memory/sessions/
 .protocol-state.json
 

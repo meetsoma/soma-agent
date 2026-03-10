@@ -8,18 +8,24 @@ Soma is built on [Pi](https://github.com/badlogic/pi-mono) and inherits its full
 
 ## Skills
 
-Skills are specialized instructions that load when a task matches their description.
+Skills are specialized instructions that load when a task matches their description. They're **framework-agnostic** — a skill from Claude Code, Cursor, or any agent system works in Soma without modification.
+
+What makes Soma different: **muscles and protocols refine skills over time**. A logo design skill teaches the technique. A muscle learns your specific preferences. A protocol enforces your brand standards. The skill provides raw expertise; Soma's behavioral layers personalize and improve it through repeated use — without you ever asking.
 
 ### Installing Skills
 
-Place skill directories in one of these locations:
+Install from the hub or place manually:
+
+```bash
+/install skill my-skill        # from Soma Hub
+```
+
+Or place skill directories in one of these locations:
 
 | Location | Scope |
 |----------|-------|
 | `.soma/skills/` | Project-local (only loads in this project) |
 | `~/.soma/agent/skills/` | Global (loads for all projects) |
-
-> **Planned:** `soma install skill <source>` command for automated installation from registries (PI115).
 
 ### Creating Skills
 

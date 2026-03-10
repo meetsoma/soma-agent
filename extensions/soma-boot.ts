@@ -52,11 +52,10 @@ import {
 
 // Script descriptions for boot injection
 const SCRIPT_DESCRIPTIONS: Record<string, string> = {
+	"soma-audit.sh": "Ecosystem health check — 11 audits: PII, drift, stale content/terms, docs sync, commands, roadmap, overlap, settings, tests, frontmatter. `--list`, `--quiet`, or name specific audits",
 	"soma-search.sh": "Query memory by type/status/tags/domain. `--deep` for TL;DR, `--brief` for breadcrumbs, `--missing-tldr` for audit",
 	"soma-scan.sh": "Scan frontmatter across docs. `--stale` for outdated, `--type`/`--status` filters",
 	"soma-tldr.sh": "Generate TL;DR/digest sections via Haiku. `--scan` gaps, `--batch` all, `--dry-run`",
-	"soma-audit.sh": "Ecosystem audit — PII, code drift, stale refs, overlap, docs mismatch, test coverage",
-	"soma-init.sh": "Scaffold new .soma/ directory for a project",
 	"soma-snapshot.sh": "Rolling backup snapshots of .soma/",
 	"frontmatter-date-hook.sh": "Git pre-commit hook: auto-update `updated:` in frontmatter",
 };
@@ -210,6 +209,26 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			case "git-context": {
 				const gc = settings.boot.gitContext;
 				if (!gc.enabled) break;
+
+				// .soma internal diff (checkpoint protocol)
+				if (settings.checkpoints?.diffOnBoot) {
+					try {
+						const somaGit = join(soma.path, ".git");
+						if (existsSync(somaGit)) {
+							const maxLines = settings.checkpoints.maxDiffLines ?? 80;
+							const somaDiff = execSync(
+								`git diff HEAD~1 --stat --no-color 2>/dev/null | head -${maxLines}`,
+								{ cwd: soma.path, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
+							).trim();
+
+							if (somaDiff) {
+								parts.push(
+									`\n---\n## .soma Changes (since last checkpoint)\n\n\`\`\`\n${somaDiff}\n\`\`\`\n`
+								);
+							}
+						}
+					} catch { /* no .soma git or no previous commit */ }
+				}
 
 				try {
 					const cwd = soma.projectDir;
@@ -498,6 +517,13 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			target: "svg-logo-design",
 			type: "muscle",
 		},
+		{
+			match: (tool, input) =>
+				tool === "bash" && typeof input?.command === "string" &&
+				/checkpoint:|\.soma.*git (add|commit)/.test(input.command),
+			target: "session-checkpoints",
+			type: "protocol",
+		},
 	];
 
 	pi.on("tool_result", async (event) => {
@@ -587,9 +613,33 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay); saveProtocolState(soma, protocolState); }
 		decayMuscleHeat(soma, musclesReferenced, decay);
 
+		const checkpointSettings = settings?.checkpoints;
+		const somaAutoCommit = checkpointSettings?.soma?.autoCommit ?? true;
+		const projectAutoCheckpoint = checkpointSettings?.project?.autoCheckpoint ?? false;
+		const checkpointPrefix = checkpointSettings?.project?.prefix ?? "checkpoint:";
+		const timestamp = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+
+		const checkpointSteps: string[] = [];
+		if (somaAutoCommit) {
+			checkpointSteps.push(
+				`**Step 1a:** Commit .soma/ internal state:\n` +
+				`\`\`\`bash\ncd ${soma.path} && git add -A && git commit -m "${checkpointPrefix} ${timestamp}"\n\`\`\``
+			);
+		}
+		if (projectAutoCheckpoint) {
+			checkpointSteps.push(
+				`**Step 1b:** Checkpoint project code:\n` +
+				`\`\`\`bash\ngit add -A && git commit -m "${checkpointPrefix} ${timestamp}"\n\`\`\``
+			);
+		} else {
+			checkpointSteps.push(
+				`**Step 1b:** Review uncommitted project changes — checkpoint if meaningful work exists.`
+			);
+		}
+
 		pi.sendUserMessage(
 			`[EXHALE — save session state]\n\n` +
-			`**Step 1:** Commit all uncommitted work.\n\n` +
+			`${checkpointSteps.join("\n\n")}\n\n` +
 			`**Step 2:** Write \`${target}\` — compact session state:\n` +
 			`- What shipped this session\n` +
 			`- Key files changed\n` +
@@ -639,9 +689,33 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			breathePending = true;
 			breatheCommandCtx = ctx;
 
+			const bCheckpointSettings = settings?.checkpoints;
+			const bSomaAutoCommit = bCheckpointSettings?.soma?.autoCommit ?? true;
+			const bProjectAutoCheckpoint = bCheckpointSettings?.project?.autoCheckpoint ?? false;
+			const bCheckpointPrefix = bCheckpointSettings?.project?.prefix ?? "checkpoint:";
+			const bTimestamp = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+
+			const bSteps: string[] = [];
+			if (bSomaAutoCommit) {
+				bSteps.push(
+					`**Step 1a:** Commit .soma/ internal state:\n` +
+					`\`\`\`bash\ncd ${soma.path} && git add -A && git commit -m "${bCheckpointPrefix} ${bTimestamp}"\n\`\`\``
+				);
+			}
+			if (bProjectAutoCheckpoint) {
+				bSteps.push(
+					`**Step 1b:** Checkpoint project code:\n` +
+					`\`\`\`bash\ngit add -A && git commit -m "${bCheckpointPrefix} ${bTimestamp}"\n\`\`\``
+				);
+			} else {
+				bSteps.push(
+					`**Step 1b:** Review uncommitted project changes — checkpoint if meaningful work exists.`
+				);
+			}
+
 			pi.sendUserMessage(
 				`[BREATHE — save and continue]\n\n` +
-				`**Step 1:** Commit all uncommitted work.\n\n` +
+				`${bSteps.join("\n\n")}\n\n` +
 				`**Step 2:** Write \`${target}\` — compact session state:\n` +
 				`- What shipped this session\n` +
 				`- Key files changed\n` +
