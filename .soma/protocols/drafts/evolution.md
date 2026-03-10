@@ -2,6 +2,7 @@
 type: protocol
 name: evolution
 status: draft
+created: 2026-02-01
 updated: 2026-03-09
 heat-default: warm
 breadcrumb: "Ideas evolve upward: conversation → note → plan → spec → code. Audit downward: if code exists without a plan, document it. If a plan shipped, update its status. Track evolution in docs, don't just overwrite."

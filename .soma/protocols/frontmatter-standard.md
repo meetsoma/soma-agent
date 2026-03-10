@@ -2,6 +2,7 @@
 type: protocol
 name: frontmatter-standard
 status: active
+created: 2025-12-15
 updated: 2026-03-09
 heat-default: warm
 applies-to: [always]

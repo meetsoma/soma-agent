@@ -2,6 +2,7 @@
 type: protocol
 name: git-identity
 status: active
+created: 2026-02-01
 updated: 2026-03-09
 heat-default: warm
 applies-to: [git]
