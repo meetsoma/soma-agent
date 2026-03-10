@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Iteration 37: MERGE of 35+36
+       Base: 36 (clean symmetric eyes, better moon overlap at cx=374 cy=158)
+       Added: 35's smile (subtle white arc)
+       Eyes: both clean/symmetric (no squint from 35)
+       Moon eyes: 10r from 36 (cleaner at small sizes) -->
+  <defs>
+    <radialGradient id="body" cx="36%" cy="32%" r="58%">
+      <stop offset="0%" stop-color="#6898be"/>
+      <stop offset="50%" stop-color="#5282a8"/>
+      <stop offset="100%" stop-color="#3e6c92"/>
+    </radialGradient>
+    <radialGradient id="spec" cx="28%" cy="24%" r="16%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="moon-f" cx="36%" cy="32%" r="58%">
+      <stop offset="0%" stop-color="#7cb2d4"/>
+      <stop offset="50%" stop-color="#669cc0"/>
+      <stop offset="100%" stop-color="#5086aa"/>
+    </radialGradient>
+    <radialGradient id="moon-spec" cx="28%" cy="24%" r="18%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.26"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="moon-shd" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2a4a6a" stop-opacity="0.24"/>
+      <stop offset="70%" stop-color="#2a4a6a" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#2a4a6a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="arm" cx="36%" cy="34%" r="54%">
+      <stop offset="0%" stop-color="#5888ae"/>
+      <stop offset="100%" stop-color="#3e688c"/>
+    </radialGradient>
+    <radialGradient id="leg" cx="40%" cy="32%" r="54%">
+      <stop offset="0%" stop-color="#5282a4"/>
+      <stop offset="100%" stop-color="#3c6e8e"/>
+    </radialGradient>
+    <radialGradient id="gshd" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g id="icon">
+    <!-- Ground shadow -->
+    <ellipse cx="264" cy="480" rx="118" ry="12" fill="url(#gshd)"/>
+    <!-- Legs -->
+    <rect x="214" y="414" width="24" height="36" rx="12" fill="url(#leg)"/>
+    <rect x="276" y="414" width="24" height="36" rx="12" fill="url(#leg)"/>
+    <ellipse cx="226" cy="452" rx="18" ry="10" fill="#3c6e8e"/>
+    <ellipse cx="288" cy="452" rx="18" ry="10" fill="#3c6e8e"/>
+    <!-- Arms -->
+    <circle cx="106" cy="284" r="34" fill="url(#arm)"/>
+    <circle cx="406" cy="284" r="34" fill="url(#arm)"/>
+    <!-- Planet body -->
+    <circle cx="256" cy="280" r="148" fill="url(#body)"/>
+    <circle cx="256" cy="280" r="148" fill="url(#spec)"/>
+    <!-- Moon shadow on planet -->
+    <ellipse cx="348" cy="186" rx="32" ry="28" fill="url(#moon-shd)" transform="rotate(15 348 186)"/>
+    <!-- Eyes — clean, symmetric, looking toward moon -->
+    <circle cx="218" cy="262" r="28" fill="white"/>
+    <circle cx="224" cy="258" r="14" fill="#12202e"/>
+    <circle cx="230" cy="252" r="6" fill="white"/>
+    <circle cx="294" cy="260" r="28" fill="white"/>
+    <circle cx="300" cy="256" r="14" fill="#12202e"/>
+    <circle cx="306" cy="250" r="6" fill="white"/>
+    <!-- Smile (from 35) -->
+    <path d="M240,310 Q258,324 276,310" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+    <!-- Moon — more overlap position from 36 -->
+    <circle cx="374" cy="158" r="54" fill="url(#moon-f)"/>
+    <circle cx="374" cy="158" r="54" fill="url(#moon-spec)"/>
+    <!-- Moon eyes — looking at planet -->
+    <circle cx="362" cy="152" r="10" fill="white"/>
+    <circle cx="359" cy="154" r="5" fill="#12202e"/>
+    <circle cx="358" cy="152" r="2.2" fill="white"/>
+    <circle cx="388" cy="150" r="10" fill="white"/>
+    <circle cx="385" cy="152" r="5" fill="#12202e"/>
+    <circle cx="384" cy="150" r="2.2" fill="white"/>
+  </g>
+</svg>

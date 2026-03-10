@@ -46,8 +46,8 @@ coverage/
 website/
 _reference-site/
 
-# Symlinks to personal content
-media
+# Symlinks to personal content (root level only)
+/media
 
 # Soma dev workspace — .soma/ is OUR working memory, not the product
 # Tracked (architecture truth): STATE.md, protocols/

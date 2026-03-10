@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="60 90 380 340">
+  <!-- Soma Icon — head only (planet + moon, no limbs)
+       For favicon, app icon, small contexts -->
+  <defs>
+    <radialGradient id="body" cx="36%" cy="32%" r="58%">
+      <stop offset="0%" stop-color="#6898be"/>
+      <stop offset="50%" stop-color="#5282a8"/>
+      <stop offset="100%" stop-color="#3e6c92"/>
+    </radialGradient>
+    <radialGradient id="spec" cx="28%" cy="24%" r="16%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="moon-f" cx="36%" cy="32%" r="58%">
+      <stop offset="0%" stop-color="#7cb2d4"/>
+      <stop offset="50%" stop-color="#669cc0"/>
+      <stop offset="100%" stop-color="#5086aa"/>
+    </radialGradient>
+    <radialGradient id="moon-spec" cx="28%" cy="24%" r="18%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.26"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="moon-shd" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2a4a6a" stop-opacity="0.24"/>
+      <stop offset="70%" stop-color="#2a4a6a" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#2a4a6a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Planet body -->
+  <circle cx="256" cy="280" r="148" fill="url(#body)"/>
+  <circle cx="256" cy="280" r="148" fill="url(#spec)"/>
+  <!-- Moon shadow on planet -->
+  <ellipse cx="348" cy="186" rx="32" ry="28" fill="url(#moon-shd)" transform="rotate(15 348 186)"/>
+  <!-- Eyes -->
+  <circle cx="218" cy="262" r="28" fill="white"/>
+  <circle cx="224" cy="258" r="14" fill="#12202e"/>
+  <circle cx="230" cy="252" r="6" fill="white"/>
+  <circle cx="294" cy="260" r="28" fill="white"/>
+  <circle cx="300" cy="256" r="14" fill="#12202e"/>
+  <circle cx="306" cy="250" r="6" fill="white"/>
+  <!-- Smile -->
+  <path d="M240,310 Q258,324 276,310" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+  <!-- Moon -->
+  <circle cx="374" cy="158" r="54" fill="url(#moon-f)"/>
+  <circle cx="374" cy="158" r="54" fill="url(#moon-spec)"/>
+  <!-- Moon eyes -->
+  <circle cx="362" cy="152" r="10" fill="white"/>
+  <circle cx="359" cy="154" r="5" fill="#12202e"/>
+  <circle cx="358" cy="152" r="2.2" fill="white"/>
+  <circle cx="388" cy="150" r="10" fill="white"/>
+  <circle cx="385" cy="152" r="5" fill="#12202e"/>
+  <circle cx="384" cy="150" r="2.2" fill="white"/>
+</svg>

@@ -77,6 +77,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let flushCompleteDetected = false;
 	let preloadWrittenThisSession = false;
 	let preloadPath: string | null = null;
+	let breatheCommandCtx: any = null;
 	let breathePending = false;
 
 	// -------------------------------------------------------------------
@@ -87,24 +88,21 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		soma = findSomaDir();
 
 		if (!soma) {
-			const shouldInit = await ctx.ui.confirm(
-				"🌱 Soma",
-				"No memory found in this project. Create one?"
+			// Auto-init: create .soma/ without prompting.
+			// ctx.ui.confirm() doesn't work during session_start because
+			// the TUI input handler isn't active yet (Pi framework timing).
+			const somaPath = initSoma(process.cwd());
+			soma = findSomaDir();
+			ctx.ui.notify(`🌱 Soma planted at ${somaPath}`, "info");
+			pi.sendUserMessage(
+				`[Soma Boot — First Run]\n\n` +
+				`Created memory system at \`${somaPath}\`.\n` +
+				`There's a starter identity file at \`${somaPath}/identity.md\`.\n\n` +
+				`Look at the project files, understand what this workspace is, ` +
+				`then rewrite identity.md to reflect who you are in this context. ` +
+				`Keep it under 20 lines. Be specific about the project, stack, and conventions.`,
+				{ deliverAs: "followUp" }
 			);
-			if (shouldInit) {
-				const somaPath = initSoma(process.cwd());
-				soma = findSomaDir();
-				ctx.ui.notify(`🌱 Soma planted at ${somaPath}`, "info");
-				pi.sendUserMessage(
-					`You have a fresh memory system at \`${somaPath}\`.\n` +
-					`There's an empty identity file at \`${somaPath}/identity.md\`.\n` +
-					`Based on what you know about yourself and this workspace, ` +
-					`write a brief identity — who are you, what do you help with, ` +
-					`what's your style? Keep it under 20 lines.`,
-					{ deliverAs: "followUp" }
-				);
-			}
-			return;
 		}
 
 		// Build boot context
@@ -356,10 +354,11 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.on("message_end", async (event) => {
 		if (event.message.role !== "assistant") return;
 		const content = event.message.content;
+		const hasFlush = (text: string) => text.includes("FLUSH COMPLETE") || text.includes("BREATHE COMPLETE");
 		if (typeof content === "string") {
-			if (content.includes("FLUSH COMPLETE")) flushCompleteDetected = true;
+			if (hasFlush(content)) flushCompleteDetected = true;
 		} else if (Array.isArray(content)) {
-			if (content.some((block: any) => block.type === "text" && block.text?.includes("FLUSH COMPLETE"))) {
+			if (content.some((block: any) => block.type === "text" && hasFlush(block.text || ""))) {
 				flushCompleteDetected = true;
 			}
 		}
@@ -389,7 +388,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.on("agent_end", async (_event, ctx) => {
 		if (flushCompleteDetected && preloadWrittenThisSession) {
 			ctx.ui.notify(
-				"🟢 FLUSH COMPLETE — preload ready. Type /auto-continue or Ctrl+N",
+				"🟢 FLUSH COMPLETE — preload ready. Use /auto-continue to resume in a fresh session.",
 				"info"
 			);
 		}
@@ -402,11 +401,24 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.on("turn_end", async (_event, ctx) => {
 		if (!breathePending) return;
 
-		if (preloadWrittenThisSession) {
+		if (preloadWrittenThisSession && breatheCommandCtx) {
 			breathePending = false;
 			ctx.ui.notify("🫁 Preload saved — rotating to fresh session...", "info");
-			setTimeout(() => {
-				ctx.newSession({ continueSession: true });
+			const cmdCtx = breatheCommandCtx;
+			breatheCommandCtx = null;
+			setTimeout(async () => {
+				try {
+					const result = await cmdCtx.newSession({});
+					if (!result.cancelled) {
+						const preload = findPreload(soma!);
+						if (preload) {
+							pi.sendUserMessage(preload.content, { deliverAs: "followUp" });
+							cmdCtx.ui.notify("✅ Auto-continued — preload injected", "info");
+						}
+					}
+				} catch (err: any) {
+					cmdCtx.ui.notify(`❌ Auto-continue failed: ${err.message}`, "error");
+				}
 			}, 1500);
 		}
 	});
@@ -621,6 +633,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			decayMuscleHeat(soma, musclesReferenced, decay);
 
 			breathePending = true;
+			breatheCommandCtx = ctx;
 
 			pi.sendUserMessage(
 				`[BREATHE — save and continue]\n\n` +
