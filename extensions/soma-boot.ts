@@ -701,18 +701,20 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 	// /inhale — orient for fresh session
 	pi.registerCommand("inhale", {
-		description: "Inhale — show preload status, suggest how to continue",
+		description: "Inhale — load preload from last session into current conversation",
 		handler: async (_args, ctx) => {
 			if (!soma) { ctx.ui.notify("No .soma/ — nothing to inhale. Run /soma init first.", "info"); return; }
 			const preload = findPreload(soma);
-			if (preload && !preload.stale) {
-				ctx.ui.notify(
-					`🫁 Fresh preload ready (${Math.floor(preload.ageHours)}h ago). Use /auto-continue to load it.`,
-					"info"
-				);
-			} else {
-				ctx.ui.notify("🫁 No fresh preload. Ctrl+N for clean inhale (identity + protocols only).", "info");
+			if (!preload) {
+				ctx.ui.notify("🫁 No preload found — nothing to inhale.", "info");
+				return;
 			}
+			const staleTag = preload.stale ? ` ⚠️ (${Math.floor(preload.ageHours)}h old — may be stale)` : "";
+			pi.sendUserMessage(
+				`[Soma Inhale — Loading Preload${staleTag}]\n\n${preload.content}`,
+				{ deliverAs: "followUp" }
+			);
+			ctx.ui.notify(`🫁 Preload inhaled (${Math.floor(preload.ageHours)}h old)`, "info");
 		},
 	});
 
