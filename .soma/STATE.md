@@ -20,7 +20,7 @@ An AI coding agent with self-growing memory. Built on Pi (0.57.1) with custom `p
 | Layer | Value |
 |-------|-------|
 | GitHub org | `github.com/meetsoma` |
-| Main repo | `meetsoma/agent` (private), `meetsoma/cli` (public) |
+| Main repo | `meetsoma/soma-agent` (private), `meetsoma/cli` (public) |
 | npm (public) | `meetsoma` |
 | npm (enterprise) | `@gravicity.ai/soma` |
 | CLI command | `soma` |
@@ -176,7 +176,7 @@ Full gap analysis: `docs/plans/runtime-gaps.md`
 ## File Map
 
 ```
-products/soma/agent/          ← meetsoma/agent (private)
+products/soma/agent/          ← meetsoma/soma-agent (private)
 ├── core/                     ← 7 modules — the soma runtime
 ├── extensions/               ← 3 thin wrappers calling core
 ├── protocols/                ← 3 reference protocol .md files (published specs)
