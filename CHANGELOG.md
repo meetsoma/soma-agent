@@ -15,6 +15,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **Configurable preload staleness** — `settings.preload.staleAfterHours` (was hardcoded to 48h).
 - **Heat system docs** — new standalone `docs/heat-system.md` with complete guide to temperature-based loading.
 - **Agent verification protocol** — draft spec for source-code-as-credential authentication (`protocols/agent-verification.md`).
+- **breath-cycle ships on init** — `soma init` now scaffolds `protocols/breath-cycle.md` (hot, meta-protocol) and `protocols/_template.md` (format reference). Built-in fallbacks in `core/init.ts` ensure it works standalone.
 
 ### Changed
 - Boot extension refactored from monolithic function to step-based pipeline.
