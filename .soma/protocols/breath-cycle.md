@@ -64,4 +64,4 @@ Before any public push or release:
 
 Always. This protocol governs the session lifecycle. It's meta — it's the protocol that makes other protocols work (they load during inhale, their heat updates during exhale).
 
-<!-- v1.0.0 | created: 2026-03-10 | MIT | Soma Team | upstream: meetsoma/protocols/breath-cycle/ -->
+<!-- v1.0.0 | created: 2026-03-10 | MIT -->
