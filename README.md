@@ -116,6 +116,7 @@ See [docs/extending.md](docs/extending.md) for how to create your own skills and
 | [How It Works](docs/how-it-works.md) | Breath cycle, identity, muscles, context management |
 | [Identity](docs/identity.md) | Discovery, layering, project vs global |
 | [Protocols](docs/protocols.md) | Behavioral rules, heat system, writing your own |
+| [Heat System](docs/heat-system.md) | How temperature-based loading works — tiers, auto-detect, decay |
 | [Memory Layout](docs/memory-layout.md) | Project vs user level, git strategy, data flow |
 | [Extending](docs/extending.md) | Skills, extensions, events, APIs |
 | [Muscles](docs/muscles.md) | Learned patterns, digest system, heat tiers |
