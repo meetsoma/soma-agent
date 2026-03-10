@@ -23,7 +23,7 @@ Soma is an AI coding agent with **self-growing memory**. Unlike tools that start
 ## Install
 
 ```bash
-npm install -g @gravicity.ai/soma
+npm install -g meetsoma
 ```
 
 ## Quick Start
@@ -80,6 +80,7 @@ Soma doesn't come with a personality config file. She discovers who she is throu
 .soma/
 ├── identity.md          ← who Soma becomes (discovered, not configured)
 ├── STATE.md             ← project architecture truth
+├── settings.json        ← heat thresholds, token budgets, boot config
 ├── protocols/           ← behavioral rules (heat-tracked)
 │   ├── breath-cycle.md  ← ships by default (the meta-protocol)
 │   └── _template.md     ← format reference for new protocols
@@ -87,6 +88,7 @@ Soma doesn't come with a personality config file. She discovers who she is throu
 │   ├── muscles/         ← patterns learned from experience
 │   ├── preload-next.md  ← continuation for next session
 │   └── sessions/        ← daily logs
+├── scripts/             ← dev tooling (search, scan, snapshot)
 └── skills/              ← project-specific skills
 ```
 
@@ -96,14 +98,14 @@ Each project gets its own `.soma/`. Different projects, different Somas.
 
 | Command | What it does |
 |---------|-------------|
-| `/exhale` | Save state, write preload for next session (alias: `/flush`) |
-| `/inhale` | Start fresh — reload identity + protocols without restarting |
+| `/breathe` | Save state + auto-continue into a fresh session |
+| `/exhale` | Save state, write preload, end session (alias: `/flush`) |
+| `/inhale` | Start fresh — reload identity + protocols |
 | `/pin <name>` | Pin a protocol/muscle to hot (stays loaded) |
-| `/kill <name>` | Kill a protocol/muscle (drops to cold) |
-| `/soma status` | Show memory status (identity, preload, muscles, protocols) |
+| `/kill <name>` | Drop a protocol/muscle's heat to zero |
+| `/soma` | Show memory status — identity, heat states, context |
 | `/soma init` | Create `.soma/` in current directory |
-| `/preload` | List available preload files |
-| `/status` | Session stats (context %, turns, uptime) |
+| `/preload` | Show current preload content |
 
 ## Skills
 

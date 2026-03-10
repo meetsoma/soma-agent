@@ -122,7 +122,7 @@ Soma ships with three extensions:
 
 | Extension | Purpose |
 |-----------|---------|
-| `soma-boot.ts` | Identity loading, preload, /flush, /soma commands |
+| `soma-boot.ts` | Identity loading, preload, /exhale, /soma commands |
 | `soma-header.ts` | Branded σῶμα header with memory status |
 | `soma-statusline.ts` | Footer with model, context %, cost, git status |
 
