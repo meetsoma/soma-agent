@@ -165,15 +165,18 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				? `\n**Context detected:**\n${contextNotes.map(n => `- ${n}`).join("\n")}\n`
 				: "";
 
-			pi.sendUserMessage(
-				`[Soma Boot — First Run]\n\n` +
-				`Created memory at \`${somaPath}\`.\n` +
-				contextBlock +
-				`\nA starter identity file is at \`${somaPath}/identity.md\` (pre-filled with detected context).\n` +
-				`Review it, examine the project structure, and rewrite it to reflect who you are in this context. ` +
-				`Keep it specific and under 30 lines.`,
-				{ deliverAs: "followUp" }
-			);
+			// Skip follow-up in print/RPC mode — sendUserMessage races with the initial prompt
+			if (ctx.hasUI) {
+				pi.sendUserMessage(
+					`[Soma Boot — First Run]\n\n` +
+					`Created memory at \`${somaPath}\`.\n` +
+					contextBlock +
+					`\nA starter identity file is at \`${somaPath}/identity.md\` (pre-filled with detected context).\n` +
+					`Review it, examine the project structure, and rewrite it to reflect who you are in this context. ` +
+					`Keep it specific and under 30 lines.`,
+					{ deliverAs: "followUp" }
+				);
+			}
 		}
 
 		// Build boot context
@@ -403,10 +406,13 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				? `You've resumed a Soma session. Your preload and hot protocols are above. Identity and behavioral rules are in your system prompt. Orient briefly and await instructions.`
 				: `You've booted into a fresh Soma session. Identity and behavioral rules are in your system prompt. Hot protocols are above if any. Greet the user briefly and await instructions.`;
 
-			pi.sendUserMessage(
-				`[Soma Boot${isResumed ? " — resumed" : ""}]\n\n${parts.join("\n")}\n\n${greetStyle}`,
-				{ deliverAs: "followUp" }
-			);
+			// Skip follow-up in print/RPC mode — sendUserMessage races with the initial prompt
+			if (ctx.hasUI) {
+				pi.sendUserMessage(
+					`[Soma Boot${isResumed ? " — resumed" : ""}]\n\n${parts.join("\n")}\n\n${greetStyle}`,
+					{ deliverAs: "followUp" }
+				);
+			}
 		}
 	});
 
