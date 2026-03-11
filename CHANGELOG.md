@@ -9,6 +9,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [Unreleased]
 
 ### Added
+- **Compiled system prompt — full replacement (Phases 0-3)** — `core/prompt.ts` assembles complete system prompt from Soma's behavioral DNA, protocol summaries, muscle digests, dynamic tool section, and transplanted Pi sections (skills, project context, date/time). Replaces Pi's default prompt entirely when detected; falls back to prepend for custom SYSTEM.md. Phase 1: section extraction (`extractSkillsBlock`, `extractProjectContext`, `extractPiDocs`, `extractDateTimeCwd`). Phase 2: dynamic tool builder (`buildToolSection`). Phase 3: full assembly (`compileFullSystemPrompt`).
+- **`prompts/system-core.md`** — static behavioral DNA skeleton (~250 tokens). Identity, breath cycle, memory system, protocol/muscle awareness, context thresholds. Everything behavioral lives in protocols/muscles, not here.
+- **Community protocols: tool-discipline, working-style, quality-standards** — extracted from static core. Ship as warm defaults. Users shape behavior through heat, not hardcoded rules.
 - **`soma-guard.ts` extension** — safe file operation enforcement. Intercepts `write` to unread files (confirms), critical path protection (identity, settings, protocols, .env), dangerous bash patterns (rm -rf, force push, git reset). Graduated from `safe-file-ops` muscle to executable extension. `/guard-status` command.
 - **Workspace scan scripts** (`.soma/scripts/`) — `soma-scan.sh` (session/topic scanner), `soma-context.sh` (pre-change context gatherer), `soma-stale.sh` (stale doc finder), `soma-frontmatter.sh` (frontmatter status scanner). Operate across the full workspace.
 - **Community protocols v1.1.0** — all 7 protocols refined with `spec-ref` fields linking to curtismercier/protocols specs. pattern-evolution trimmed 181→89 lines, session-checkpoints trimmed 183→103 lines. Misplaced pre-publish gate removed from breath-cycle.
