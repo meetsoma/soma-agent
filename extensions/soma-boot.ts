@@ -682,6 +682,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			`<!-- Git status across repos: what's committed, what's dirty, which branches. -->\n\n` +
 			`## Next Session Priorities\n` +
 			`<!-- Ordered list. What to pick up first. -->\n\n` +
+			`## Loose Ends\n` +
+			`<!-- Items discussed or planned but never executed. Carry forward until resolved or dropped. Don't clear — check off or note why dropped. Accumulates across sessions. -->\n\n` +
 			`## Do NOT Re-Read\n` +
 			`<!-- Files already internalized. Save context. -->\n` +
 			`\`\`\``;
@@ -780,6 +782,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				`<!-- Git status across repos: what's committed, what's dirty, which branches. -->\n\n` +
 				`## Next Session Priorities\n` +
 				`<!-- Ordered list. What to pick up first. -->\n\n` +
+				`## Loose Ends\n` +
+				`<!-- Items discussed or planned but never executed. Carry forward until resolved or dropped. Don't clear — check off or note why dropped. Accumulates across sessions. -->\n\n` +
 				`## Do NOT Re-Read\n` +
 				`<!-- Files already internalized. Save context. -->\n` +
 				`\`\`\``;
