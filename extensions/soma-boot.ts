@@ -434,7 +434,31 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			preloadWrittenThisSession = true;
 			preloadPath = writePath;
 			toolCallsAfterPreload = 0; // Reset counter
-			ctx.ui.notify(`✅ Preload written: ${filename}`, "info");
+
+			// --- Preload validation (Phase 4) ---
+			const content = (event.input as any)?.content as string || "";
+			const REQUIRED_SECTIONS = ["What Shipped", "Next Session Priorities"];
+			const RECOMMENDED_SECTIONS = ["Key Decisions", "Key File Locations", "Repo State", "Do NOT Re-Read"];
+			const missing = REQUIRED_SECTIONS.filter(s => !content.includes(`## ${s}`));
+			const recommended = RECOMMENDED_SECTIONS.filter(s => !content.includes(`## ${s}`));
+			const lineCount = content.split("\n").length;
+
+			if (missing.length > 0) {
+				ctx.ui.notify(
+					`⚠️ Preload missing required sections: ${missing.join(", ")}`,
+					"warning"
+				);
+			} else if (lineCount < 20) {
+				ctx.ui.notify(
+					`⚠️ Preload is thin (${lineCount} lines) — consider adding more detail`,
+					"warning"
+				);
+			} else {
+				const recNote = recommended.length > 0
+					? ` (consider adding: ${recommended.join(", ")})`
+					: "";
+				ctx.ui.notify(`✅ Preload written: ${filename} (${lineCount} lines)${recNote}`, "info");
+			}
 		}
 
 		// Track work after preload write
