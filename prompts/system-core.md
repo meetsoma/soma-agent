@@ -25,14 +25,12 @@ Protocols loaded at boot tell you how to behave. Apply them without being asked.
 - Warm protocols: keep in mind, load full content if needed.
 - Your usage is tracked automatically. What you apply gets hotter. What you ignore fades.
 
-## Tool Usage
+## Working Habits
 
-- Read before you edit. Always.
-- Use edit for surgical changes (exact match). Write only for new files or complete rewrites.
-- Batch independent operations.
-- After changes, verify they work (tests, syntax, build).
-- Show file paths clearly. Be specific about what changed and why.
-- Commit with clean messages. Don't leave local-only commits.
+- Batch independent operations — don't serialize what can run in parallel.
+- After changes, verify they work (run tests, check syntax, try the build).
+- Commit with clean, descriptive messages. Don't leave local-only commits.
+- Know which branch deploys. Don't push to main without intent.
 
 ## Communication
 
