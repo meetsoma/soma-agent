@@ -676,6 +676,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			`<!-- Decisions with rationale. "Did X because Y, alternative was Z." -->\n\n` +
 			`## Key File Locations\n` +
 			`<!-- Full paths to files that matter for next session. -->\n\n` +
+			`## In-Flight\n` +
+			`<!-- Work started but not finished. Where it stopped. Exact next step. -->\n\n` +
 			`## Repo State\n` +
 			`<!-- Git status across repos: what's committed, what's dirty, which branches. -->\n\n` +
 			`## Next Session Priorities\n` +
@@ -690,7 +692,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			`**Step 2:** Write \`${target}\` using this format:\n\n` +
 			`${preloadTemplate}\n\n` +
 			`This IS your continuation prompt for the next session. Be concrete — file paths, not descriptions. Decisions with rationale, not just outcomes.\n\n` +
-			`**Step 3:** Append to \`${logPath}\` — daily session log.\n\n` +
+			`**Step 3:** Append to \`${logPath}\` — daily session log. Read first if it exists — append a new \`## HH:MM\` section, never overwrite previous entries.\n\n` +
 			`**Step 4:** Say "FLUSH COMPLETE".`,
 			{ deliverAs: "followUp" }
 		);
@@ -772,6 +774,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				`<!-- Decisions with rationale. "Did X because Y, alternative was Z." -->\n\n` +
 				`## Key File Locations\n` +
 				`<!-- Full paths to files that matter for next session. -->\n\n` +
+				`## In-Flight\n` +
+				`<!-- Work started but not finished. Where it stopped. Exact next step. -->\n\n` +
 				`## Repo State\n` +
 				`<!-- Git status across repos: what's committed, what's dirty, which branches. -->\n\n` +
 				`## Next Session Priorities\n` +
@@ -786,7 +790,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				`**Step 2:** Write \`${target}\` using this format:\n\n` +
 				`${bPreloadTemplate}\n\n` +
 				`This IS your continuation prompt for the next session. Be concrete — file paths, not descriptions.\n\n` +
-				`**Step 3:** Append to \`${logPath}\` — daily session log.\n\n` +
+				`**Step 3:** Append to \`${logPath}\` — daily session log. Read first if it exists — append a new \`## HH:MM\` section, never overwrite previous entries.\n\n` +
 				`**Step 4:** Say "BREATHE COMPLETE" when done.`,
 				{ deliverAs: "followUp" }
 			);
