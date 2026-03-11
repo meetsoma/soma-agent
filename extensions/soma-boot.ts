@@ -76,12 +76,16 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let wrapUpSent = false;
 	let autoFlushSent = false;
 
+	// Track work after preload (edge case: user sends more requests after preload written)
+	let toolCallsAfterPreload = 0;
+
 	// Flush/continue state
 	let flushCompleteDetected = false;
 	let preloadWrittenThisSession = false;
 	let preloadPath: string | null = null;
 	let breatheCommandCtx: any = null;
 	let breathePending = false;
+	let currentSessionId = "";
 
 	// -------------------------------------------------------------------
 	// Session start: discover, load identity + preload + protocols
@@ -343,7 +347,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				`[AUTO-FLUSH — context at ${Math.round(pct)}%]\n\n` +
 				`Context is critically full. Flush NOW. Do not start new work.\n\n` +
 				`1. Commit all uncommitted work.\n` +
-				`2. Write \`${preloadTarget}\` — what shipped, key decisions, next priorities.\n` +
+				`2. Write \`${preloadTarget}\` — use the preload format: What Shipped (with paths), Key Decisions (with rationale), Key File Locations, Repo State, Next Priorities, Do NOT Re-Read.\n` +
 				`3. Say "FLUSH COMPLETE" — system will offer to continue.`,
 				{ deliverAs: "followUp" }
 			);
@@ -400,7 +404,13 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (filename.startsWith("preload-next") && filename.endsWith(".md")) {
 			preloadWrittenThisSession = true;
 			preloadPath = writePath;
+			toolCallsAfterPreload = 0; // Reset counter
 			ctx.ui.notify(`✅ Preload written: ${filename}`, "info");
+		}
+
+		// Track work after preload write
+		if (preloadWrittenThisSession && event.toolName !== "read") {
+			toolCallsAfterPreload++;
 		}
 	});
 
@@ -413,6 +423,14 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			ctx.ui.notify(
 				"🟢 FLUSH COMPLETE — preload ready. Use /auto-continue to resume in a fresh session.",
 				"info"
+			);
+		}
+
+		// Warn if significant work happened after preload was written
+		if (preloadWrittenThisSession && toolCallsAfterPreload > 5 && !flushCompleteDetected) {
+			ctx.ui.notify(
+				`⚠️ ${toolCallsAfterPreload} tool calls since preload was written — consider updating it before session ends`,
+				"warning"
 			);
 		}
 	});
@@ -637,14 +655,34 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			);
 		}
 
+		const preloadTemplate =
+			`\`\`\`markdown\n` +
+			`---\n` +
+			`type: preload\n` +
+			`created: ${today}\n` +
+			`session: ${currentSessionId || "unknown"}\n` +
+			`---\n\n` +
+			`# Session State\n\n` +
+			`## What Shipped\n` +
+			`<!-- Completed items with file paths. Not prose — structured list. -->\n\n` +
+			`## Key Decisions\n` +
+			`<!-- Decisions with rationale. "Did X because Y, alternative was Z." -->\n\n` +
+			`## Key File Locations\n` +
+			`<!-- Full paths to files that matter for next session. -->\n\n` +
+			`## Repo State\n` +
+			`<!-- Git status across repos: what's committed, what's dirty, which branches. -->\n\n` +
+			`## Next Session Priorities\n` +
+			`<!-- Ordered list. What to pick up first. -->\n\n` +
+			`## Do NOT Re-Read\n` +
+			`<!-- Files already internalized. Save context. -->\n` +
+			`\`\`\``;
+
 		pi.sendUserMessage(
 			`[EXHALE — save session state]\n\n` +
 			`${checkpointSteps.join("\n\n")}\n\n` +
-			`**Step 2:** Write \`${target}\` — compact session state:\n` +
-			`- What shipped this session\n` +
-			`- Key files changed\n` +
-			`- What's next (priority order)\n` +
-			`- What NOT to re-read\n\n` +
+			`**Step 2:** Write \`${target}\` using this format:\n\n` +
+			`${preloadTemplate}\n\n` +
+			`This IS your continuation prompt for the next session. Be concrete — file paths, not descriptions. Decisions with rationale, not just outcomes.\n\n` +
 			`**Step 3:** Append to \`${logPath}\` — daily session log.\n\n` +
 			`**Step 4:** Say "FLUSH COMPLETE".`,
 			{ deliverAs: "followUp" }
@@ -713,14 +751,34 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				);
 			}
 
+			const bPreloadTemplate =
+				`\`\`\`markdown\n` +
+				`---\n` +
+				`type: preload\n` +
+				`created: ${today}\n` +
+				`session: ${currentSessionId || "unknown"}\n` +
+				`---\n\n` +
+				`# Session State\n\n` +
+				`## What Shipped\n` +
+				`<!-- Completed items with file paths. Not prose — structured list. -->\n\n` +
+				`## Key Decisions\n` +
+				`<!-- Decisions with rationale. "Did X because Y, alternative was Z." -->\n\n` +
+				`## Key File Locations\n` +
+				`<!-- Full paths to files that matter for next session. -->\n\n` +
+				`## Repo State\n` +
+				`<!-- Git status across repos: what's committed, what's dirty, which branches. -->\n\n` +
+				`## Next Session Priorities\n` +
+				`<!-- Ordered list. What to pick up first. -->\n\n` +
+				`## Do NOT Re-Read\n` +
+				`<!-- Files already internalized. Save context. -->\n` +
+				`\`\`\``;
+
 			pi.sendUserMessage(
 				`[BREATHE — save and continue]\n\n` +
 				`${bSteps.join("\n\n")}\n\n` +
-				`**Step 2:** Write \`${target}\` — compact session state:\n` +
-				`- What shipped this session\n` +
-				`- Key files changed\n` +
-				`- What's next (priority order)\n` +
-				`- What NOT to re-read\n\n` +
+				`**Step 2:** Write \`${target}\` using this format:\n\n` +
+				`${bPreloadTemplate}\n\n` +
+				`This IS your continuation prompt for the next session. Be concrete — file paths, not descriptions.\n\n` +
 				`**Step 3:** Append to \`${logPath}\` — daily session log.\n\n` +
 				`**Step 4:** Say "BREATHE COMPLETE" when done.`,
 				{ deliverAs: "followUp" }
