@@ -160,6 +160,8 @@ const MUSCLES_COLD: Muscle[] = [
 // Settings
 const SETTINGS: SomaSettings = {
 	root: ".soma",
+	inherit: { identity: true, protocols: true, muscles: true, tools: true },
+	persona: { name: null, emoji: null, icon: null },
 	memory: { flowUp: false },
 	protocols: {
 		warmThreshold: 3,
@@ -350,6 +352,33 @@ const scenarios: Scenario[] = [
 	},
 	{
 		id: 6,
+		name: "persona-solo-body",
+		description: "Persona with custom name + emoji. Inheritance off (solo body). Tests persona in identity section.",
+		build() {
+			const state = makeProtocolState({
+				"breath-cycle": 8,
+				"tool-discipline": 5,
+				"heat-tracking": 4,
+			});
+			const soloSettings: SomaSettings = {
+				...SETTINGS,
+				inherit: { identity: false, protocols: false, muscles: false, tools: false },
+				persona: { name: "Scout", emoji: "🔍", icon: null },
+			};
+			return compileFullSystemPrompt({
+				protocols: PROTOCOLS.slice(0, 3),
+				protocolState: state,
+				muscles: MUSCLES_HOT.slice(0, 1),
+				settings: soloSettings,
+				piSystemPrompt: MOCK_PI_PROMPT,
+				activeTools: ACTIVE_TOOLS,
+				allTools: ALL_TOOLS,
+				identity: MOCK_IDENTITY,
+			}).block;
+		},
+	},
+	{
+		id: 7,
 		name: "prepend-only-phase0",
 		description: "Phase 0 fallback — what happens when tools aren't available yet (compileFrontalCortex only, no tool section).",
 		build() {

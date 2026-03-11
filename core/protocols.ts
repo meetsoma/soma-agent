@@ -246,14 +246,30 @@ export function discoverProtocols(soma: SomaDir): Protocol[] {
  * @param signals - Project signals to filter against (optional — no filtering if omitted)
  * @returns Deduplicated array of protocols (project wins on name collision)
  */
+/**
+ * Discover protocols from the full soma chain.
+ * Child protocols win on name collision (first found).
+ *
+ * When `settings.inherit.protocols` is false, only scans chain[0].
+ *
+ * @param chain - SomaDir array from getSomaChain()
+ * @param signals - Project signals for filtering
+ * @param settings - Optional settings (for inherit.protocols control)
+ */
 export function discoverProtocolChain(
 	chain: SomaDir[],
-	signals?: Set<ProjectSignal>
+	signals?: Set<ProjectSignal>,
+	settings?: import("./settings.js").SomaSettings
 ): Protocol[] {
+	// Respect inherit.protocols — if false, only scan chain[0]
+	const effectiveChain = (settings?.inherit?.protocols === false && chain.length > 1)
+		? [chain[0]]
+		: chain;
+
 	const seen = new Set<string>();
 	const all: Protocol[] = [];
 
-	for (const soma of chain) {
+	for (const soma of effectiveChain) {
 		const protocols = discoverProtocols(soma);
 		for (const proto of protocols) {
 			if (seen.has(proto.name)) continue;

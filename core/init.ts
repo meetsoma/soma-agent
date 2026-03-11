@@ -38,6 +38,10 @@ export interface InitOptions {
 	skipExtensions?: boolean;
 	/** Skip installing git hooks (pre-commit identity check) */
 	skipHooks?: boolean;
+	/** Whether to inherit from parent — controls inherit.* settings (default: true) */
+	inheritFromParent?: boolean;
+	/** Persona overrides to write into settings */
+	persona?: { name?: string; emoji?: string; icon?: string };
 }
 
 // ---------------------------------------------------------------------------
@@ -305,6 +309,24 @@ export function initSoma(cwd: string, options: InitOptions = {}): string {
 		} else {
 			// Built-in settings — substitute root name, write as JSON
 			const settings = JSON.parse(JSON.stringify(BUILTIN_SETTINGS).replace("{{ROOT}}", rootName));
+
+			// Apply inherit/persona overrides from init options
+			if (options.inheritFromParent === false) {
+				settings.inherit = {
+					identity: false,
+					protocols: false,
+					muscles: false,
+					tools: false,
+				};
+			}
+			if (options.persona) {
+				settings.persona = {
+					name: options.persona.name || null,
+					emoji: options.persona.emoji || null,
+					icon: options.persona.icon || null,
+				};
+			}
+
 			writeIfMissing(join(somaDir, "settings.json"), JSON.stringify(settings, null, 2) + "\n");
 		}
 	}

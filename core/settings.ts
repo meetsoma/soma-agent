@@ -18,6 +18,28 @@ export interface SomaSettings {
 	/** Root directory name */
 	root: string;
 
+	/** Inheritance settings — what to inherit from parent .soma/ */
+	inherit: {
+		/** Layer parent's identity below child's (default: true if parent exists) */
+		identity: boolean;
+		/** Discover parent's protocols (default: true) */
+		protocols: boolean;
+		/** Discover parent's muscles (default: true) */
+		muscles: boolean;
+		/** Use parent's tools/scripts (default: true) */
+		tools: boolean;
+	};
+
+	/** Persona — cosmetic identity overrides */
+	persona: {
+		/** Custom agent name (null = inherit or default) */
+		name: string | null;
+		/** Custom emoji for status/logs */
+		emoji: string | null;
+		/** Custom icon path (SVG/PNG) */
+		icon: string | null;
+	};
+
 	/** Memory system settings */
 	memory: {
 		/** Allow memories to flow up to parent soma (default: false) */
@@ -149,6 +171,17 @@ export interface SomaSettings {
 
 const DEFAULTS: SomaSettings = {
 	root: ".soma",
+	inherit: {
+		identity: true,
+		protocols: true,
+		muscles: true,
+		tools: true,
+	},
+	persona: {
+		name: null,
+		emoji: null,
+		icon: null,
+	},
 	memory: {
 		flowUp: false,
 	},

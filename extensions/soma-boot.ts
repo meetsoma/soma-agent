@@ -167,7 +167,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			switch (step) {
 
 			case "identity": {
-				builtIdentity = buildLayeredIdentity(chain);
+				builtIdentity = buildLayeredIdentity(chain, settings);
 				// Identity now goes in compiled system prompt (Wave 2), not boot user message
 				break;
 			}
@@ -186,7 +186,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 			case "protocols": {
 				const signals = detectProjectSignals(soma.projectDir);
-				const protocols = discoverProtocolChain(chain, signals);
+				const protocols = discoverProtocolChain(chain, signals, settings);
 				knownProtocols = protocols;
 				knownProtocolNames = protocols.map(p => p.name);
 				if (protocols.length > 0) {
@@ -217,7 +217,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 
 			case "muscles": {
-				const muscles = discoverMuscleChain(chain);
+				const muscles = discoverMuscleChain(chain, settings);
 				knownMuscles = muscles;
 				knownMuscleNames = muscles.map(m => m.name);
 				if (muscles.length > 0) {
@@ -238,27 +238,44 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 
 			case "scripts": {
-				const scriptsDir = join(soma.path, "scripts");
-				if (existsSync(scriptsDir)) {
+				// Collect script dirs — child first, then parent chain if inherit.tools
+				const scriptDirs: string[] = [join(soma.path, "scripts")];
+				if (settings.inherit.tools && chain.length > 1) {
+					for (let i = 1; i < chain.length; i++) {
+						scriptDirs.push(join(chain[i].path, "scripts"));
+					}
+				}
+
+				// Deduplicate by filename (child wins)
+				const seenScripts = new Set<string>();
+				const allScripts: { name: string; dir: string }[] = [];
+				for (const dir of scriptDirs) {
+					if (!existsSync(dir)) continue;
 					try {
-						const scripts = readdirSync(scriptsDir).filter(f => f.endsWith(".sh"));
-						if (scripts.length > 0) {
-							const scriptLines = [
-								"## Available Scripts\n",
-								`Location: \`${scriptsDir}/\`\n`,
-								"| Script | What it does |",
-								"|--------|-------------|",
-								...scripts.map(s => {
-									const desc = SCRIPT_DESCRIPTIONS[s] || "—";
-									return `| \`${s}\` | ${desc} |`;
-								}),
-								"",
-								"Run with `bash <path>`. Use `--help` for options.",
-								"",
-							];
-							parts.push(`\n---\n${scriptLines.join("\n")}`);
+						const scripts = readdirSync(dir).filter(f => f.endsWith(".sh"));
+						for (const s of scripts) {
+							if (!seenScripts.has(s)) {
+								seenScripts.add(s);
+								allScripts.push({ name: s, dir });
+							}
 						}
 					} catch { /* ignore */ }
+				}
+
+				if (allScripts.length > 0) {
+					const scriptLines = [
+						"## Available Scripts\n",
+						"| Script | Location | What it does |",
+						"|--------|----------|-------------|",
+						...allScripts.map(({ name, dir }) => {
+							const desc = SCRIPT_DESCRIPTIONS[name] || "—";
+							return `| \`${name}\` | \`${dir}/\` | ${desc} |`;
+						}),
+						"",
+						"Run with `bash <path>`. Use `--help` for options.",
+						"",
+					];
+					parts.push(`\n---\n${scriptLines.join("\n")}`);
 				}
 				break;
 			}

@@ -558,8 +558,18 @@ export function compileFullSystemPrompt(options: FullCompileOptions): CompiledPr
 	parts.push(core);
 
 	// --- 2. Project Identity (from identity chain) ---
-	if (options.identity) {
-		parts.push(options.identity);
+	// Persona name/emoji prepended if set
+	const persona = options.settings.persona;
+	if (persona?.name || options.identity) {
+		const identityParts: string[] = [];
+		if (persona?.name) {
+			const emoji = persona.emoji ? ` ${persona.emoji}` : "";
+			identityParts.push(`Your name is **${persona.name}**${emoji}.\n`);
+		}
+		if (options.identity) {
+			identityParts.push(options.identity);
+		}
+		parts.push(identityParts.join("\n"));
 	}
 
 	// --- 3 + 4. Behavioral section ---
