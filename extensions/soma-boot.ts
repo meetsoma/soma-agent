@@ -60,6 +60,7 @@ import {
 	listRemote,
 	listLocal,
 	compileFrontalCortex,
+	compileFullSystemPrompt,
 	type SomaDir,
 	type SomaSettings,
 	type ProtocolState,
@@ -359,24 +360,42 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 		// ═══════════════════════════════════════════════════════════════════
 		// PROTOCOL: frontal-cortex — compiled system prompt
-		// Prepends Soma's behavioral DNA, protocol rules, and muscle digests
-		// to Pi's system prompt. Compiled once per session, cached thereafter.
+		// Phase 3: Full replacement when Pi's default detected.
+		// Falls back to prepend when custom SYSTEM.md is in use.
+		// Compiled once per session, cached thereafter.
 		// ═══════════════════════════════════════════════════════════════════
 
 		let systemPrompt = event.systemPrompt;
 
 		if (!frontalCortexCompiled && settings) {
-			const compiled = compileFrontalCortex({
-				protocols: knownProtocols,
-				protocolState: protocolState,
-				muscles: knownMuscles,
-				settings,
-			});
+			const activeTools = pi.getActiveTools?.() ?? [];
+			const allTools = pi.getAllTools?.() ?? [];
 
-			if (compiled.block) {
-				// Prepend Soma's compiled prompt before Pi's default
-				systemPrompt = compiled.block + "\n\n---\n\n" + systemPrompt;
+			if (activeTools.length > 0) {
+				// Phase 3: full replacement (or fallback to prepend for custom prompts)
+				const compiled = compileFullSystemPrompt({
+					protocols: knownProtocols,
+					protocolState: protocolState,
+					muscles: knownMuscles,
+					settings,
+					piSystemPrompt: event.systemPrompt,
+					activeTools,
+					allTools,
+				});
+				systemPrompt = compiled.block;
 				frontalCortexCompiled = true;
+			} else {
+				// Fallback: Phase 0 prepend (tools not yet available)
+				const compiled = compileFrontalCortex({
+					protocols: knownProtocols,
+					protocolState: protocolState,
+					muscles: knownMuscles,
+					settings,
+				});
+				if (compiled.block) {
+					systemPrompt = compiled.block + "\n\n---\n\n" + systemPrompt;
+					frontalCortexCompiled = true;
+				}
 			}
 		}
 

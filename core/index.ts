@@ -87,6 +87,16 @@ export {
 	compileFrontalCortex,
 	clearPromptCache,
 } from "./prompt.js";
-export type { CompiledPrompt, CompileOptions } from "./prompt.js";
+export {
+	compileFullSystemPrompt,
+	extractSections,
+	extractSkillsBlock,
+	extractProjectContext,
+	extractDateTimeCwd,
+	extractPiDocs,
+	isPiDefaultPrompt,
+	buildToolSection,
+} from "./prompt.js";
+export type { CompiledPrompt, CompileOptions, FullCompileOptions, ExtractedSections } from "./prompt.js";
 
 export { safeRead, fmtDuration } from "./utils.js";
