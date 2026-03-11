@@ -554,7 +554,14 @@ function scaffoldExtensions(somaDir: string): void {
 	if (!existsSync(bundledDir)) return;
 
 	try {
-		const files = readdirSync(bundledDir).filter(f => f.endsWith(".ts"));
+		const files = readdirSync(bundledDir).filter(f =>
+			f.endsWith(".ts") &&
+			// Skip core Soma extensions — they're loaded globally from ~/.soma/agent/extensions/
+			// and depend on ../core/index.js which doesn't exist in project .soma/extensions/.
+			// Only copy user-facing templates and standalone extensions.
+			!f.startsWith("soma-") &&
+			!f.startsWith("_")
+		);
 		for (const file of files) {
 			const target = join(extDir, file);
 			if (!existsSync(target)) {
