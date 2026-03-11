@@ -16,8 +16,22 @@
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { existsSync, statSync } from "fs";
+import { findSomaDir, getSomaChain, loadSettings } from "../core/index.js";
 
 export default function somaGuard(pi: ExtensionAPI) {
+	// --- Settings ---
+
+	/** Core file protection tier — loaded from settings.json */
+	let coreFileMode: "allow" | "warn" | "block" = "warn";
+	try {
+		const soma = findSomaDir();
+		if (soma) {
+			const chain = getSomaChain();
+			const settings = loadSettings(chain);
+			coreFileMode = settings.guard?.coreFiles ?? "warn";
+		}
+	} catch { /* default to warn */ }
+
 	// --- State ---
 
 	/** Paths the agent has read this session (read before write tracking) */
@@ -145,23 +159,34 @@ export default function somaGuard(pi: ExtensionAPI) {
 				try { existingSize = statSync(path).size; } catch {}
 			}
 
-			// Critical path — always confirm
+			// Critical path — configurable: allow / warn / block
 			if (isCriticalPath(path)) {
-				if (!ctx.hasUI) {
-					return { block: true, reason: `Blocked write to critical file (no UI to confirm): ${path}` };
+				if (coreFileMode === "allow") {
+					// Power user — no guard on core files
+				} else if (coreFileMode === "block") {
+					if (!ctx.hasUI) {
+						guardEvents++;
+						return { block: true, reason: `Blocked write to critical file (no UI to confirm): ${path}` };
+					}
+					const detail = fileExists
+						? `Existing file: ${existingSize} bytes. Writing will replace all content.`
+						: `New file at a critical path.`;
+					const ok = await ctx.ui.confirm(
+						"⚠️ Critical file write",
+						`${path}\n\n${detail}\n\nConfirm?`
+					);
+					if (!ok) {
+						guardEvents++;
+						return { block: true, reason: `Blocked write to critical file: ${path}` };
+					}
+					return;
+				} else {
+					// "warn" (default) — notify but don't block
+					if (ctx.hasUI) {
+						const label = path.split("/").pop() || path;
+						ctx.ui.notify(`⚠️ Writing core file: ${label}`, "warning");
+					}
 				}
-				const detail = fileExists
-					? `Existing file: ${existingSize} bytes. Writing will replace all content.`
-					: `New file at a critical path.`;
-				const ok = await ctx.ui.confirm(
-					"⚠️ Critical file write",
-					`${path}\n\n${detail}\n\nConfirm?`
-				);
-				if (!ok) {
-					guardEvents++;
-					return { block: true, reason: `Blocked write to critical file: ${path}` };
-				}
-				return;
 			}
 
 			// Overwriting a large existing file without reading it first
@@ -237,7 +262,7 @@ export default function somaGuard(pi: ExtensionAPI) {
 		handler: async (_args, ctx) => {
 			if (ctx.hasUI) {
 				ctx.ui.notify(
-					`🛡️ Guard: ${readPaths.size} reads tracked, ${listedDirs.size} dirs listed, ${guardEvents} interventions`,
+					`🛡️ Guard: ${readPaths.size} reads tracked, ${listedDirs.size} dirs listed, ${guardEvents} interventions | core files: ${coreFileMode}`,
 					"info"
 				);
 			}

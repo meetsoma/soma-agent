@@ -101,6 +101,16 @@ export interface SomaSettings {
 		staleAfterHours: number;
 	};
 
+	/** Guard settings — file protection tiers */
+	guard: {
+		/** Protection level for core soma files (identity.md, STATE.md, protocols/, settings.json, etc.)
+		 * "allow" — no guard, power user mode
+		 * "warn" — notify on write (default)
+		 * "block" — require explicit confirmation before write
+		 */
+		coreFiles: "allow" | "warn" | "block";
+	};
+
 	/** Session checkpoint settings — two-track version control */
 	checkpoints: {
 		/** .soma internal tracking */
@@ -173,6 +183,9 @@ const DEFAULTS: SomaSettings = {
 	},
 	preload: {
 		staleAfterHours: 48,
+	},
+	guard: {
+		coreFiles: "warn",
 	},
 	checkpoints: {
 		soma: {
