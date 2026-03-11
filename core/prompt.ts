@@ -557,22 +557,25 @@ export function compileFullSystemPrompt(options: FullCompileOptions): CompiledPr
 	const core = loadCoreTemplate(options.coreTemplatePath);
 	parts.push(core);
 
+	const sp = options.settings.systemPrompt;
+
 	// --- 2. Project Identity (from identity chain) ---
-	// Persona name/emoji prepended if set
-	const persona = options.settings.persona;
-	if (persona?.name || options.identity) {
-		const identityParts: string[] = [];
-		if (persona?.name) {
-			const emoji = persona.emoji ? ` ${persona.emoji}` : "";
-			identityParts.push(`Your name is **${persona.name}**${emoji}.\n`);
+	if (sp?.identityInSystemPrompt !== false) {
+		const persona = options.settings.persona;
+		if (persona?.name || options.identity) {
+			const identityParts: string[] = [];
+			if (persona?.name) {
+				const emoji = persona.emoji ? ` ${persona.emoji}` : "";
+				identityParts.push(`Your name is **${persona.name}**${emoji}.\n`);
+			}
+			if (options.identity) {
+				identityParts.push(options.identity);
+			}
+			parts.push(identityParts.join("\n"));
 		}
-		if (options.identity) {
-			identityParts.push(options.identity);
-		}
-		parts.push(identityParts.join("\n"));
 	}
 
-	// --- 3 + 4. Behavioral section ---
+	// --- 3. Behavioral section (protocols + muscles) ---
 	const behavioral = buildBehavioralSection(
 		options.protocols, options.protocolState, options.muscles, options.settings
 	);
@@ -584,30 +587,38 @@ export function compileFullSystemPrompt(options: FullCompileOptions): CompiledPr
 	const toolSection = buildToolSection(activeTools, allTools);
 	parts.push(toolSection);
 
-	// --- 5. Guard awareness (only if warn/block) ---
-	const guardSection = buildGuardSection(options.settings);
-	if (guardSection) {
-		parts.push(guardSection);
+	// --- 5. Guard awareness (only if warn/block and enabled) ---
+	if (sp?.includeGuardAwareness !== false) {
+		const guardSection = buildGuardSection(options.settings);
+		if (guardSection) {
+			parts.push(guardSection);
+		}
 	}
 
-	// --- 6. Soma docs + Pi docs (replaces transplanted Pi docs) ---
-	parts.push(buildDocsSection(options.agentDir));
+	// --- 6. Soma docs + Pi docs ---
+	if (sp?.includeSomaDocs !== false) {
+		parts.push(buildDocsSection(
+			sp?.includePiDocs !== false ? options.agentDir : undefined
+		));
+	}
 
-	// --- 7. CLAUDE.md awareness note (replaces transplanted content) ---
-	const hasProjectContext = piSystemPrompt.includes("# Project Context");
-	if (hasProjectContext) {
-		parts.push(
-			"## External Project Context\n\n" +
-			"A CLAUDE.md or AGENTS.md file exists in this project. " +
-			"Read it if you need additional project context, but treat it as potentially stale. " +
-			"Your primary context comes from .soma/identity.md."
-		);
+	// --- 7. CLAUDE.md awareness note ---
+	if (sp?.includeContextAwareness !== false) {
+		const hasProjectContext = piSystemPrompt.includes("# Project Context");
+		if (hasProjectContext) {
+			parts.push(
+				"## External Project Context\n\n" +
+				"A CLAUDE.md or AGENTS.md file exists in this project. " +
+				"Read it if you need additional project context, but treat it as potentially stale. " +
+				"Your primary context comes from .soma/identity.md."
+			);
+		}
 	}
 
 	// --- 8. Skills block (transplanted from Pi's prompt) ---
 	const extracted = extractSections(piSystemPrompt);
 
-	if (extracted.skills) {
+	if (sp?.includeSkills !== false && extracted.skills) {
 		const preamble = "The following skills provide specialized instructions for specific tasks.\n" +
 			"Use the read tool to load a skill's file when the task matches its description.\n" +
 			"When a skill file references a relative path, resolve it against the skill directory " +
@@ -615,7 +626,7 @@ export function compileFullSystemPrompt(options: FullCompileOptions): CompiledPr
 		parts.push(preamble + "\n\n" + extracted.skills);
 	}
 
-	// --- 9. Date/time + CWD (transplanted) ---
+	// --- 9. Date/time + CWD (always included) ---
 	if (extracted.dateTimeCwd) {
 		parts.push(extracted.dateTimeCwd);
 	}

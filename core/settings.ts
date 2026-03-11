@@ -140,6 +140,24 @@ export interface SomaSettings {
 		} | null;
 	};
 
+	/** System prompt compilation settings */
+	systemPrompt: {
+		/** Max estimated tokens for Soma's portion (default: 4000) */
+		maxTokens: number;
+		/** Include Soma documentation references (default: true) */
+		includeSomaDocs: boolean;
+		/** Include Pi framework documentation references (default: true) */
+		includePiDocs: boolean;
+		/** Include CLAUDE.md awareness note (default: true) */
+		includeContextAwareness: boolean;
+		/** Include skills block from Pi (default: true) */
+		includeSkills: boolean;
+		/** Include guard awareness (default: true) */
+		includeGuardAwareness: boolean;
+		/** Put identity in system prompt vs user message (default: true) */
+		identityInSystemPrompt: boolean;
+	};
+
 	/** Session checkpoint settings — two-track version control */
 	checkpoints: {
 		/** .soma internal tracking */
@@ -227,6 +245,15 @@ const DEFAULTS: SomaSettings = {
 	guard: {
 		coreFiles: "warn",
 		gitIdentity: null,
+	},
+	systemPrompt: {
+		maxTokens: 4000,
+		includeSomaDocs: true,
+		includePiDocs: true,
+		includeContextAwareness: true,
+		includeSkills: true,
+		includeGuardAwareness: true,
+		identityInSystemPrompt: true,
 	},
 	checkpoints: {
 		soma: {

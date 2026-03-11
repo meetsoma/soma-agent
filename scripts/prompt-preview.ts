@@ -190,6 +190,15 @@ const SETTINGS: SomaSettings = {
 	context: { notifyAt: 50, warnAt: 70, urgentAt: 80, autoExhaleAt: 85 },
 	preload: { staleAfterHours: 48 },
 	guard: { coreFiles: "warn" as const, gitIdentity: { email: "user@example.com" } },
+	systemPrompt: {
+		maxTokens: 4000,
+		includeSomaDocs: true,
+		includePiDocs: true,
+		includeContextAwareness: true,
+		includeSkills: true,
+		includeGuardAwareness: true,
+		identityInSystemPrompt: true,
+	},
 	checkpoints: {
 		soma: { autoCommit: true },
 		project: { style: "commit" as const, autoCheckpoint: false, prefix: "checkpoint:", workingBranch: null },

@@ -1048,7 +1048,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.registerCommand("soma", {
 		description: "Soma memory status and management",
 		getArgumentCompletions: (prefix) =>
-			["status", "init"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
+			["status", "init", "prompt"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
 		handler: async (args, ctx) => {
 			const cmd = args.trim().toLowerCase() || "status";
 
@@ -1057,6 +1057,37 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				const somaPath = initSoma(process.cwd());
 				soma = findSomaDir();
 				ctx.ui.notify(`🌱 Soma planted at ${somaPath}`, "info");
+				return;
+			}
+
+			if (cmd === "prompt") {
+				if (!soma || !settings) { ctx.ui.notify("No Soma found. Use /soma init", "info"); return; }
+
+				// Re-compile to show current state (uses cached core template)
+				const activeTools = pi.getActiveTools?.() ?? [];
+				const allToolsList = pi.getAllTools?.() ?? [];
+				const compiled = compileFullSystemPrompt({
+					protocols: knownProtocols,
+					protocolState: protocolState,
+					muscles: knownMuscles,
+					settings,
+					piSystemPrompt: "", // Don't need Pi's prompt for display
+					activeTools,
+					allTools: allToolsList,
+					agentDir: somaAgentDir,
+					identity: builtIdentity,
+				});
+
+				const summary = [
+					`**Compiled System Prompt** — ${compiled.estimatedTokens} tokens`,
+					`Protocols: ${compiled.protocolCount} breadcrumbs | Muscles: ${compiled.muscleCount} digests`,
+					`Full replacement: ${compiled.fullReplacement}`,
+					`Identity: ${builtIdentity ? "yes" : "none"}`,
+					`Persona: ${settings.persona?.name || "default"}`,
+					``,
+					`Use \`/soma prompt\` to view. Changes take effect next session.`,
+				].join("\n");
+				ctx.ui.notify(summary, "info");
 				return;
 			}
 
@@ -1070,11 +1101,12 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					`Chain: ${chain.length} level${chain.length !== 1 ? "s" : ""}`,
 					`Preload: ${preload ? "✓" : "none"}`,
 					`Protocols: ${protocols.length}`,
+					`System prompt: ~${frontalCortexCompiled ? "compiled" : "pending"}`,
 				].join("\n"), "info");
 				return;
 			}
 
-			ctx.ui.notify("Usage: /soma status | /soma init", "info");
+			ctx.ui.notify("Usage: /soma status | /soma init | /soma prompt", "info");
 		},
 	});
 
