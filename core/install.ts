@@ -6,7 +6,7 @@
  */
 
 import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, statSync } from "fs";
-import { join } from "path";
+import { join, basename } from "path";
 import type { SomaDir } from "./discovery.js";
 
 const REPO = "meetsoma/community";
@@ -137,9 +137,14 @@ async function installTemplate(
 		return result;
 	}
 
-	// Fetch and write identity.md
+	// Fetch and write identity.md (with placeholder substitution)
+	const projectName = basename(soma.projectDir);
+	const dateStr = new Date().toISOString().slice(0, 10);
 	try {
-		const identity = await fetchText(`${RAW_BASE}/templates/${name}/identity.md`);
+		let identity = await fetchText(`${RAW_BASE}/templates/${name}/identity.md`);
+		identity = identity
+			.replace(/\{\{PROJECT_NAME\}\}/g, projectName)
+			.replace(/\{\{DATE\}\}/g, dateStr);
 		const identityPath = join(soma.path, "identity.md");
 		if (!existsSync(identityPath) || options.force) {
 			writeFileSync(identityPath, identity, "utf-8");
@@ -148,9 +153,10 @@ async function installTemplate(
 		// Identity is optional — template might not have one
 	}
 
-	// Fetch and merge settings.json
+	// Fetch and merge settings.json (with placeholder substitution)
 	try {
-		const settingsText = await fetchText(`${RAW_BASE}/templates/${name}/settings.json`);
+		let settingsText = await fetchText(`${RAW_BASE}/templates/${name}/settings.json`);
+		settingsText = settingsText.replace(/\{\{ROOT\}\}/g, ".soma");
 		const templateSettings = JSON.parse(settingsText);
 		const settingsPath = join(soma.path, "settings.json");
 
@@ -160,7 +166,7 @@ async function installTemplate(
 			const merged = deepMerge(templateSettings, existing);
 			writeFileSync(settingsPath, JSON.stringify(merged, null, 2), "utf-8");
 		} else {
-			writeFileSync(settingsPath, settingsText, "utf-8");
+			writeFileSync(settingsPath, JSON.stringify(templateSettings, null, 2) + "\n", "utf-8");
 		}
 	} catch {
 		// Settings are optional
