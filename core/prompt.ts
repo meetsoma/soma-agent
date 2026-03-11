@@ -17,6 +17,20 @@ import { getProtocolHeat } from "./protocols.js";
 import type { Muscle } from "./muscles.js";
 import type { SomaSettings } from "./settings.js";
 
+// Known Soma doc files — label + filename pairs
+const SOMA_DOC_FILES: [string, string][] = [
+	["Getting started", "getting-started.md"],
+	["How it works", "how-it-works.md"],
+	["Configuration & settings", "configuration.md"],
+	["Protocols", "protocols.md"],
+	["Muscles & memory", "muscles.md"],
+	["Commands", "commands.md"],
+	["Heat system", "heat-system.md"],
+	["Identity", "identity.md"],
+	["Memory layout", "memory-layout.md"],
+	["Extending Soma", "extending.md"],
+];
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -53,6 +67,8 @@ export interface FullCompileOptions extends CompileOptions {
 	activeTools: string[];
 	/** All tools from pi.getAllTools() — includes descriptions */
 	allTools: { name: string; description?: string; parameters?: unknown }[];
+	/** Agent installation directory (for resolving Soma/Pi docs paths) */
+	agentDir?: string;
 }
 
 /** Extracted sections from Pi's system prompt */
@@ -327,6 +343,8 @@ function muscleDigest(muscle: Muscle): string | null {
 
 /**
  * Build protocol summaries + muscle digests section.
+ * Protocols sorted by heat (desc) and capped at maxBreadcrumbsInPrompt.
+ * Muscle digests capped at settings.muscles.maxDigest.
  */
 function buildBehavioralSection(
 	protocols: Protocol[],
@@ -338,23 +356,29 @@ function buildBehavioralSection(
 	let protocolCount = 0;
 	let muscleCount = 0;
 
-	// Protocol governance — warm+ protocols as one-liners
+	// Protocol governance — warm+ protocols as one-liners, sorted by heat desc, capped
 	const warmThreshold = settings.protocols.warmThreshold;
-	const protoSummaries: string[] = [];
-	for (const proto of protocols) {
-		const heat = getProtocolHeat(proto, protocolState);
-		if (heat >= warmThreshold) {
-			protoSummaries.push(`- **${proto.name}**: ${protocolSummary(proto)}`);
-			protocolCount++;
-		}
-	}
+	const maxBreadcrumbs = settings.protocols.maxBreadcrumbsInPrompt;
+
+	// Filter warm+, sort by heat descending (name as tiebreaker for stability)
+	const warmProtocols = protocols
+		.map(proto => ({ proto, heat: getProtocolHeat(proto, protocolState) }))
+		.filter(({ heat }) => heat >= warmThreshold)
+		.sort((a, b) => b.heat - a.heat || a.proto.name.localeCompare(b.proto.name))
+		.slice(0, maxBreadcrumbs);
+
+	const protoSummaries = warmProtocols.map(({ proto }) => {
+		protocolCount++;
+		return `- **${proto.name}**: ${protocolSummary(proto)}`;
+	});
+
 	if (protoSummaries.length > 0) {
 		parts.push("## Active Behavioral Rules\n\n" + protoSummaries.join("\n"));
 	}
 
-	// Muscle instincts — hot muscles get digests
+	// Muscle instincts — hot muscles get digests, capped from settings
 	const digestThreshold = settings.muscles.digestThreshold;
-	const maxDigestsInPrompt = 5;
+	const maxDigestsInPrompt = settings.muscles.maxDigest;
 	const muscleLines: string[] = [];
 	for (const muscle of muscles) {
 		if (muscleCount >= maxDigestsInPrompt) break;
@@ -371,6 +395,83 @@ function buildBehavioralSection(
 	}
 
 	return { section: parts.join("\n\n"), protocolCount, muscleCount };
+}
+
+// ---------------------------------------------------------------------------
+// Soma Documentation Section (Wave 1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build documentation reference section.
+ * Soma docs are primary; Pi docs are secondary (only for extension dev).
+ *
+ * @param agentDir - Agent installation directory (from getAgentDir())
+ */
+export function buildDocsSection(agentDir?: string): string {
+	// Soma docs — resolve from this module's location
+	const somaDocsDir = resolve(
+		dirname(new URL(import.meta.url).pathname),
+		"..", "docs"
+	);
+
+	const lines = [
+		"Soma documentation (read when asked about soma, memory, protocols, muscles, heat, or configuration):",
+	];
+
+	for (const [label, file] of SOMA_DOC_FILES) {
+		const fullPath = join(somaDocsDir, file);
+		if (existsSync(fullPath)) {
+			lines.push(`- ${label}: ${fullPath}`);
+		}
+	}
+
+	// Pi framework docs — secondary, for extension development
+	if (agentDir) {
+		try {
+			const piPkgDir = resolve(agentDir, "..", "..");
+			const piReadme = resolve(piPkgDir, "README.md");
+			const piDocs = resolve(piPkgDir, "docs");
+			const piExamples = resolve(piPkgDir, "examples");
+			if (existsSync(piReadme)) {
+				lines.push("");
+				lines.push("Pi framework (read only when working on extensions, SDK, themes, or TUI):");
+				lines.push(`- Pi docs: ${piDocs}`);
+				lines.push(`- Pi examples: ${piExamples}`);
+			}
+		} catch {
+			// Pi paths not resolvable — skip
+		}
+	}
+
+	return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Guard Awareness Section (Wave 1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build guard awareness section for the system prompt.
+ * Only included when guard level is "warn" or "block".
+ */
+function buildGuardSection(settings: SomaSettings): string | null {
+	const guard = settings.guard;
+	if (!guard || guard.coreFiles === "allow") return null;
+
+	const level = guard.coreFiles;
+	const parts: string[] = [`## Guard\n`];
+
+	if (level === "warn") {
+		parts.push("Core file protection: **warn**. You'll be warned before modifying .soma/ core files.");
+	} else if (level === "block") {
+		parts.push("Core file protection: **block**. Core .soma/ files are protected — ask before modifying.");
+	}
+
+	if (guard.gitIdentity?.email) {
+		parts.push(`Git identity: ${guard.gitIdentity.email}`);
+	}
+
+	return parts.join(" ");
 }
 
 // ---------------------------------------------------------------------------
@@ -466,20 +567,30 @@ export function compileFullSystemPrompt(options: FullCompileOptions): CompiledPr
 	const toolSection = buildToolSection(activeTools, allTools);
 	parts.push(toolSection);
 
-	// --- 5-8. Transplanted sections from Pi's prompt ---
+	// --- 5. Guard awareness (only if warn/block) ---
+	const guardSection = buildGuardSection(options.settings);
+	if (guardSection) {
+		parts.push(guardSection);
+	}
+
+	// --- 6. Soma docs + Pi docs (replaces transplanted Pi docs) ---
+	parts.push(buildDocsSection(options.agentDir));
+
+	// --- 7. CLAUDE.md awareness note (replaces transplanted content) ---
+	const hasProjectContext = piSystemPrompt.includes("# Project Context");
+	if (hasProjectContext) {
+		parts.push(
+			"## External Project Context\n\n" +
+			"A CLAUDE.md or AGENTS.md file exists in this project. " +
+			"Read it if you need additional project context, but treat it as potentially stale. " +
+			"Your primary context comes from .soma/identity.md."
+		);
+	}
+
+	// --- 8. Skills block (transplanted from Pi's prompt) ---
 	const extracted = extractSections(piSystemPrompt);
 
-	if (extracted.piDocs) {
-		parts.push(extracted.piDocs);
-	}
-
-	if (extracted.projectContext) {
-		parts.push(extracted.projectContext);
-	}
-
-	// Skills preamble + block
 	if (extracted.skills) {
-		// Reconstruct the preamble Pi adds before the XML
 		const preamble = "The following skills provide specialized instructions for specific tasks.\n" +
 			"Use the read tool to load a skill's file when the task matches its description.\n" +
 			"When a skill file references a relative path, resolve it against the skill directory " +
@@ -487,6 +598,7 @@ export function compileFullSystemPrompt(options: FullCompileOptions): CompiledPr
 		parts.push(preamble + "\n\n" + extracted.skills);
 	}
 
+	// --- 9. Date/time + CWD (transplanted) ---
 	if (extracted.dateTimeCwd) {
 		parts.push(extracted.dateTimeCwd);
 	}

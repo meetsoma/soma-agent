@@ -96,6 +96,7 @@ export {
 	extractPiDocs,
 	isPiDefaultPrompt,
 	buildToolSection,
+	buildDocsSection,
 } from "./prompt.js";
 export type { CompiledPrompt, CompileOptions, FullCompileOptions, ExtractedSections } from "./prompt.js";
 

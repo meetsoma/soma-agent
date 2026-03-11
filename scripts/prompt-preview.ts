@@ -173,10 +173,10 @@ const SETTINGS: SomaSettings = {
 	},
 	context: { notifyAt: 50, warnAt: 70, urgentAt: 80, autoExhaleAt: 85 },
 	preload: { staleAfterHours: 48 },
-	guard: { coreFiles: "warn" as const, gitIdentity: null },
+	guard: { coreFiles: "warn" as const, gitIdentity: { email: "user@example.com" } },
 	checkpoints: {
-		soma: { autoCommit: true, onExhale: true },
-		project: { enabled: false, style: "commit" as const },
+		soma: { autoCommit: true },
+		project: { style: "commit" as const, autoCheckpoint: false, prefix: "checkpoint:", workingBranch: null },
 		diffOnBoot: true,
 		maxDiffLines: 80,
 	},
@@ -303,6 +303,34 @@ const scenarios: Scenario[] = [
 	},
 	{
 		id: 5,
+		name: "guard-block-many-protos",
+		description: "Guard level: block. More protocols than maxBreadcrumbsInPrompt (tests capping + sort by heat).",
+		build() {
+			// Create 15 protocols (more than maxBreadcrumbsInPrompt=10)
+			const extraProtos = Array.from({ length: 7 }, (_, i) =>
+				makeProtocol(`extra-${i}`, `Extra protocol ${i} for testing caps.`, "warm")
+			);
+			const allProtos = [...PROTOCOLS, ...extraProtos];
+			const heats: Record<string, number> = {};
+			for (const p of allProtos) heats[p.name] = 3 + Math.floor(Math.random() * 10);
+			const state = makeProtocolState(heats);
+			const blockSettings: SomaSettings = {
+				...SETTINGS,
+				guard: { coreFiles: "block" as const, gitIdentity: { email: "user@example.com", name: "Test User" } },
+			};
+			return compileFullSystemPrompt({
+				protocols: allProtos,
+				protocolState: state,
+				muscles: MUSCLES_HOT,
+				settings: blockSettings,
+				piSystemPrompt: MOCK_PI_PROMPT,
+				activeTools: ACTIVE_TOOLS,
+				allTools: ALL_TOOLS,
+			}).block;
+		},
+	},
+	{
+		id: 6,
 		name: "prepend-only-phase0",
 		description: "Phase 0 fallback — what happens when tools aren't available yet (compileFrontalCortex only, no tool section).",
 		build() {

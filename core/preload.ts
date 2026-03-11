@@ -45,15 +45,7 @@ export function findPreload(soma: SomaDir, maxAgeHours: number = 48): PreloadInf
 	const memoryDir = join(soma.path, "memory");
 	if (existsSync(memoryDir)) searchDirs.push(memoryDir);
 
-	// First: look for preload-next.md specifically
-	for (const dir of searchDirs) {
-		const path = join(dir, "preload-next.md");
-		if (existsSync(path)) {
-			return buildPreloadInfo(path, maxAgeHours);
-		}
-	}
-
-	// Fallback: most recent preload-*.md
+	// Find most recent preload-*.md (session-scoped or legacy preload-next.md)
 	for (const dir of searchDirs) {
 		try {
 			const files = readdirSync(dir)

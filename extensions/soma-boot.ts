@@ -31,9 +31,10 @@
  * ────────────────────────────────────────────────────────────────────────
  */
 
-import { join } from "path";
+import { join, dirname, resolve } from "path";
 import { existsSync, readdirSync } from "fs";
 import { execSync } from "child_process";
+import { fileURLToPath } from "url";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import {
 	findSomaDir,
@@ -82,6 +83,10 @@ const SCRIPT_DESCRIPTIONS: Record<string, string> = {
 	"soma-snapshot.sh": "Rolling backup snapshots of .soma/",
 	"frontmatter-date-hook.sh": "Git pre-commit hook: auto-update `updated:` in frontmatter",
 };
+
+// Resolve agent dir from this module's location (extensions/ → parent)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const somaAgentDir = resolve(__dirname, "..");
 
 export default function somaBootExtension(pi: ExtensionAPI) {
 
@@ -381,6 +386,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					piSystemPrompt: event.systemPrompt,
 					activeTools,
 					allTools,
+					agentDir: somaAgentDir,
 				});
 				systemPrompt = compiled.block;
 				frontalCortexCompiled = true;
@@ -416,7 +422,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			autoFlushSent = true;
 
 			const memDir = join(soma.path, "memory");
-			const preloadTarget = join(memDir, "preload-next.md");
+			const preloadTarget = join(memDir, `preload-${currentSessionId || "next"}.md`);
 
 			// System prompt injection
 			additions.push(
@@ -488,7 +494,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (!writePath) return;
 		const filename = writePath.split("/").pop() || "";
 
-		if (filename.startsWith("preload-next") && filename.endsWith(".md")) {
+		if (filename.startsWith("preload-") && filename.endsWith(".md")) {
 			preloadWrittenThisSession = true;
 			preloadPath = writePath;
 			toolCallsAfterPreload = 0; // Reset counter
@@ -739,7 +745,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
 
 		const memDir = join(soma.path, "memory");
-		const target = join(memDir, "preload-next.md");
+		const target = join(memDir, `preload-${currentSessionId || "next"}.md`);
 		const today = new Date().toISOString().split("T")[0];
 		const logPath = join(memDir, "sessions", `${today}.md`);
 
@@ -836,7 +842,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
 
 			const memDir = join(soma.path, "memory");
-			const target = join(memDir, "preload-next.md");
+			const target = join(memDir, `preload-${currentSessionId || "next"}.md`);
 			const today = new Date().toISOString().split("T")[0];
 			const logPath = join(memDir, "sessions", `${today}.md`);
 
