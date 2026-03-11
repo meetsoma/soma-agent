@@ -69,6 +69,8 @@ export interface FullCompileOptions extends CompileOptions {
 	allTools: { name: string; description?: string; parameters?: unknown }[];
 	/** Agent installation directory (for resolving Soma/Pi docs paths) */
 	agentDir?: string;
+	/** Built identity string from chain (layered: project → parent → global) */
+	identity?: string | null;
 }
 
 /** Extracted sections from Pi's system prompt */
@@ -555,7 +557,12 @@ export function compileFullSystemPrompt(options: FullCompileOptions): CompiledPr
 	const core = loadCoreTemplate(options.coreTemplatePath);
 	parts.push(core);
 
-	// --- 2 + 3. Behavioral section ---
+	// --- 2. Project Identity (from identity chain) ---
+	if (options.identity) {
+		parts.push(options.identity);
+	}
+
+	// --- 3 + 4. Behavioral section ---
 	const behavioral = buildBehavioralSection(
 		options.protocols, options.protocolState, options.muscles, options.settings
 	);

@@ -93,6 +93,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let soma: SomaDir | null = null;
 	let settings: SomaSettings | null = null;
 	let protocolState: ProtocolState | null = null;
+	let builtIdentity: string | null = null;
 	let protocolsReferenced = new Set<string>();
 	let musclesReferenced = new Set<string>();
 	let knownProtocols: Protocol[] = [];
@@ -166,8 +167,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			switch (step) {
 
 			case "identity": {
-				const identity = buildLayeredIdentity(chain);
-				if (identity) parts.push(identity);
+				builtIdentity = buildLayeredIdentity(chain);
+				// Identity now goes in compiled system prompt (Wave 2), not boot user message
 				break;
 			}
 
@@ -201,9 +202,15 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 						}
 					}
 
+					// Breadcrumbs now in compiled system prompt (Wave 2).
+					// Boot message only gets hot protocol FULL BODIES.
 					const injection = buildProtocolInjection(protocols, protocolState, protoThresholds);
-					if (injection.systemPromptBlock.trim()) {
-						parts.push(`\n---\n${injection.systemPromptBlock}`);
+					if (injection.hot.length > 0) {
+						const hotBlock = injection.hot.map(p => {
+							const body = p.content.replace(/^---\n[\s\S]*?\n---\n*/, "").trim();
+							return `### Protocol: ${p.name}\n${body}`;
+						}).join("\n\n");
+						parts.push(`\n---\n## Hot Protocols (full reference)\n\n${hotBlock}`);
 					}
 				}
 				break;
@@ -214,9 +221,15 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				knownMuscles = muscles;
 				knownMuscleNames = muscles.map(m => m.name);
 				if (muscles.length > 0) {
+					// Digests now in compiled system prompt (Wave 2).
+					// Boot message only gets hot muscle FULL BODIES.
 					const muscleInjection = buildMuscleInjection(muscles, settings.muscles);
-					if (muscleInjection.systemPromptBlock.trim()) {
-						parts.push(`\n---\n${muscleInjection.systemPromptBlock}`);
+					if (muscleInjection.hot.length > 0) {
+						const hotBlock = muscleInjection.hot.map(m => {
+							const body = m.content.replace(/^---\n[\s\S]*?\n---\n*/, "").trim();
+							return `### Muscle: ${m.name}\n${body}`;
+						}).join("\n\n");
+						parts.push(`\n---\n## Hot Muscles (full reference)\n\n${hotBlock}`);
 					}
 					const loaded = [...muscleInjection.hot, ...muscleInjection.warm];
 					if (loaded.length > 0) trackMuscleLoads(loaded);
@@ -345,8 +358,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			pi.appendEntry("soma-boot", { timestamp: Date.now(), resumed: isResumed });
 
 			const greetStyle = isResumed
-				? `You've resumed a Soma session. Your identity, preload, and protocols are above. Orient briefly and await instructions.`
-				: `You've booted into a fresh Soma session. Your identity and protocols are above. Greet the user briefly and await instructions.`;
+				? `You've resumed a Soma session. Your preload and hot protocols are above. Identity and behavioral rules are in your system prompt. Orient briefly and await instructions.`
+				: `You've booted into a fresh Soma session. Identity and behavioral rules are in your system prompt. Hot protocols are above if any. Greet the user briefly and await instructions.`;
 
 			pi.sendUserMessage(
 				`[Soma Boot${isResumed ? " — resumed" : ""}]\n\n${parts.join("\n")}\n\n${greetStyle}`,
@@ -387,6 +400,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					activeTools,
 					allTools,
 					agentDir: somaAgentDir,
+					identity: builtIdentity,
 				});
 				systemPrompt = compiled.block;
 				frontalCortexCompiled = true;
@@ -597,6 +611,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			protocolsReferenced = new Set();
 			musclesReferenced = new Set();
 			frontalCortexCompiled = false;
+			builtIdentity = null;
 
 			// If preload exists, notify (user can /auto-continue)
 			if (soma) {

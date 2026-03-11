@@ -19,8 +19,6 @@ import { join } from "path";
 import {
 	compileFrontalCortex,
 	compileFullSystemPrompt,
-	extractSections,
-	isPiDefaultPrompt,
 	buildToolSection,
 	type FullCompileOptions,
 } from "../core/prompt.js";
@@ -91,6 +89,22 @@ const ALL_TOOLS = [
 	{ name: "edit", description: "Make surgical edits to files (find exact text and replace)" },
 	{ name: "write", description: "Create or overwrite files" },
 ];
+
+// Simulated identity
+const MOCK_IDENTITY = `# Identity
+
+You are a coding agent working on **soma-agent** — a self-growing memory system for AI coding agents.
+
+## This Project
+- Stack: TypeScript, Pi extension API, Node.js
+- Package manager: pnpm
+- Repo: meetsoma/soma-agent (branch: dev)
+- Key dirs: core/ (library), extensions/ (Pi hooks), prompts/ (templates), docs/
+
+## Role
+Build and refine Soma's core: system prompt compilation, protocol/muscle metabolism, identity chain, boot lifecycle.`;
+
+const MOCK_IDENTITY_NULL = null;
 
 // Simulated protocols at different heat levels
 function makeProtocol(name: string, breadcrumb: string, heatDefault: "cold" | "warm" | "hot"): Protocol {
@@ -206,7 +220,7 @@ const scenarios: Scenario[] = [
 	{
 		id: 1,
 		name: "fresh-session",
-		description: "Brand new session. Default protocol heat (warm). No hot muscles. Pi's default prompt detected → full replacement.",
+		description: "Brand new session. Identity in system prompt. Default protocol heat (warm). No hot muscles. Full replacement.",
 		build() {
 			const state = makeProtocolState({
 				"breath-cycle": 8,   // hot (default)
@@ -226,13 +240,14 @@ const scenarios: Scenario[] = [
 				piSystemPrompt: MOCK_PI_PROMPT,
 				activeTools: ACTIVE_TOOLS,
 				allTools: ALL_TOOLS,
+				identity: MOCK_IDENTITY,
 			}).block;
 		},
 	},
 	{
 		id: 2,
 		name: "continued-session",
-		description: "Active session. Some protocols heated up, muscles are hot. Full replacement.",
+		description: "Active session. Identity in prompt. Some protocols heated up, muscles are hot. Full replacement.",
 		build() {
 			const state = makeProtocolState({
 				"breath-cycle": 12,      // very hot
@@ -252,13 +267,14 @@ const scenarios: Scenario[] = [
 				piSystemPrompt: MOCK_PI_PROMPT,
 				activeTools: ACTIVE_TOOLS,
 				allTools: ALL_TOOLS,
+				identity: MOCK_IDENTITY,
 			}).block;
 		},
 	},
 	{
 		id: 3,
 		name: "minimal-cold",
-		description: "All protocols cold (below warm threshold). No muscles. Prompt is just the skeleton + tools + transplanted sections.",
+		description: "All protocols cold (below warm threshold). No muscles. No identity (first run). Skeleton + tools only.",
 		build() {
 			const state = makeProtocolState({
 				"breath-cycle": 1,
@@ -278,6 +294,7 @@ const scenarios: Scenario[] = [
 				piSystemPrompt: MOCK_PI_PROMPT,
 				activeTools: ACTIVE_TOOLS,
 				allTools: ALL_TOOLS,
+				identity: MOCK_IDENTITY_NULL,
 			}).block;
 		},
 	},
@@ -298,6 +315,7 @@ const scenarios: Scenario[] = [
 				piSystemPrompt: MOCK_CUSTOM_PROMPT,
 				activeTools: ACTIVE_TOOLS,
 				allTools: ALL_TOOLS,
+				identity: MOCK_IDENTITY,
 			}).block;
 		},
 	},
@@ -326,6 +344,7 @@ const scenarios: Scenario[] = [
 				piSystemPrompt: MOCK_PI_PROMPT,
 				activeTools: ACTIVE_TOOLS,
 				allTools: ALL_TOOLS,
+				identity: MOCK_IDENTITY,
 			}).block;
 		},
 	},
