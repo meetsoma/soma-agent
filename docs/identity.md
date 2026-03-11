@@ -97,6 +97,23 @@ Each project gets its own Soma. Different projects, different identities:
 
 Same `soma` CLI, same global identity underneath, different project personalities on top.
 
+## Persona
+
+You can give Soma a custom name, emoji, or icon via the `persona` setting in `settings.json`:
+
+```json
+{
+  "persona": {
+    "name": "Atlas",
+    "emoji": "🗺️"
+  }
+}
+```
+
+When set, the persona name appears in the identity section of the system prompt. This is cosmetic — it doesn't change behavior, just how Soma identifies herself. Useful for teams where each developer's Soma has a distinct name, or for multi-project setups where different projects have different agent personas.
+
+Persona inherits from parent → global unless overridden at the project level.
+
 ## Tips
 
 - **Don't fight it.** If Soma's discovered identity feels wrong, edit the file. Don't delete it — refine it.

@@ -90,7 +90,7 @@ The `gitContext` boot step already exists. Checkpoints enhance it:
 ```
 ── .soma changes ──
   modified: STATE.md (3 lines)
-  modified: memory/preload-next.md
+  modified: memory/preload-*.md
   added: protocols/heat-state.json
 
 ── project changes (since checkpoint) ──

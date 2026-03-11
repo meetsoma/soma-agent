@@ -87,7 +87,7 @@ An AI coding agent with self-growing memory. Built on Pi (0.57.1) with custom `p
 │  └── soma-frontmatter.sh — frontmatter status        │
 │  └── memory/                                         │
 │      ├── muscles/    — learned patterns              │
-│      ├── preload-next.md — session continuation      │
+│      ├── preload-<sessionId>.md — session continuations      │
 │      └── sessions/   — daily logs                    │
 └─────────────────────────────────────────────────────┘
 ```
@@ -169,7 +169,7 @@ Configured via `~/.gitconfig` `includeIf` rules. See `protocols/git-identity/`.
 - ✅ Script awareness: `.soma/scripts/` surfaced at boot with descriptions
 - ✅ /exhale (~~`/flush`~~), /inhale, /preload, /soma, /status, /auto-continue, /rest commands
 - ✅ /breathe — exhale + auto-rotate into fresh session with preload injection
-- ✅ /inhale — loads preload-next.md into current conversation (not just status)
+- ✅ /inhale — loads most recent preload into current conversation (not just status)
 - ✅ Auto-init — first run creates .soma/ without interactive prompt (Pi TUI timing workaround)
 - ✅ Extension scaffolding — `initSoma()` copies bundled extensions into .soma/extensions/
 - ✅ FLUSH COMPLETE + BREATHE COMPLETE detection in flush watcher

@@ -129,7 +129,7 @@ Set `heat: 3` or higher so it loads on next boot. Heat will decay naturally if t
 └── social-preview-gen.md   ← learned from OG image work
 ```
 
-Project-level only. Muscles don't inherit from parent `.soma/` directories (yet — see `memory.flowUp` in [configuration](/docs/configuration)).
+By default, muscles **inherit from parent `.soma/` directories** when `inherit.muscles` is `true` (the default). Parent muscles are discovered alongside project muscles and compete for the same token budget based on heat. To disable, set `inherit.muscles: false` in [settings.json](/docs/configuration#inheritance).
 
 ## Heat Commands
 
