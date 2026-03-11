@@ -54,7 +54,8 @@ An AI coding agent with self-growing memory. Built on Pi (0.57.1) with custom `p
 │  ├── soma-boot.ts       — identity, preload, protos, │
 │  │                        muscles, scripts, heat     │
 │  ├── soma-header.ts     — branded σῶμα header        │
-│  └── soma-statusline.ts — footer + context monitor   │
+│  ├── soma-statusline.ts — footer + context monitor   │
+│  └── soma-guard.ts      — safe file operation guard  │
 │                                                      │
 │  ~/.soma/agent/                                      │
 │  ├── settings.json   (compaction off, quiet)         │
@@ -76,9 +77,14 @@ An AI coding agent with self-growing memory. Built on Pi (0.57.1) with custom `p
 │  │   └── drafts/              (not scanned)          │
 │  ├── scripts/        — dev tooling (not product)     │
 │  │   ├── soma-search.sh  (query memory system)       │
-│  │   ├── soma-scan.sh    (frontmatter scanner)       │
 │  │   ├── soma-tldr.sh    (agent TL;DR generator)     │
 │  │   └── ...             (auth, sync, init, etc.)    │
+│  │                                                   │
+│  Workspace Scripts (.soma/scripts/ — top-level)       │
+│  ├── soma-scan.sh        — session/topic scanner     │
+│  ├── soma-context.sh     — pre-change context        │
+│  ├── soma-stale.sh       — stale/overlap detector    │
+│  └── soma-frontmatter.sh — frontmatter status        │
 │  └── memory/                                         │
 │      ├── muscles/    — learned patterns              │
 │      ├── preload-next.md — session continuation      │
@@ -128,6 +134,9 @@ Protocols store heat in `.protocol-state.json`. Muscles store heat in frontmatte
 | heat-tracking | hot | always | (self-referential) | Operational ✅ |
 | frontmatter-standard | warm | always | `protocols/atlas/` | Operational ✅ |
 | git-identity | warm | git | `protocols/git-identity/` | Operational ✅ |
+| pattern-evolution | hot | always | `protocols/amp/` (§3.2) | Operational ✅ |
+| session-checkpoints | hot | always | `protocols/amp/` (§8) | Operational ✅ |
+| community-safe | warm | always | (community-only) | Operational ✅ |
 | collaborative-flow | cold | — | — | Draft (in `drafts/`) |
 
 ## Git Identity
@@ -190,7 +199,7 @@ Full gap analysis: `docs/plans/runtime-gaps.md`
 ```
 products/soma/agent/          ← meetsoma/soma-agent (private)
 ├── core/                     ← 7 modules — the soma runtime
-├── extensions/               ← 3 thin wrappers calling core
+├── extensions/               ← 4 extensions (3 thin wrappers + guard)
 ├── protocols/                ← 3 reference protocol .md files (published specs)
 ├── docs/plans/               ← 10+ architecture plans (tracked)
 ├── registry/plugin-index.json
@@ -221,7 +230,14 @@ products/soma/website/        ← soma.gravicity.ai (Astro)
 ├── skills/
 └── sessions/
 
-personal/protocols/           ← protocols (CC BY 4.0)
+personal/protocols/           ← curtismercier/protocols (CC BY 4.0, v0.2)
 ├── amp/, atlas/, breath-cycle/, three-layer/, identity/
-└── git-identity/             ← NEW this session
+└── git-identity/
+
+.soma/scripts/                ← workspace-level scan tools
+├── soma-scan.sh, soma-context.sh, soma-stale.sh, soma-frontmatter.sh
+
+.soma/dev/registry/           ← cross-cutting specs
+├── protocol-decisions.md, muscle-evolution-spec.md
+├── hub-distribution-spec.md, safe-agent-ops-spec.md
 ```
