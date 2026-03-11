@@ -15,7 +15,7 @@
  *   {{ROOT}}          — root directory name (.soma, .claude, etc.)
  */
 
-import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, statSync } from "fs";
 import { join, basename, resolve, dirname } from "path";
 import { DEFAULT_ROOT } from "./discovery.js";
 
@@ -42,6 +42,190 @@ export interface InitOptions {
 	inheritFromParent?: boolean;
 	/** Persona overrides to write into settings */
 	persona?: { name?: string; emoji?: string; icon?: string };
+}
+
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Project Detection (Wave 4 — Smart Init)
+// ---------------------------------------------------------------------------
+
+export interface ProjectDetection {
+	/** Parent .soma/ found (path and distance in directory levels) */
+	parent: { path: string; distance: number } | null;
+	/** CLAUDE.md found (path and age in days) */
+	claudeMd: { path: string; ageDays: number } | null;
+	/** AGENTS.md found */
+	agentsMd: { path: string; ageDays: number } | null;
+	/** Detected project signals (typescript, node, python, rust, go, multi-repo, etc.) */
+	signals: string[];
+	/** Project name (from package.json name field, or directory name) */
+	projectName: string;
+	/** Whether cwd is inside a git repo */
+	isGitRepo: boolean;
+	/** Detected package manager */
+	packageManager: "pnpm" | "npm" | "yarn" | "bun" | null;
+}
+
+/**
+ * Detect project context from the filesystem. Pure, deterministic — no AI.
+ * Used by smart init to pre-fill identity and provide context notes.
+ */
+export function detectProjectContext(cwd: string): ProjectDetection {
+	const result: ProjectDetection = {
+		parent: null,
+		claudeMd: null,
+		agentsMd: null,
+		signals: [],
+		projectName: basename(cwd),
+		isGitRepo: false,
+		packageManager: null,
+	};
+
+	// --- Parent detection ---
+	// Walk up from cwd to find a parent .soma/ (skip cwd itself)
+	let dir = resolve(cwd, "..");
+	let distance = 1;
+	while (dir !== resolve(dir, "..")) {
+		const candidate = join(dir, ".soma");
+		if (existsSync(candidate) && existsSync(join(candidate, "identity.md"))) {
+			result.parent = { path: candidate, distance };
+			break;
+		}
+		dir = resolve(dir, "..");
+		distance++;
+		if (distance > 10) break; // Safety cap
+	}
+
+	// --- CLAUDE.md / AGENTS.md detection ---
+	for (const name of ["CLAUDE.md", "AGENTS.md"]) {
+		const filePath = join(cwd, name);
+		if (existsSync(filePath)) {
+			try {
+				const mtime = statSync(filePath).mtimeMs;
+				const ageDays = Math.floor((Date.now() - mtime) / 86400000);
+				if (name === "CLAUDE.md") {
+					result.claudeMd = { path: filePath, ageDays };
+				} else {
+					result.agentsMd = { path: filePath, ageDays };
+				}
+			} catch { /* ignore */ }
+		}
+	}
+
+	// --- Git repo detection ---
+	try {
+		let gitDir = cwd;
+		while (gitDir !== resolve(gitDir, "..")) {
+			if (existsSync(join(gitDir, ".git"))) {
+				result.isGitRepo = true;
+				break;
+			}
+			gitDir = resolve(gitDir, "..");
+		}
+	} catch { /* ignore */ }
+
+	// --- Project name from package.json ---
+	const pkgPath = join(cwd, "package.json");
+	if (existsSync(pkgPath)) {
+		try {
+			const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+			if (pkg.name) result.projectName = pkg.name;
+		} catch { /* ignore */ }
+	}
+
+	// --- Package manager detection ---
+	const pmFiles: [string, "pnpm" | "npm" | "yarn" | "bun"][] = [
+		["pnpm-lock.yaml", "pnpm"],
+		["yarn.lock", "yarn"],
+		["package-lock.json", "npm"],
+		["bun.lockb", "bun"],
+	];
+	for (const [file, pm] of pmFiles) {
+		if (existsSync(join(cwd, file))) {
+			result.packageManager = pm;
+			break;
+		}
+	}
+	// Fallback: packageManager field in package.json
+	if (!result.packageManager && existsSync(pkgPath)) {
+		try {
+			const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+			if (pkg.packageManager) {
+				const match = pkg.packageManager.match(/^(pnpm|yarn|npm|bun)/);
+				if (match) result.packageManager = match[1] as any;
+			}
+		} catch { /* ignore */ }
+	}
+
+	// --- Project signals ---
+	const has = (f: string) => existsSync(join(cwd, f));
+	if (has("tsconfig.json") || has("tsconfig.base.json")) result.signals.push("typescript");
+	if (has("package.json")) result.signals.push("node");
+	if (has("Cargo.toml")) result.signals.push("rust");
+	if (has("go.mod")) result.signals.push("go");
+	if (has("pyproject.toml") || has("setup.py") || has("requirements.txt")) result.signals.push("python");
+	if (has("Dockerfile") || has("docker-compose.yml") || has("docker-compose.yaml")) result.signals.push("docker");
+	if (has(".github/workflows")) result.signals.push("github-actions");
+	if (has("next.config.js") || has("next.config.mjs") || has("next.config.ts")) result.signals.push("nextjs");
+	if (has("astro.config.mjs") || has("astro.config.ts")) result.signals.push("astro");
+	if (has("vite.config.ts") || has("vite.config.js")) result.signals.push("vite");
+	if (has("tailwind.config.js") || has("tailwind.config.ts")) result.signals.push("tailwind");
+
+	// Multi-repo detection
+	try {
+		const entries = readdirSync(cwd, { withFileTypes: true });
+		let gitChildren = 0;
+		for (const e of entries) {
+			if (e.isDirectory() && !e.name.startsWith(".")) {
+				if (existsSync(join(cwd, e.name, ".git"))) gitChildren++;
+			}
+		}
+		if (gitChildren >= 2) result.signals.push("multi-repo");
+	} catch { /* ignore */ }
+
+	return result;
+}
+
+/**
+ * Build a smart identity template using detected project context.
+ * Pre-fills stack, package manager, and notes about existing context files.
+ */
+export function buildSmartIdentity(detection: ProjectDetection): string {
+	const dateStr = today();
+	const lines = [
+		`---`,
+		`type: identity`,
+		`agent: soma`,
+		`project: ${detection.projectName}`,
+		`created: ${dateStr}`,
+		`---`,
+		``,
+		`# Soma — ${detection.projectName}`,
+		``,
+		`## This Project`,
+		``,
+	];
+
+	if (detection.signals.length > 0) {
+		lines.push(`Detected stack: ${detection.signals.join(", ")}.`);
+	}
+	if (detection.packageManager) {
+		lines.push(`Package manager: ${detection.packageManager}.`);
+	}
+	if (detection.isGitRepo) {
+		lines.push(`Git repo: yes.`);
+	}
+	if (detection.claudeMd) {
+		lines.push(`Note: CLAUDE.md exists at \`${detection.claudeMd.path}\` (${detection.claudeMd.ageDays}d old). Review for additional context.`);
+	}
+	if (detection.agentsMd) {
+		lines.push(`Note: AGENTS.md exists at \`${detection.agentsMd.path}\` (${detection.agentsMd.ageDays}d old).`);
+	}
+
+	lines.push(``);
+	lines.push(`<!-- Refine this identity as you learn about the project. Keep under 30 lines. -->`);
+
+	return lines.join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -291,10 +475,16 @@ export function initSoma(cwd: string, options: InitOptions = {}): string {
 		if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 	}
 
-	// Scaffold files — template if available, built-in fallback
+	// Scaffold files — template if available, smart identity if detected, built-in fallback
+	const detection = detectProjectContext(cwd);
+	if (detection.projectName && !options.projectName) {
+		vars["PROJECT_NAME"] = detection.projectName;
+	}
+
+	const smartIdentity = buildSmartIdentity(detection);
 	writeIfMissing(
 		join(somaDir, "identity.md"),
-		loadTemplate(templateDir, "identity.md", vars) || substitute(BUILTIN_IDENTITY, vars)
+		loadTemplate(templateDir, "identity.md", vars) || smartIdentity
 	);
 
 	writeIfMissing(

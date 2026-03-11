@@ -56,8 +56,10 @@ export type { Protocol, ProtocolHeatState, ProtocolState, ProtocolInjection, Pro
 export {
 	initSoma,
 	resolveTemplateDir,
+	detectProjectContext,
+	buildSmartIdentity,
 } from "./init.js";
-export type { InitOptions } from "./init.js";
+export type { InitOptions, ProjectDetection } from "./init.js";
 
 export {
 	discoverMuscles,

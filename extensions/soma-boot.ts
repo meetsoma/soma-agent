@@ -62,6 +62,7 @@ import {
 	listLocal,
 	compileFrontalCortex,
 	compileFullSystemPrompt,
+	detectProjectContext,
 	type SomaDir,
 	type SomaSettings,
 	type ProtocolState,
@@ -137,16 +138,40 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			// Auto-init: create .soma/ without prompting.
 			// ctx.ui.confirm() doesn't work during session_start because
 			// the TUI input handler isn't active yet (Pi framework timing).
+			const detection = detectProjectContext(process.cwd());
 			const somaPath = initSoma(process.cwd());
 			soma = findSomaDir();
 			ctx.ui.notify(`🌱 Soma planted at ${somaPath}`, "info");
+
+			// Build context-aware first-run message
+			const contextNotes: string[] = [];
+			if (detection.parent) {
+				contextNotes.push(`Parent workspace detected at \`${detection.parent.path}\` (${detection.parent.distance} level${detection.parent.distance > 1 ? "s" : ""} up).`);
+			}
+			if (detection.claudeMd) {
+				contextNotes.push(`CLAUDE.md found at \`${detection.claudeMd.path}\` (${detection.claudeMd.ageDays}d old). Review it as one input for understanding this project.`);
+			}
+			if (detection.agentsMd) {
+				contextNotes.push(`AGENTS.md found at \`${detection.agentsMd.path}\` (${detection.agentsMd.ageDays}d old).`);
+			}
+			if (detection.signals.length > 0) {
+				contextNotes.push(`Detected stack: ${detection.signals.join(", ")}.`);
+			}
+			if (detection.packageManager) {
+				contextNotes.push(`Package manager: ${detection.packageManager}.`);
+			}
+
+			const contextBlock = contextNotes.length > 0
+				? `\n**Context detected:**\n${contextNotes.map(n => `- ${n}`).join("\n")}\n`
+				: "";
+
 			pi.sendUserMessage(
 				`[Soma Boot — First Run]\n\n` +
-				`Created memory system at \`${somaPath}\`.\n` +
-				`There's a starter identity file at \`${somaPath}/identity.md\`.\n\n` +
-				`Look at the project files, understand what this workspace is, ` +
-				`then rewrite identity.md to reflect who you are in this context. ` +
-				`Keep it under 20 lines. Be specific about the project, stack, and conventions.`,
+				`Created memory at \`${somaPath}\`.\n` +
+				contextBlock +
+				`\nA starter identity file is at \`${somaPath}/identity.md\` (pre-filled with detected context).\n` +
+				`Review it, examine the project structure, and rewrite it to reflect who you are in this context. ` +
+				`Keep it specific and under 30 lines.`,
 				{ deliverAs: "followUp" }
 			);
 		}
