@@ -109,6 +109,13 @@ export interface SomaSettings {
 		 * "block" — require explicit confirmation before write
 		 */
 		coreFiles: "allow" | "warn" | "block";
+		/** Expected git identity for this project. Pre-commit hook validates against this.
+		 * null = hook checks that email is set (not empty), but doesn't enforce a specific value.
+		 */
+		gitIdentity: {
+			email: string;
+			name?: string;
+		} | null;
 	};
 
 	/** Session checkpoint settings — two-track version control */
@@ -186,6 +193,7 @@ const DEFAULTS: SomaSettings = {
 	},
 	guard: {
 		coreFiles: "warn",
+		gitIdentity: null,
 	},
 	checkpoints: {
 		soma: {

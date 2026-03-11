@@ -36,6 +36,8 @@ export interface InitOptions {
 	inheritSettings?: boolean;
 	/** Skip copying bundled extensions (for custom setups) */
 	skipExtensions?: boolean;
+	/** Skip installing git hooks (pre-commit identity check) */
+	skipHooks?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -322,6 +324,11 @@ export function initSoma(cwd: string, options: InitOptions = {}): string {
 		scaffoldExtensions(somaDir);
 	}
 
+	// Install git hooks if project is a git repo
+	if (!options.skipHooks) {
+		installGitHooks(cwd, somaDir);
+	}
+
 	return somaDir;
 }
 
@@ -345,6 +352,38 @@ function scaffoldExtensions(somaDir: string): void {
 		}
 	} catch {
 		// Silent fail — extensions are optional, user can add manually
+	}
+}
+
+/**
+ * Install git hooks into the project's .git/hooks/ directory.
+ * Currently installs: pre-commit (git identity check).
+ * Only installs if:
+ *   - Project has a .git/ directory
+ *   - Hook doesn't already exist (won't overwrite user customizations)
+ */
+function installGitHooks(projectDir: string, somaDir: string): void {
+	const gitDir = join(projectDir, ".git");
+	if (!existsSync(gitDir)) return;
+
+	const hooksDir = join(gitDir, "hooks");
+	if (!existsSync(hooksDir)) {
+		mkdirSync(hooksDir, { recursive: true });
+	}
+
+	// Pre-commit: git identity check
+	const hookTarget = join(hooksDir, "pre-commit");
+	if (!existsSync(hookTarget)) {
+		// Resolve bundled hook: this file is core/init.ts → ../scripts/
+		const bundledHook = resolve(dirname(new URL(import.meta.url).pathname), "..", "scripts", "git-identity-hook.sh");
+		if (existsSync(bundledHook)) {
+			try {
+				const hookContent = readFileSync(bundledHook, "utf-8");
+				writeFileSync(hookTarget, hookContent, { mode: 0o755 });
+			} catch {
+				// Silent fail — hooks are optional
+			}
+		}
 	}
 }
 

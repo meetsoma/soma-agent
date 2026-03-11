@@ -16,6 +16,7 @@
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { existsSync, statSync } from "fs";
+import { execSync } from "child_process";
 import { findSomaDir, getSomaChain, loadSettings } from "../core/index.js";
 
 export default function somaGuard(pi: ExtensionAPI) {
@@ -23,12 +24,18 @@ export default function somaGuard(pi: ExtensionAPI) {
 
 	/** Core file protection tier — loaded from settings.json */
 	let coreFileMode: "allow" | "warn" | "block" = "warn";
+	/** Expected git identity (from settings.json guard.gitIdentity) */
+	let expectedGitEmail: string | null = null;
+	/** Track if we've already warned about identity this session (don't spam) */
+	let gitIdentityWarned = false;
+
 	try {
 		const soma = findSomaDir();
 		if (soma) {
 			const chain = getSomaChain();
 			const settings = loadSettings(chain);
 			coreFileMode = settings.guard?.coreFiles ?? "warn";
+			expectedGitEmail = settings.guard?.gitIdentity?.email ?? null;
 		}
 	} catch { /* default to warn */ }
 
@@ -250,6 +257,29 @@ export default function somaGuard(pi: ExtensionAPI) {
 						return { block: true, reason: `Blocked dangerous command: ${cmd.slice(0, 80)}` };
 					}
 					break; // Only prompt once even if multiple patterns match
+				}
+			}
+
+			// === GIT IDENTITY GUARD (notify only) ===
+			if (!gitIdentityWarned && /git\s+commit\b/.test(cmd) && ctx.hasUI) {
+				try {
+					const currentEmail = execSync("git config user.email", {
+						encoding: "utf-8",
+						stdio: ["pipe", "pipe", "pipe"],
+					}).trim();
+
+					if (!currentEmail) {
+						ctx.ui.notify("⚠️ git user.email is not set — commits will be misattributed", "warning");
+						gitIdentityWarned = true;
+					} else if (expectedGitEmail && currentEmail !== expectedGitEmail) {
+						ctx.ui.notify(
+							`⚠️ Git identity mismatch: ${currentEmail} (expected: ${expectedGitEmail})`,
+							"warning"
+						);
+						gitIdentityWarned = true;
+					}
+				} catch {
+					// git config failed — not in a repo or git not available
 				}
 			}
 		}
