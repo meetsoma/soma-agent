@@ -59,11 +59,13 @@ import {
 	installItem,
 	listRemote,
 	listLocal,
+	compileFrontalCortex,
 	type SomaDir,
 	type SomaSettings,
 	type ProtocolState,
 	type ContentType,
 	type Protocol,
+	type Muscle,
 } from "../core/index.js";
 
 // ---------------------------------------------------------------------------
@@ -89,8 +91,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let musclesReferenced = new Set<string>();
 	let knownProtocols: Protocol[] = [];
 	let knownProtocolNames: string[] = [];
+	let knownMuscles: Muscle[] = [];
 	let knownMuscleNames: string[] = [];
 	let booted = false;
+	let frontalCortexCompiled = false;
 
 	// Context warning state
 	let lastContextWarningPct = 0;
@@ -201,6 +205,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 			case "muscles": {
 				const muscles = discoverMuscleChain(chain);
+				knownMuscles = muscles;
 				knownMuscleNames = muscles.map(m => m.name);
 				if (muscles.length > 0) {
 					const muscleInjection = buildMuscleInjection(muscles, settings.muscles);
@@ -352,8 +357,37 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (!soma || !booted) return;
 
+		// ═══════════════════════════════════════════════════════════════════
+		// PROTOCOL: frontal-cortex — compiled system prompt
+		// Prepends Soma's behavioral DNA, protocol rules, and muscle digests
+		// to Pi's system prompt. Compiled once per session, cached thereafter.
+		// ═══════════════════════════════════════════════════════════════════
+
+		let systemPrompt = event.systemPrompt;
+
+		if (!frontalCortexCompiled && settings) {
+			const compiled = compileFrontalCortex({
+				protocols: knownProtocols,
+				protocolState: protocolState,
+				muscles: knownMuscles,
+				settings,
+			});
+
+			if (compiled.block) {
+				// Prepend Soma's compiled prompt before Pi's default
+				systemPrompt = compiled.block + "\n\n---\n\n" + systemPrompt;
+				frontalCortexCompiled = true;
+			}
+		}
+
 		const usage = ctx.getContextUsage?.();
-		if (!usage?.percent) return;
+		if (!usage?.percent) {
+			// No context info yet — still return compiled prompt if we have it
+			if (systemPrompt !== event.systemPrompt) {
+				return { systemPrompt };
+			}
+			return;
+		}
 		const pct = usage.percent;
 
 		const thresholds = settings?.context ?? { notifyAt: 50, warnAt: 70, urgentAt: 80, autoExhaleAt: 85 };
@@ -399,7 +433,12 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 
 		if (additions.length > 0) {
-			return { systemPrompt: event.systemPrompt + "\n" + additions.join("\n") };
+			return { systemPrompt: systemPrompt + "\n" + additions.join("\n") };
+		}
+
+		// Return compiled prompt even if no context additions
+		if (systemPrompt !== event.systemPrompt) {
+			return { systemPrompt };
 		}
 	});
 
@@ -532,6 +571,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			toolCallsAfterPreload = 0;
 			protocolsReferenced = new Set();
 			musclesReferenced = new Set();
+			frontalCortexCompiled = false;
 
 			// If preload exists, notify (user can /auto-continue)
 			if (soma) {

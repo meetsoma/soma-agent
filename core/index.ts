@@ -83,4 +83,10 @@ export {
 } from "./install.js";
 export type { ContentType, InstallResult, RemoteItem, LocalItem } from "./install.js";
 
+export {
+	compileFrontalCortex,
+	clearPromptCache,
+} from "./prompt.js";
+export type { CompiledPrompt, CompileOptions } from "./prompt.js";
+
 export { safeRead, fmtDuration } from "./utils.js";
