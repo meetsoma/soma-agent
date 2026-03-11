@@ -92,6 +92,12 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	// -------------------------------------------------------------------
 
 	pi.on("session_start", async (_event, ctx) => {
+		// Capture session ID for preload metadata
+		try {
+			const sessionFile = ctx.sessionManager.getSessionFile?.() || "";
+			currentSessionId = sessionFile ? sessionFile.split("/").pop()?.replace(/\.[^.]+$/, "") || "" : "";
+		} catch { currentSessionId = ""; }
+
 		soma = findSomaDir();
 
 		if (!soma) {
@@ -476,6 +482,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			flushCompleteDetected = false;
 			preloadWrittenThisSession = false;
 			breathePending = false;
+			toolCallsAfterPreload = 0;
 			protocolsReferenced = new Set();
 			musclesReferenced = new Set();
 
