@@ -23,7 +23,19 @@ cd your-project
 soma
 ```
 
-On first run, Soma will ask to create a `.soma/` directory. Say yes. She'll write her own identity based on your workspace.
+On first run, Soma will ask to create a `.soma/` directory. Say yes.
+
+**Smart init** detects your project automatically and tailors the setup:
+
+| What's Detected | How | Effect |
+|----------------|-----|--------|
+| **Parent `.soma/`** | Walks up filesystem | Inherits identity, protocols, muscles, tools |
+| **`CLAUDE.md`** | Checks project root | Notes existing project instructions (no conflict) |
+| **Package manager** | Looks for lockfiles (`pnpm-lock.yaml`, `package-lock.json`, `yarn.lock`) | Sets preference in identity |
+| **Language/framework** | Scans for `tsconfig.json`, `Cargo.toml`, `go.mod`, `pyproject.toml`, etc. | Tailors identity and suggests relevant protocols |
+| **Monorepo signals** | Detects `pnpm-workspace.yaml`, multiple `package.json`, etc. | Suggests parent-child setup |
+
+The detected context shapes Soma's initial identity and the protocols she recommends installing. You can always edit `identity.md` afterward.
 
 ## Session Modes
 
@@ -70,6 +82,7 @@ Pick from previous sessions to resume.
 | `/preload` | List available preload files |
 | `/soma status` | Show memory status (identity, preload, muscles, protocols) |
 | `/soma init` | Create `.soma/` in current directory |
+| `/soma prompt` | Preview compiled system prompt with token estimate |
 
 ## The `.soma/` Directory
 
@@ -85,7 +98,7 @@ Created by `soma init` or on first run:
 │   └── _template.md         ← format reference for new protocols
 ├── memory/
 │   ├── muscles/             ← patterns learned from experience
-│   ├── preload-next.md      ← continuation for next session
+│   ├── preload-<sessionId>.md ← session-scoped continuations
 │   └── sessions/            ← daily logs
 └── scripts/                 ← dev tooling (search, scan, etc.)
 ```

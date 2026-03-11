@@ -246,14 +246,30 @@ export function discoverProtocols(soma: SomaDir): Protocol[] {
  * @param signals - Project signals to filter against (optional — no filtering if omitted)
  * @returns Deduplicated array of protocols (project wins on name collision)
  */
+/**
+ * Discover protocols from the full soma chain.
+ * Child protocols win on name collision (first found).
+ *
+ * When `settings.inherit.protocols` is false, only scans chain[0].
+ *
+ * @param chain - SomaDir array from getSomaChain()
+ * @param signals - Project signals for filtering
+ * @param settings - Optional settings (for inherit.protocols control)
+ */
 export function discoverProtocolChain(
 	chain: SomaDir[],
-	signals?: Set<ProjectSignal>
+	signals?: Set<ProjectSignal>,
+	settings?: import("./settings.js").SomaSettings
 ): Protocol[] {
+	// Respect inherit.protocols — if false, only scan chain[0]
+	const effectiveChain = (settings?.inherit?.protocols === false && chain.length > 1)
+		? [chain[0]]
+		: chain;
+
 	const seen = new Set<string>();
 	const all: Protocol[] = [];
 
-	for (const soma of chain) {
+	for (const soma of effectiveChain) {
 		const protocols = discoverProtocols(soma);
 		for (const proto of protocols) {
 			if (seen.has(proto.name)) continue;
@@ -424,20 +440,38 @@ export function recordHeatEvent(
 /**
  * Apply session-end decay to all protocols.
  * Protocols referenced this session don't decay.
+ * Protocols never decay below their heat-default floor — a warm protocol
+ * stays warm unless explicitly /kill'd. This prevents behavioral protocols
+ * (which have no auto-detection rules) from systematically losing heat.
  *
  * @param state - The protocol state to mutate
  * @param referencedThisSession - Set of protocol names used this session
  * @param decayRate - How much heat to remove (default: 1)
+ * @param protocols - Discovered protocols (for heat-default floor). If not provided, floor is 0.
  */
 export function applyDecay(
 	state: ProtocolState,
 	referencedThisSession: Set<string>,
-	decayRate: number = DEFAULT_THRESHOLDS.decayRate
+	decayRate: number = DEFAULT_THRESHOLDS.decayRate,
+	protocols?: Protocol[]
 ): void {
+	// Build a lookup for heat-default floors
+	const floors = new Map<string, number>();
+	if (protocols) {
+		for (const p of protocols) {
+			switch (p.heatDefault) {
+				case "hot": floors.set(p.name, DEFAULT_THRESHOLDS.hotThreshold); break;
+				case "warm": floors.set(p.name, DEFAULT_THRESHOLDS.warmThreshold); break;
+				default: floors.set(p.name, 0);
+			}
+		}
+	}
+
 	for (const [name, entry] of Object.entries(state.protocols)) {
 		if (entry.pinned) continue;
 		if (referencedThisSession.has(name)) continue;
-		entry.heat = Math.max(0, entry.heat - decayRate);
+		const floor = floors.get(name) ?? 0;
+		entry.heat = Math.max(floor, entry.heat - decayRate);
 	}
 }
 

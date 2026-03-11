@@ -2,14 +2,17 @@
 type: protocol
 name: frontmatter-standard
 status: active
-created: 2025-12-15
-updated: 2026-03-09
 heat-default: warm
 applies-to: [always]
 breadcrumb: "All .md files get YAML frontmatter: type, status, created, updated. 8 statuses: draft/active/stable/stale/archived/deprecated/blocked/review. 12 types: plan/spec/note/index/memory/muscle/protocol/decision/log/template/identity/config."
-source: meetsoma/agent@0.2.0
-source-version: 0.2.0
-edited-by: system
+author: Curtis Mercier
+license: CC BY 4.0
+version: 1.1.0
+tier: core
+tags: [structure, metadata, organization]
+spec-ref: curtismercier/protocols/atlas (v0.1)
+created: 2026-03-09
+updated: 2026-03-10
 ---
 
 # Frontmatter Standard Protocol
@@ -19,12 +22,11 @@ edited-by: system
 - 12 types: plan · spec · note · index · memory · muscle · protocol · decision · log · template · identity · config
 - 8 statuses: draft · active · stable · stale · archived · deprecated · blocked · review
 - Optional fields: `tags`, `related`, `owner`, `priority` — powers search/scan tooling
-- Agent-loaded files (protocols, muscles) keep full frontmatter on disk for tooling, but only breadcrumb/TL;DR/body gets injected into system prompt
-- `## TL;DR` section for protocols (visible, human-readable); `<!-- digest:start/end -->` for muscles (agent-facing)
+- `## TL;DR` section for protocols; `<!-- digest:start/end -->` for muscles
 
 ## Rule
 
-Every Markdown document in a Soma-managed workspace MUST have YAML frontmatter.
+Every Markdown document in an agent-managed workspace MUST have YAML frontmatter.
 
 ### Required Fields
 
@@ -43,8 +45,6 @@ Every Markdown document in a Soma-managed workspace MUST have YAML frontmatter.
 | `related` | string[] | Links to related docs |
 | `owner` | string | Who owns this doc |
 | `priority` | string | high/medium/low |
-| `heat-default` | string | For protocols: starting temperature |
-| `breadcrumb` | string | For protocols: compressed TL;DR |
 
 ### Valid Types (12)
 
@@ -66,9 +66,3 @@ Every Markdown document in a Soma-managed workspace MUST have YAML frontmatter.
 - README.md in public repos (conventional format, no frontmatter expected)
 - Third-party docs or generated files
 - Files explicitly marked as frontmatter-exempt
-
-## Exception: Agent-Loaded Files
-
-Protocol and muscle `.md` files keep full frontmatter for tooling (scan, search, sync). But only the **breadcrumb** or **digest block** gets injected into the system prompt — the rest stays on disk. Token efficiency comes from the loading tier, not from stripping the file.
-
-<!-- v1.0.0 | created: 2026-03-10 | MIT -->

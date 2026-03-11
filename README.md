@@ -133,7 +133,7 @@ Different projects produce different Somas.
 ├── protocols/           ← behavioral rules (heat-tracked)
 ├── memory/
 │   ├── muscles/         ← patterns from experience
-│   ├── preload-next.md  ← continuation state
+│   ├── preload-*.md     ← session-scoped continuations
 │   └── sessions/        ← session logs
 └── skills/              ← project-specific capabilities
 ```

@@ -9,6 +9,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [Unreleased]
 
 ### Added
+- **Compiled system prompt — full replacement (Phases 0-3)** — `core/prompt.ts` assembles complete system prompt from Soma's behavioral DNA, protocol summaries, muscle digests, dynamic tool section, and transplanted Pi sections (skills, project context, date/time). Replaces Pi's default prompt entirely when detected; falls back to prepend for custom SYSTEM.md. Phase 1: section extraction (`extractSkillsBlock`, `extractProjectContext`, `extractPiDocs`, `extractDateTimeCwd`). Phase 2: dynamic tool builder (`buildToolSection`). Phase 3: full assembly (`compileFullSystemPrompt`).
+- **`prompts/system-core.md`** — static behavioral DNA skeleton (~250 tokens). Identity, breath cycle, memory system, protocol/muscle awareness, context thresholds. Everything behavioral lives in protocols/muscles, not here.
+- **Community protocols: tool-discipline, working-style, quality-standards** — extracted from static core. Ship as warm defaults. Users shape behavior through heat, not hardcoded rules.
+- **`soma-guard.ts` extension** — safe file operation enforcement. Intercepts `write` to unread files (confirms), critical path protection (identity, settings, protocols, .env), dangerous bash patterns (rm -rf, force push, git reset). Graduated from `safe-file-ops` muscle to executable extension. `/guard-status` command.
+- **Workspace scan scripts** (`.soma/scripts/`) — `soma-scan.sh` (session/topic scanner), `soma-context.sh` (pre-change context gatherer), `soma-stale.sh` (stale doc finder), `soma-frontmatter.sh` (frontmatter status scanner). Operate across the full workspace.
+- **Community protocols v1.1.0** — all 7 protocols refined with `spec-ref` fields linking to curtismercier/protocols specs. pattern-evolution trimmed 181→89 lines, session-checkpoints trimmed 183→103 lines. Misplaced pre-publish gate removed from breath-cycle.
+- **Muscle review & consolidation** — 93 muscles across 9 sources triaged: 41 archived, 7 duplicate pairs resolved, 6 merges completed, agent-ops cluster consolidated to 4 canonical muscles.
+- **Session checkpoints protocol** — two-track version control: `.soma/` committed every exhale (local git), project code checkpointed locally, squashed before push. Configurable via `settings.checkpoints`.
+- **`soma-audit.sh`** — ecosystem health check orchestrating 11 focused audits: PII, code drift, stale content, stale terms, docs sync, command consistency, roadmap claims, overlap detection, settings validation, test coverage, frontmatter validation.
+- **Hub commands** — `/install <type> <name>` fetches from hub, `/list local|remote` browses content. Templates resolve dependencies automatically.
+- **Preact islands on hub** — `HubFilters` (type/tier/search) and `HubGrid` (reactive filtered cards) as interactive Preact islands with Nano Stores for cross-island state.
+- **View Transitions** — smooth page navigation across the website via `astro:transitions`.
+- **Checkpoint settings** — `SomaSettings.checkpoints` with configurable auto-commit, checkpoint style (commit/tag/stash), diff-on-boot, max diff lines.
+- **`.soma/` git tracking** — local git repos initialized in agent, website, and core `.soma/` directories for session-over-session diff visibility.
+- **Boot checkpoint diffs** — `git-context` boot step surfaces `.soma/` changes since last checkpoint when `diffOnBoot` is enabled.
 - **`/rest` command** — disable cache keepalive + exhale in one motion. For when you're done for the night. No pings fire after you walk away.
 - **`/keepalive` command** — toggle cache keepalive on/off/status. Prevents expensive prompt re-caching during idle periods.
 - **Cache keepalive system** — 300s TTL, 45s threshold, 30s cooldown. Auto-ping on idle. ◷ cache TTL display in footer.

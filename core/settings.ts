@@ -18,6 +18,28 @@ export interface SomaSettings {
 	/** Root directory name */
 	root: string;
 
+	/** Inheritance settings — what to inherit from parent .soma/ */
+	inherit: {
+		/** Layer parent's identity below child's (default: true if parent exists) */
+		identity: boolean;
+		/** Discover parent's protocols (default: true) */
+		protocols: boolean;
+		/** Discover parent's muscles (default: true) */
+		muscles: boolean;
+		/** Use parent's tools/scripts (default: true) */
+		tools: boolean;
+	};
+
+	/** Persona — cosmetic identity overrides */
+	persona: {
+		/** Custom agent name (null = inherit or default) */
+		name: string | null;
+		/** Custom emoji for status/logs */
+		emoji: string | null;
+		/** Custom icon path (SVG/PNG) */
+		icon: string | null;
+	};
+
 	/** Memory system settings */
 	memory: {
 		/** Allow memories to flow up to parent soma (default: false) */
@@ -100,6 +122,65 @@ export interface SomaSettings {
 		/** Hours before a preload is considered stale (default: 48) */
 		staleAfterHours: number;
 	};
+
+	/** Guard settings — file protection tiers */
+	guard: {
+		/** Protection level for core soma files (identity.md, STATE.md, protocols/, settings.json, etc.)
+		 * "allow" — no guard, power user mode
+		 * "warn" — notify on write (default)
+		 * "block" — require explicit confirmation before write
+		 */
+		coreFiles: "allow" | "warn" | "block";
+		/** Expected git identity for this project. Pre-commit hook validates against this.
+		 * null = hook checks that email is set (not empty), but doesn't enforce a specific value.
+		 */
+		gitIdentity: {
+			email: string;
+			name?: string;
+		} | null;
+	};
+
+	/** System prompt compilation settings */
+	systemPrompt: {
+		/** Max estimated tokens for Soma's portion (default: 4000) */
+		maxTokens: number;
+		/** Include Soma documentation references (default: true) */
+		includeSomaDocs: boolean;
+		/** Include Pi framework documentation references (default: true) */
+		includePiDocs: boolean;
+		/** Include CLAUDE.md awareness note (default: true) */
+		includeContextAwareness: boolean;
+		/** Include skills block from Pi (default: true) */
+		includeSkills: boolean;
+		/** Include guard awareness (default: true) */
+		includeGuardAwareness: boolean;
+		/** Put identity in system prompt vs user message (default: true) */
+		identityInSystemPrompt: boolean;
+	};
+
+	/** Session checkpoint settings — two-track version control */
+	checkpoints: {
+		/** .soma internal tracking */
+		soma: {
+			/** Auto-commit .soma on exhale (default: true) */
+			autoCommit: boolean;
+		};
+		/** Project code checkpoints */
+		project: {
+			/** Checkpoint style: commit, tag, or stash (default: "commit") */
+			style: "commit" | "tag" | "stash";
+			/** Auto-create checkpoint on exhale (default: false — prompt first) */
+			autoCheckpoint: boolean;
+			/** Commit message prefix (default: "checkpoint:") */
+			prefix: string;
+			/** Working branch name, null = current branch (default: null) */
+			workingBranch: string | null;
+		};
+		/** Show diffs from last checkpoint on boot (default: true) */
+		diffOnBoot: boolean;
+		/** Max diff lines to surface on boot (default: 80) */
+		maxDiffLines: number;
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -108,6 +189,17 @@ export interface SomaSettings {
 
 const DEFAULTS: SomaSettings = {
 	root: ".soma",
+	inherit: {
+		identity: true,
+		protocols: true,
+		muscles: true,
+		tools: true,
+	},
+	persona: {
+		name: null,
+		emoji: null,
+		icon: null,
+	},
 	memory: {
 		flowUp: false,
 	},
@@ -149,6 +241,32 @@ const DEFAULTS: SomaSettings = {
 	},
 	preload: {
 		staleAfterHours: 48,
+	},
+	guard: {
+		coreFiles: "warn",
+		gitIdentity: null,
+	},
+	systemPrompt: {
+		maxTokens: 4000,
+		includeSomaDocs: true,
+		includePiDocs: true,
+		includeContextAwareness: true,
+		includeSkills: true,
+		includeGuardAwareness: true,
+		identityInSystemPrompt: true,
+	},
+	checkpoints: {
+		soma: {
+			autoCommit: true,
+		},
+		project: {
+			style: "commit",
+			autoCheckpoint: false,
+			prefix: "checkpoint:",
+			workingBranch: null,
+		},
+		diffOnBoot: true,
+		maxDiffLines: 80,
 	},
 };
 

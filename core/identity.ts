@@ -9,6 +9,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { safeRead } from "./utils.js";
 import type { SomaDir } from "./discovery.js";
+import type { SomaSettings } from "./settings.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,11 +68,20 @@ export function loadIdentityChain(chain: SomaDir[]): IdentityInfo[] {
  * Build a layered identity string from the chain.
  * Project identity comes first (primary), parent/global add context.
  *
+ * When `settings.inherit.identity` is false, only the project-level
+ * identity (chain[0]) is loaded — parent/global identities are excluded.
+ *
  * @param chain - Array of SomaDir from getSomaChain()
+ * @param settings - Optional settings (for inherit.identity control)
  * @returns Formatted identity string, or null if none found
  */
-export function buildLayeredIdentity(chain: SomaDir[]): string | null {
-	const identities = loadIdentityChain(chain);
+export function buildLayeredIdentity(chain: SomaDir[], settings?: SomaSettings): string | null {
+	// Respect inherit.identity — if false, only load from chain[0]
+	const effectiveChain = (settings?.inherit?.identity === false && chain.length > 1)
+		? [chain[0]]
+		: chain;
+
+	const identities = loadIdentityChain(effectiveChain);
 	if (identities.length === 0) return null;
 
 	if (identities.length === 1) {

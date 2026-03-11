@@ -23,7 +23,7 @@ Lives in your project root. Contains everything specific to this project.
 ├── memory/
 │   ├── muscles/             ← learned patterns (auto-discovered)
 │   │   └── deployment.md    ← example: learned deployment process
-│   ├── preload-next.md      ← state for next session inhale
+│   ├── preload-<sessionId>.md ← session-scoped continuations
 │   └── sessions/
 │       └── 2026-03-08.md    ← daily work log
 ├── skills/                  ← project-specific skills (optional)
@@ -82,10 +82,10 @@ Fresh session (soma):
 
 Continue session (soma -c):
   → same as above, plus:
-  → step 2 loads .soma/memory/preload-next.md as continuation context
+  → step 2 loads most recent .soma/memory/preload-<sessionId>.md
 
 Breathe (/breathe or auto at configurable threshold):
-  → agent writes .soma/memory/preload-next.md
+  → agent writes .soma/memory/preload-<sessionId>.md
   → save protocol + muscle heat state (with decay for unused)
   → agent commits work
   → auto-continues into fresh session
@@ -93,6 +93,24 @@ Breathe (/breathe or auto at configurable threshold):
 Exhale (/exhale):
   → same save as breathe, but session ends
 ```
+
+## Session-Scoped Preloads
+
+Preload files are named `preload-<sessionId>.md` — each exhale writes a unique file rather than overwriting a single `preload-next.md`. On resume, Soma picks the most recent preload by modification time.
+
+This means you can have multiple preloads from different sessions and resume any of them. The session ID comes from the Pi session that created the preload.
+
+## Parent Chain Discovery
+
+On boot, Soma walks up the filesystem from the current directory looking for `.soma/` directories. This creates a chain:
+
+```
+/home/user/work/monorepo/app/.soma/     ← child (primary)
+/home/user/work/monorepo/.soma/          ← parent (inherited)
+/home/user/.soma/agent/                  ← global (baseline)
+```
+
+Content from each level merges according to the `inherit` settings. See [Configuration](/docs/configuration#inheritance).
 
 ## Multiple Projects
 

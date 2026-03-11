@@ -56,8 +56,10 @@ export type { Protocol, ProtocolHeatState, ProtocolState, ProtocolInjection, Pro
 export {
 	initSoma,
 	resolveTemplateDir,
+	detectProjectContext,
+	buildSmartIdentity,
 } from "./init.js";
-export type { InitOptions } from "./init.js";
+export type { InitOptions, ProjectDetection } from "./init.js";
 
 export {
 	discoverMuscles,
@@ -76,4 +78,30 @@ export {
 } from "./settings.js";
 export type { SomaSettings } from "./settings.js";
 
+export {
+	installItem,
+	listRemote,
+	listLocal,
+} from "./install.js";
+export type { ContentType, InstallResult, RemoteItem, LocalItem } from "./install.js";
+
+export {
+	compileFrontalCortex,
+	clearPromptCache,
+} from "./prompt.js";
+export {
+	compileFullSystemPrompt,
+	extractSections,
+	extractSkillsBlock,
+	extractProjectContext,
+	extractDateTimeCwd,
+	extractPiDocs,
+	isPiDefaultPrompt,
+	buildToolSection,
+	buildDocsSection,
+} from "./prompt.js";
+export type { CompiledPrompt, CompileOptions, FullCompileOptions, ExtractedSections } from "./prompt.js";
+
 export { safeRead, fmtDuration } from "./utils.js";
+
+export { handleContentCommand } from "./content-cli.js";

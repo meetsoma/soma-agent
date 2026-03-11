@@ -2,58 +2,56 @@
 type: protocol
 name: git-identity
 status: active
-created: 2026-02-01
-updated: 2026-03-10
 heat-default: warm
 applies-to: [git]
-scope: local
-source: meetsoma/agent@0.2.0
-source-version: 0.2.0
-edited-by: system
-tags: [git, attribution, identity, multi-repo]
-breadcrumb: "Commits must be attributed correctly. Define identities in .soma/identity.md or settings. Check git config user.email before first commit. Never let bot identity land on human-driven repos."
+breadcrumb: "Commits must be attributed correctly. Check git config user.email before first commit in any repo. Define identity zones (personal, business, agent) and enforce them."
+author: Curtis Mercier
+license: CC BY 4.0
+version: 1.1.0
+tier: core
+tags: [git, attribution, identity]
+spec-ref: curtismercier/protocols/git-identity (v0.2)
+created: 2026-03-09
+updated: 2026-03-10
 ---
 
 # Git Identity Protocol
 
 ## TL;DR
-- Define your identities in `.soma/identity.md` (personal, business, agent)
-- Map identities to repo patterns (e.g. `clients/*` → business identity)
+- Define identity zones: **personal**, **business**, **agent** — each maps to a name/email
 - Check `git config user.email` before first commit in any repo
-- Human drives → human identity. Agent acts alone → agent identity
+- Human drives → human identity. Agent acts alone → agent identity with `Co-authored-by`
 - Fix before push: `git commit --amend --author="Name <email>" --no-edit`
 
 ## Rule
 
-Every commit must be attributed to the correct identity. Define your identities and repo mappings in `.soma/identity.md` or your project's `.soma/settings.json`.
+Every commit must be attributed to the correct identity. Define your zones:
 
-### Identity Types
-
-| Identity | When to use | Repos |
-|----------|------------|-------|
-| **personal** | Your own projects, open source | Define your personal repo patterns |
-| **business** | Client work, company repos | Define your business repo patterns |
-| **agent** | Autonomous-only commits (scheduled, auto-maintenance) | Only when no human is driving |
+| Identity | When | Example |
+|----------|------|---------|
+| personal | Your own projects, open source | `Your Name <you@example.com>` |
+| business | Client work, company repos | `Company <team@company.com>` |
+| agent | Autonomous commits only (CI, auto-update) | `Agent <agent@example.com>` |
 
 ### Before First Commit
 
-Run `git config user.email` in the repo. If it doesn't match the expected identity for this repo pattern, fix it:
-
 ```bash
+git config user.email
+# If wrong:
 git config user.name "Your Name"
-git config user.email "your@email.com"
+git config user.email "you@example.com"
 ```
 
 ### Agent-Assisted vs Autonomous
 
 - **Human directs agent** → human identity. You're the author, agent is the tool.
-- **Agent acts alone** (scheduled, auto-update) → agent identity with `Co-authored-by`.
+- **Agent acts alone** (scheduled, auto-maintenance) → agent identity with `Co-authored-by: Human <email>`.
 - **Never** commit as agent when a human is driving the session.
 
 ### Fix Misattribution
 
 Before push: `git commit --amend --author="Name <email>" --no-edit`
-After push: `git filter-branch` + force-push (solo repos only).
+After push: `git filter-branch` + force-push (solo repos only — never on shared branches).
 
 ## When to Apply
 

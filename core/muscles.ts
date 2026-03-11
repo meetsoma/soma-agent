@@ -190,11 +190,28 @@ export function discoverMuscles(soma: SomaDir): Muscle[] {
  * Discover muscles from a soma chain (project → parent → global).
  * Project muscles shadow same-named parent/global ones.
  */
-export function discoverMuscleChain(chain: SomaDir[]): Muscle[] {
+/**
+ * Discover muscles from the full soma chain.
+ * Child muscles win on name collision (first found).
+ *
+ * When `settings.inherit.muscles` is false, only scans chain[0].
+ *
+ * @param chain - SomaDir array from getSomaChain()
+ * @param settings - Optional settings (for inherit.muscles control)
+ */
+export function discoverMuscleChain(
+	chain: SomaDir[],
+	settings?: import("./settings.js").SomaSettings
+): Muscle[] {
+	// Respect inherit.muscles — if false, only scan chain[0]
+	const effectiveChain = (settings?.inherit?.muscles === false && chain.length > 1)
+		? [chain[0]]
+		: chain;
+
 	const seen = new Set<string>();
 	const all: Muscle[] = [];
 
-	for (const soma of chain) {
+	for (const soma of effectiveChain) {
 		const muscles = discoverMuscles(soma);
 		for (const m of muscles) {
 			if (!seen.has(m.name)) {

@@ -10,11 +10,31 @@
  *   - Heat tracking (auto-detect + decay)
  *
  * Statusline extension ONLY handles: footer rendering, cache keepalive, /status, /keepalive
+ *
+ * ─── Protocol Map ───────────────────────────────────────────────────────
+ * This file embeds logic for multiple protocols. Each section is marked
+ * with a PROTOCOL comment block. When changing one section, you should NOT
+ * need to understand unrelated sections. If you do, it's time to extract.
+ *
+ * Protocol              │ Sections (search for ═══ PROTOCOL: <name>)
+ * ──────────────────────┼─────────────────────────────────────────────
+ * breath-cycle          │ session_start (preload), context warnings,
+ *                       │   /exhale, /breathe, /rest, /auto-continue,
+ *                       │   /inhale, /preload, FLUSH COMPLETE detection,
+ *                       │   preload watcher, post-preload work detection
+ * heat-tracking         │ HEAT_RULES, tool_result auto-detect,
+ *                       │   session_shutdown decay, /pin, /kill
+ * session-checkpoints   │ session_start (git-context), /exhale step 1
+ *                       │   (checkpoint commands), .soma diff on boot
+ * discovery             │ session_start (identity, protocols, muscles,
+ *                       │   scripts), /soma status
+ * ────────────────────────────────────────────────────────────────────────
  */
 
-import { join } from "path";
+import { join, dirname, resolve } from "path";
 import { existsSync, readdirSync } from "fs";
 import { execSync } from "child_process";
+import { fileURLToPath } from "url";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import {
 	findSomaDir,
@@ -37,9 +57,18 @@ import {
 	recordHeatEvent,
 	loadSettings,
 	initSoma,
+	installItem,
+	listRemote,
+	listLocal,
+	compileFrontalCortex,
+	compileFullSystemPrompt,
+	detectProjectContext,
 	type SomaDir,
 	type SomaSettings,
 	type ProtocolState,
+	type ContentType,
+	type Protocol,
+	type Muscle,
 } from "../core/index.js";
 
 // ---------------------------------------------------------------------------
@@ -48,30 +77,40 @@ import {
 
 // Script descriptions for boot injection
 const SCRIPT_DESCRIPTIONS: Record<string, string> = {
+	"soma-audit.sh": "Ecosystem health check — 11 audits: PII, drift, stale content/terms, docs sync, commands, roadmap, overlap, settings, tests, frontmatter. `--list`, `--quiet`, or name specific audits",
 	"soma-search.sh": "Query memory by type/status/tags/domain. `--deep` for TL;DR, `--brief` for breadcrumbs, `--missing-tldr` for audit",
 	"soma-scan.sh": "Scan frontmatter across docs. `--stale` for outdated, `--type`/`--status` filters",
 	"soma-tldr.sh": "Generate TL;DR/digest sections via Haiku. `--scan` gaps, `--batch` all, `--dry-run`",
-	"soma-audit.sh": "Ecosystem audit — PII, code drift, stale refs, overlap, docs mismatch, test coverage",
-	"soma-init.sh": "Scaffold new .soma/ directory for a project",
 	"soma-snapshot.sh": "Rolling backup snapshots of .soma/",
 	"frontmatter-date-hook.sh": "Git pre-commit hook: auto-update `updated:` in frontmatter",
 };
+
+// Resolve agent dir from this module's location (extensions/ → parent)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const somaAgentDir = resolve(__dirname, "..");
 
 export default function somaBootExtension(pi: ExtensionAPI) {
 
 	let soma: SomaDir | null = null;
 	let settings: SomaSettings | null = null;
 	let protocolState: ProtocolState | null = null;
+	let builtIdentity: string | null = null;
 	let protocolsReferenced = new Set<string>();
 	let musclesReferenced = new Set<string>();
+	let knownProtocols: Protocol[] = [];
 	let knownProtocolNames: string[] = [];
+	let knownMuscles: Muscle[] = [];
 	let knownMuscleNames: string[] = [];
 	let booted = false;
+	let frontalCortexCompiled = false;
 
 	// Context warning state
 	let lastContextWarningPct = 0;
 	let wrapUpSent = false;
 	let autoFlushSent = false;
+
+	// Track work after preload (edge case: user sends more requests after preload written)
+	let toolCallsAfterPreload = 0;
 
 	// Flush/continue state
 	let flushCompleteDetected = false;
@@ -79,30 +118,65 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let preloadPath: string | null = null;
 	let breatheCommandCtx: any = null;
 	let breathePending = false;
+	let currentSessionId = "";
 
-	// -------------------------------------------------------------------
-	// Session start: discover, load identity + preload + protocols
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: discovery — session boot (identity + preload + protocols + muscles + scripts + git)
+	// Also: breath-cycle (preload loading), session-checkpoints (git context)
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("session_start", async (_event, ctx) => {
+		// Capture session ID for preload metadata
+		try {
+			const sessionFile = ctx.sessionManager.getSessionFile?.() || "";
+			currentSessionId = sessionFile ? sessionFile.split("/").pop()?.replace(/\.[^.]+$/, "") || "" : "";
+		} catch { currentSessionId = ""; }
+
 		soma = findSomaDir();
 
 		if (!soma) {
 			// Auto-init: create .soma/ without prompting.
 			// ctx.ui.confirm() doesn't work during session_start because
 			// the TUI input handler isn't active yet (Pi framework timing).
+			const detection = detectProjectContext(process.cwd());
 			const somaPath = initSoma(process.cwd());
 			soma = findSomaDir();
 			ctx.ui.notify(`🌱 Soma planted at ${somaPath}`, "info");
-			pi.sendUserMessage(
-				`[Soma Boot — First Run]\n\n` +
-				`Created memory system at \`${somaPath}\`.\n` +
-				`There's a starter identity file at \`${somaPath}/identity.md\`.\n\n` +
-				`Look at the project files, understand what this workspace is, ` +
-				`then rewrite identity.md to reflect who you are in this context. ` +
-				`Keep it under 20 lines. Be specific about the project, stack, and conventions.`,
-				{ deliverAs: "followUp" }
-			);
+
+			// Build context-aware first-run message
+			const contextNotes: string[] = [];
+			if (detection.parent) {
+				contextNotes.push(`Parent workspace detected at \`${detection.parent.path}\` (${detection.parent.distance} level${detection.parent.distance > 1 ? "s" : ""} up).`);
+			}
+			if (detection.claudeMd) {
+				contextNotes.push(`CLAUDE.md found at \`${detection.claudeMd.path}\` (${detection.claudeMd.ageDays}d old). Review it as one input for understanding this project.`);
+			}
+			if (detection.agentsMd) {
+				contextNotes.push(`AGENTS.md found at \`${detection.agentsMd.path}\` (${detection.agentsMd.ageDays}d old).`);
+			}
+			if (detection.signals.length > 0) {
+				contextNotes.push(`Detected stack: ${detection.signals.join(", ")}.`);
+			}
+			if (detection.packageManager) {
+				contextNotes.push(`Package manager: ${detection.packageManager}.`);
+			}
+
+			const contextBlock = contextNotes.length > 0
+				? `\n**Context detected:**\n${contextNotes.map(n => `- ${n}`).join("\n")}\n`
+				: "";
+
+			// Skip follow-up in print/RPC mode — sendUserMessage races with the initial prompt
+			if (ctx.hasUI) {
+				pi.sendUserMessage(
+					`[Soma Boot — First Run]\n\n` +
+					`Created memory at \`${somaPath}\`.\n` +
+					contextBlock +
+					`\nA starter identity file is at \`${somaPath}/identity.md\` (pre-filled with detected context).\n` +
+					`Review it, examine the project structure, and rewrite it to reflect who you are in this context. ` +
+					`Keep it specific and under 30 lines.`,
+					{ deliverAs: "followUp" }
+				);
+			}
 		}
 
 		// Build boot context
@@ -121,8 +195,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			switch (step) {
 
 			case "identity": {
-				const identity = buildLayeredIdentity(chain);
-				if (identity) parts.push(identity);
+				builtIdentity = buildLayeredIdentity(chain, settings);
+				// Identity now goes in compiled system prompt (Wave 2), not boot user message
 				break;
 			}
 
@@ -140,7 +214,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 			case "protocols": {
 				const signals = detectProjectSignals(soma.projectDir);
-				const protocols = discoverProtocolChain(chain, signals);
+				const protocols = discoverProtocolChain(chain, signals, settings);
+				knownProtocols = protocols;
 				knownProtocolNames = protocols.map(p => p.name);
 				if (protocols.length > 0) {
 					protocolState = loadProtocolState(soma);
@@ -155,21 +230,34 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 						}
 					}
 
+					// Breadcrumbs now in compiled system prompt (Wave 2).
+					// Boot message only gets hot protocol FULL BODIES.
 					const injection = buildProtocolInjection(protocols, protocolState, protoThresholds);
-					if (injection.systemPromptBlock.trim()) {
-						parts.push(`\n---\n${injection.systemPromptBlock}`);
+					if (injection.hot.length > 0) {
+						const hotBlock = injection.hot.map(p => {
+							const body = p.content.replace(/^---\n[\s\S]*?\n---\n*/, "").trim();
+							return `### Protocol: ${p.name}\n${body}`;
+						}).join("\n\n");
+						parts.push(`\n---\n## Hot Protocols (full reference)\n\n${hotBlock}`);
 					}
 				}
 				break;
 			}
 
 			case "muscles": {
-				const muscles = discoverMuscleChain(chain);
+				const muscles = discoverMuscleChain(chain, settings);
+				knownMuscles = muscles;
 				knownMuscleNames = muscles.map(m => m.name);
 				if (muscles.length > 0) {
+					// Digests now in compiled system prompt (Wave 2).
+					// Boot message only gets hot muscle FULL BODIES.
 					const muscleInjection = buildMuscleInjection(muscles, settings.muscles);
-					if (muscleInjection.systemPromptBlock.trim()) {
-						parts.push(`\n---\n${muscleInjection.systemPromptBlock}`);
+					if (muscleInjection.hot.length > 0) {
+						const hotBlock = muscleInjection.hot.map(m => {
+							const body = m.content.replace(/^---\n[\s\S]*?\n---\n*/, "").trim();
+							return `### Muscle: ${m.name}\n${body}`;
+						}).join("\n\n");
+						parts.push(`\n---\n## Hot Muscles (full reference)\n\n${hotBlock}`);
 					}
 					const loaded = [...muscleInjection.hot, ...muscleInjection.warm];
 					if (loaded.length > 0) trackMuscleLoads(loaded);
@@ -178,27 +266,44 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 
 			case "scripts": {
-				const scriptsDir = join(soma.path, "scripts");
-				if (existsSync(scriptsDir)) {
+				// Collect script dirs — child first, then parent chain if inherit.tools
+				const scriptDirs: string[] = [join(soma.path, "scripts")];
+				if (settings.inherit.tools && chain.length > 1) {
+					for (let i = 1; i < chain.length; i++) {
+						scriptDirs.push(join(chain[i].path, "scripts"));
+					}
+				}
+
+				// Deduplicate by filename (child wins)
+				const seenScripts = new Set<string>();
+				const allScripts: { name: string; dir: string }[] = [];
+				for (const dir of scriptDirs) {
+					if (!existsSync(dir)) continue;
 					try {
-						const scripts = readdirSync(scriptsDir).filter(f => f.endsWith(".sh"));
-						if (scripts.length > 0) {
-							const scriptLines = [
-								"## Available Scripts\n",
-								`Location: \`${scriptsDir}/\`\n`,
-								"| Script | What it does |",
-								"|--------|-------------|",
-								...scripts.map(s => {
-									const desc = SCRIPT_DESCRIPTIONS[s] || "—";
-									return `| \`${s}\` | ${desc} |`;
-								}),
-								"",
-								"Run with `bash <path>`. Use `--help` for options.",
-								"",
-							];
-							parts.push(`\n---\n${scriptLines.join("\n")}`);
+						const scripts = readdirSync(dir).filter(f => f.endsWith(".sh"));
+						for (const s of scripts) {
+							if (!seenScripts.has(s)) {
+								seenScripts.add(s);
+								allScripts.push({ name: s, dir });
+							}
 						}
 					} catch { /* ignore */ }
+				}
+
+				if (allScripts.length > 0) {
+					const scriptLines = [
+						"## Available Scripts\n",
+						"| Script | Location | What it does |",
+						"|--------|----------|-------------|",
+						...allScripts.map(({ name, dir }) => {
+							const desc = SCRIPT_DESCRIPTIONS[name] || "—";
+							return `| \`${name}\` | \`${dir}/\` | ${desc} |`;
+						}),
+						"",
+						"Run with `bash <path>`. Use `--help` for options.",
+						"",
+					];
+					parts.push(`\n---\n${scriptLines.join("\n")}`);
 				}
 				break;
 			}
@@ -206,6 +311,26 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			case "git-context": {
 				const gc = settings.boot.gitContext;
 				if (!gc.enabled) break;
+
+				// .soma internal diff (checkpoint protocol)
+				if (settings.checkpoints?.diffOnBoot) {
+					try {
+						const somaGit = join(soma.path, ".git");
+						if (existsSync(somaGit)) {
+							const maxLines = settings.checkpoints.maxDiffLines ?? 80;
+							const somaDiff = execSync(
+								`git diff HEAD~1 --stat --no-color 2>/dev/null | head -${maxLines}`,
+								{ cwd: soma.path, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
+							).trim();
+
+							if (somaDiff) {
+								parts.push(
+									`\n---\n## .soma Changes (since last checkpoint)\n\n\`\`\`\n${somaDiff}\n\`\`\`\n`
+								);
+							}
+						}
+					} catch { /* no .soma git or no previous commit */ }
+				}
 
 				try {
 					const cwd = soma.projectDir;
@@ -278,26 +403,78 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			pi.appendEntry("soma-boot", { timestamp: Date.now(), resumed: isResumed });
 
 			const greetStyle = isResumed
-				? `You've resumed a Soma session. Your identity, preload, and protocols are above. Orient briefly and await instructions.`
-				: `You've booted into a fresh Soma session. Your identity and protocols are above. Greet the user briefly and await instructions.`;
+				? `You've resumed a Soma session. Your preload and hot protocols are above. Identity and behavioral rules are in your system prompt. Orient briefly and await instructions.`
+				: `You've booted into a fresh Soma session. Identity and behavioral rules are in your system prompt. Hot protocols are above if any. Greet the user briefly and await instructions.`;
 
-			pi.sendUserMessage(
-				`[Soma Boot${isResumed ? " — resumed" : ""}]\n\n${parts.join("\n")}\n\n${greetStyle}`,
-				{ deliverAs: "followUp" }
-			);
+			// Skip follow-up in print/RPC mode — sendUserMessage races with the initial prompt
+			if (ctx.hasUI) {
+				pi.sendUserMessage(
+					`[Soma Boot${isResumed ? " — resumed" : ""}]\n\n${parts.join("\n")}\n\n${greetStyle}`,
+					{ deliverAs: "followUp" }
+				);
+			}
 		}
 	});
 
-	// -------------------------------------------------------------------
-	// Context warnings — single source, escalating thresholds
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: breath-cycle — context warnings + auto-flush
 	// 50%: UI notify | 70%: UI notify | 80%: system prompt warn | 85%: auto-flush
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (!soma || !booted) return;
 
+		// ═══════════════════════════════════════════════════════════════════
+		// PROTOCOL: frontal-cortex — compiled system prompt
+		// Phase 3: Full replacement when Pi's default detected.
+		// Falls back to prepend when custom SYSTEM.md is in use.
+		// Compiled once per session, cached thereafter.
+		// ═══════════════════════════════════════════════════════════════════
+
+		let systemPrompt = event.systemPrompt;
+
+		if (!frontalCortexCompiled && settings) {
+			const activeTools = pi.getActiveTools?.() ?? [];
+			const allTools = pi.getAllTools?.() ?? [];
+
+			if (activeTools.length > 0) {
+				// Phase 3: full replacement (or fallback to prepend for custom prompts)
+				const compiled = compileFullSystemPrompt({
+					protocols: knownProtocols,
+					protocolState: protocolState,
+					muscles: knownMuscles,
+					settings,
+					piSystemPrompt: event.systemPrompt,
+					activeTools,
+					allTools,
+					agentDir: somaAgentDir,
+					identity: builtIdentity,
+				});
+				systemPrompt = compiled.block;
+				frontalCortexCompiled = true;
+			} else {
+				// Fallback: Phase 0 prepend (tools not yet available)
+				const compiled = compileFrontalCortex({
+					protocols: knownProtocols,
+					protocolState: protocolState,
+					muscles: knownMuscles,
+					settings,
+				});
+				if (compiled.block) {
+					systemPrompt = compiled.block + "\n\n---\n\n" + systemPrompt;
+					frontalCortexCompiled = true;
+				}
+			}
+		}
+
 		const usage = ctx.getContextUsage?.();
-		if (!usage?.percent) return;
+		if (!usage?.percent) {
+			// No context info yet — still return compiled prompt if we have it
+			if (systemPrompt !== event.systemPrompt) {
+				return { systemPrompt };
+			}
+			return;
+		}
 		const pct = usage.percent;
 
 		const thresholds = settings?.context ?? { notifyAt: 50, warnAt: 70, urgentAt: 80, autoExhaleAt: 85 };
@@ -307,7 +484,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			autoFlushSent = true;
 
 			const memDir = join(soma.path, "memory");
-			const preloadTarget = join(memDir, "preload-next.md");
+			const preloadTarget = join(memDir, `preload-${currentSessionId || "next"}.md`);
 
 			// System prompt injection
 			additions.push(
@@ -320,7 +497,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				`[AUTO-FLUSH — context at ${Math.round(pct)}%]\n\n` +
 				`Context is critically full. Flush NOW. Do not start new work.\n\n` +
 				`1. Commit all uncommitted work.\n` +
-				`2. Write \`${preloadTarget}\` — what shipped, key decisions, next priorities.\n` +
+				`2. Write \`${preloadTarget}\` — use the preload format: What Shipped (with paths), Key Decisions (with rationale), Key File Locations, Repo State, Next Priorities, Do NOT Re-Read.\n` +
 				`3. Say "FLUSH COMPLETE" — system will offer to continue.`,
 				{ deliverAs: "followUp" }
 			);
@@ -343,13 +520,18 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 
 		if (additions.length > 0) {
-			return { systemPrompt: event.systemPrompt + "\n" + additions.join("\n") };
+			return { systemPrompt: systemPrompt + "\n" + additions.join("\n") };
+		}
+
+		// Return compiled prompt even if no context additions
+		if (systemPrompt !== event.systemPrompt) {
+			return { systemPrompt };
 		}
 	});
 
-	// -------------------------------------------------------------------
-	// FLUSH COMPLETE detection — watches assistant messages
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: breath-cycle — FLUSH COMPLETE detection
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("message_end", async (event) => {
 		if (event.message.role !== "assistant") return;
@@ -364,9 +546,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	// -------------------------------------------------------------------
-	// Preload watcher — detects when agent writes preload-next.md
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: breath-cycle — preload watcher + post-preload work detection
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("tool_result", async (event, ctx) => {
 		if (event.toolName !== "write" || event.isError) return;
@@ -374,16 +556,46 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (!writePath) return;
 		const filename = writePath.split("/").pop() || "";
 
-		if (filename.startsWith("preload-next") && filename.endsWith(".md")) {
+		if (filename.startsWith("preload-") && filename.endsWith(".md")) {
 			preloadWrittenThisSession = true;
 			preloadPath = writePath;
-			ctx.ui.notify(`✅ Preload written: ${filename}`, "info");
+			toolCallsAfterPreload = 0; // Reset counter
+
+			// --- Preload validation (Phase 4) ---
+			const content = (event.input as any)?.content as string || "";
+			const REQUIRED_SECTIONS = ["What Shipped", "Next Session Priorities"];
+			const RECOMMENDED_SECTIONS = ["Key Decisions", "Key File Locations", "Repo State", "Do NOT Re-Read"];
+			const missing = REQUIRED_SECTIONS.filter(s => !content.includes(`## ${s}`));
+			const recommended = RECOMMENDED_SECTIONS.filter(s => !content.includes(`## ${s}`));
+			const lineCount = content.split("\n").length;
+
+			if (missing.length > 0) {
+				ctx.ui.notify(
+					`⚠️ Preload missing required sections: ${missing.join(", ")}`,
+					"warning"
+				);
+			} else if (lineCount < 20) {
+				ctx.ui.notify(
+					`⚠️ Preload is thin (${lineCount} lines) — consider adding more detail`,
+					"warning"
+				);
+			} else {
+				const recNote = recommended.length > 0
+					? ` (consider adding: ${recommended.join(", ")})`
+					: "";
+				ctx.ui.notify(`✅ Preload written: ${filename} (${lineCount} lines)${recNote}`, "info");
+			}
+		}
+
+		// Track work after preload write
+		if (preloadWrittenThisSession && event.toolName !== "read") {
+			toolCallsAfterPreload++;
 		}
 	});
 
-	// -------------------------------------------------------------------
-	// After agent finishes — offer auto-continue if flush complete
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: breath-cycle — agent_end (auto-continue offer, post-preload warning)
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("agent_end", async (_event, ctx) => {
 		if (flushCompleteDetected && preloadWrittenThisSession) {
@@ -392,11 +604,19 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				"info"
 			);
 		}
+
+		// Warn if significant work happened after preload was written
+		if (preloadWrittenThisSession && toolCallsAfterPreload > 5 && !flushCompleteDetected) {
+			ctx.ui.notify(
+				`⚠️ ${toolCallsAfterPreload} tool calls since preload was written — consider updating it before session ends`,
+				"warning"
+			);
+		}
 	});
 
-	// -------------------------------------------------------------------
-	// /breathe auto-rotate — detects preload written after /breathe
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: breath-cycle — /breathe auto-rotate (turn_end watcher)
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("turn_end", async (_event, ctx) => {
 		if (!breathePending) return;
@@ -423,9 +643,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	// -------------------------------------------------------------------
-	// Session lifecycle resets
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: breath-cycle + heat-tracking — session lifecycle resets + decay
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("session_switch", async (event, ctx) => {
 		if (event.reason === "new") {
@@ -435,8 +655,11 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			flushCompleteDetected = false;
 			preloadWrittenThisSession = false;
 			breathePending = false;
+			toolCallsAfterPreload = 0;
 			protocolsReferenced = new Set();
 			musclesReferenced = new Set();
+			frontalCortexCompiled = false;
+			builtIdentity = null;
 
 			// If preload exists, notify (user can /auto-continue)
 			if (soma) {
@@ -455,15 +678,15 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (!soma) return;
 		const decay = settings?.protocols.decayRate ?? 1;
 		if (protocolState) {
-			applyDecay(protocolState, protocolsReferenced, decay);
+			applyDecay(protocolState, protocolsReferenced, decay, knownProtocols);
 			saveProtocolState(soma, protocolState);
 		}
 		decayMuscleHeat(soma, musclesReferenced, decay);
 	});
 
-	// -------------------------------------------------------------------
-	// Mid-session heat tracking — auto-detect from tool results
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: heat-tracking — HEAT_RULES auto-detect from tool results
+	// ═══════════════════════════════════════════════════════════════════
 
 	const HEAT_RULES: Array<{
 		match: (toolName: string, input: any, output: string) => boolean;
@@ -494,6 +717,13 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			target: "svg-logo-design",
 			type: "muscle",
 		},
+		{
+			match: (tool, input) =>
+				tool === "bash" && typeof input?.command === "string" &&
+				/checkpoint:|\.soma.*git (add|commit)/.test(input.command),
+			target: "session-checkpoints",
+			type: "protocol",
+		},
 	];
 
 	pi.on("tool_result", async (event) => {
@@ -521,9 +751,11 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	// -------------------------------------------------------------------
-	// Commands
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// COMMANDS — organized by protocol
+	// ═══════════════════════════════════════════════════════════════════
+
+	// --- heat-tracking: /pin, /kill ---
 
 	// /pin — bump heat to hot
 	pi.registerCommand("pin", {
@@ -569,29 +801,79 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		},
 	});
 
+	// --- breath-cycle: /exhale, /flush, /rest, /breathe, /auto-continue, /inhale, /preload ---
+
 	// /exhale — save state, session ends
 	const exhaleHandler = async (_args: string, ctx: any) => {
 		if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
 
 		const memDir = join(soma.path, "memory");
-		const target = join(memDir, "preload-next.md");
+		const target = join(memDir, `preload-${currentSessionId || "next"}.md`);
 		const today = new Date().toISOString().split("T")[0];
 		const logPath = join(memDir, "sessions", `${today}.md`);
 
 		// Save heat
 		const decay = settings?.protocols.decayRate ?? 1;
-		if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay); saveProtocolState(soma, protocolState); }
+		if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma, protocolState); }
 		decayMuscleHeat(soma, musclesReferenced, decay);
+
+		const checkpointSettings = settings?.checkpoints;
+		const somaAutoCommit = checkpointSettings?.soma?.autoCommit ?? true;
+		const projectAutoCheckpoint = checkpointSettings?.project?.autoCheckpoint ?? false;
+		const checkpointPrefix = checkpointSettings?.project?.prefix ?? "checkpoint:";
+		const timestamp = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+
+		const checkpointSteps: string[] = [];
+		if (somaAutoCommit) {
+			checkpointSteps.push(
+				`**Step 1a:** Commit .soma/ internal state:\n` +
+				`\`\`\`bash\ncd ${soma.path} && git add -A && git commit -m "${checkpointPrefix} ${timestamp}"\n\`\`\``
+			);
+		}
+		if (projectAutoCheckpoint) {
+			checkpointSteps.push(
+				`**Step 1b:** Checkpoint project code:\n` +
+				`\`\`\`bash\ngit add -A && git commit -m "${checkpointPrefix} ${timestamp}"\n\`\`\``
+			);
+		} else {
+			checkpointSteps.push(
+				`**Step 1b:** Review uncommitted project changes — checkpoint if meaningful work exists.`
+			);
+		}
+
+		const preloadTemplate =
+			`\`\`\`markdown\n` +
+			`---\n` +
+			`type: preload\n` +
+			`created: ${today}\n` +
+			`session: ${currentSessionId || "unknown"}\n` +
+			`---\n\n` +
+			`# Session State\n\n` +
+			`## What Shipped\n` +
+			`<!-- Completed items with file paths. Not prose — structured list. -->\n\n` +
+			`## Key Decisions\n` +
+			`<!-- Decisions with rationale. "Did X because Y, alternative was Z." -->\n\n` +
+			`## Key File Locations\n` +
+			`<!-- Full paths to files that matter for next session. -->\n\n` +
+			`## In-Flight\n` +
+			`<!-- Work started but not finished. Where it stopped. Exact next step. -->\n\n` +
+			`## Repo State\n` +
+			`<!-- Git status across repos: what's committed, what's dirty, which branches. -->\n\n` +
+			`## Next Session Priorities\n` +
+			`<!-- Ordered list. What to pick up first. -->\n\n` +
+			`## Loose Ends\n` +
+			`<!-- Items discussed or planned but never executed. Carry forward until resolved or dropped. Don't clear — check off or note why dropped. Accumulates across sessions. -->\n\n` +
+			`## Do NOT Re-Read\n` +
+			`<!-- Files already internalized. Save context. -->\n` +
+			`\`\`\``;
 
 		pi.sendUserMessage(
 			`[EXHALE — save session state]\n\n` +
-			`**Step 1:** Commit all uncommitted work.\n\n` +
-			`**Step 2:** Write \`${target}\` — compact session state:\n` +
-			`- What shipped this session\n` +
-			`- Key files changed\n` +
-			`- What's next (priority order)\n` +
-			`- What NOT to re-read\n\n` +
-			`**Step 3:** Append to \`${logPath}\` — daily session log.\n\n` +
+			`${checkpointSteps.join("\n\n")}\n\n` +
+			`**Step 2:** Write \`${target}\` using this format:\n\n` +
+			`${preloadTemplate}\n\n` +
+			`This IS your continuation prompt for the next session. Be concrete — file paths, not descriptions. Decisions with rationale, not just outcomes.\n\n` +
+			`**Step 3:** Append to \`${logPath}\` — daily session log. Read first if it exists — append a new \`## HH:MM\` section, never overwrite previous entries.\n\n` +
 			`**Step 4:** Say "FLUSH COMPLETE".`,
 			{ deliverAs: "followUp" }
 		);
@@ -623,27 +905,75 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
 
 			const memDir = join(soma.path, "memory");
-			const target = join(memDir, "preload-next.md");
+			const target = join(memDir, `preload-${currentSessionId || "next"}.md`);
 			const today = new Date().toISOString().split("T")[0];
 			const logPath = join(memDir, "sessions", `${today}.md`);
 
 			// Save heat
 			const decay = settings?.protocols.decayRate ?? 1;
-			if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay); saveProtocolState(soma, protocolState); }
+			if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma, protocolState); }
 			decayMuscleHeat(soma, musclesReferenced, decay);
 
 			breathePending = true;
 			breatheCommandCtx = ctx;
 
+			const bCheckpointSettings = settings?.checkpoints;
+			const bSomaAutoCommit = bCheckpointSettings?.soma?.autoCommit ?? true;
+			const bProjectAutoCheckpoint = bCheckpointSettings?.project?.autoCheckpoint ?? false;
+			const bCheckpointPrefix = bCheckpointSettings?.project?.prefix ?? "checkpoint:";
+			const bTimestamp = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+
+			const bSteps: string[] = [];
+			if (bSomaAutoCommit) {
+				bSteps.push(
+					`**Step 1a:** Commit .soma/ internal state:\n` +
+					`\`\`\`bash\ncd ${soma.path} && git add -A && git commit -m "${bCheckpointPrefix} ${bTimestamp}"\n\`\`\``
+				);
+			}
+			if (bProjectAutoCheckpoint) {
+				bSteps.push(
+					`**Step 1b:** Checkpoint project code:\n` +
+					`\`\`\`bash\ngit add -A && git commit -m "${bCheckpointPrefix} ${bTimestamp}"\n\`\`\``
+				);
+			} else {
+				bSteps.push(
+					`**Step 1b:** Review uncommitted project changes — checkpoint if meaningful work exists.`
+				);
+			}
+
+			const bPreloadTemplate =
+				`\`\`\`markdown\n` +
+				`---\n` +
+				`type: preload\n` +
+				`created: ${today}\n` +
+				`session: ${currentSessionId || "unknown"}\n` +
+				`---\n\n` +
+				`# Session State\n\n` +
+				`## What Shipped\n` +
+				`<!-- Completed items with file paths. Not prose — structured list. -->\n\n` +
+				`## Key Decisions\n` +
+				`<!-- Decisions with rationale. "Did X because Y, alternative was Z." -->\n\n` +
+				`## Key File Locations\n` +
+				`<!-- Full paths to files that matter for next session. -->\n\n` +
+				`## In-Flight\n` +
+				`<!-- Work started but not finished. Where it stopped. Exact next step. -->\n\n` +
+				`## Repo State\n` +
+				`<!-- Git status across repos: what's committed, what's dirty, which branches. -->\n\n` +
+				`## Next Session Priorities\n` +
+				`<!-- Ordered list. What to pick up first. -->\n\n` +
+				`## Loose Ends\n` +
+				`<!-- Items discussed or planned but never executed. Carry forward until resolved or dropped. Don't clear — check off or note why dropped. Accumulates across sessions. -->\n\n` +
+				`## Do NOT Re-Read\n` +
+				`<!-- Files already internalized. Save context. -->\n` +
+				`\`\`\``;
+
 			pi.sendUserMessage(
 				`[BREATHE — save and continue]\n\n` +
-				`**Step 1:** Commit all uncommitted work.\n\n` +
-				`**Step 2:** Write \`${target}\` — compact session state:\n` +
-				`- What shipped this session\n` +
-				`- Key files changed\n` +
-				`- What's next (priority order)\n` +
-				`- What NOT to re-read\n\n` +
-				`**Step 3:** Append to \`${logPath}\` — daily session log.\n\n` +
+				`${bSteps.join("\n\n")}\n\n` +
+				`**Step 2:** Write \`${target}\` using this format:\n\n` +
+				`${bPreloadTemplate}\n\n` +
+				`This IS your continuation prompt for the next session. Be concrete — file paths, not descriptions.\n\n` +
+				`**Step 3:** Append to \`${logPath}\` — daily session log. Read first if it exists — append a new \`## HH:MM\` section, never overwrite previous entries.\n\n` +
 				`**Step 4:** Say "BREATHE COMPLETE" when done.`,
 				{ deliverAs: "followUp" }
 			);
@@ -718,11 +1048,13 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		},
 	});
 
+	// --- discovery: /soma ---
+
 	// /soma — status and management
 	pi.registerCommand("soma", {
 		description: "Soma memory status and management",
 		getArgumentCompletions: (prefix) =>
-			["status", "init"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
+			["status", "init", "prompt"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
 		handler: async (args, ctx) => {
 			const cmd = args.trim().toLowerCase() || "status";
 
@@ -731,6 +1063,37 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				const somaPath = initSoma(process.cwd());
 				soma = findSomaDir();
 				ctx.ui.notify(`🌱 Soma planted at ${somaPath}`, "info");
+				return;
+			}
+
+			if (cmd === "prompt") {
+				if (!soma || !settings) { ctx.ui.notify("No Soma found. Use /soma init", "info"); return; }
+
+				// Re-compile to show current state (uses cached core template)
+				const activeTools = pi.getActiveTools?.() ?? [];
+				const allToolsList = pi.getAllTools?.() ?? [];
+				const compiled = compileFullSystemPrompt({
+					protocols: knownProtocols,
+					protocolState: protocolState,
+					muscles: knownMuscles,
+					settings,
+					piSystemPrompt: "", // Don't need Pi's prompt for display
+					activeTools,
+					allTools: allToolsList,
+					agentDir: somaAgentDir,
+					identity: builtIdentity,
+				});
+
+				const summary = [
+					`**Compiled System Prompt** — ${compiled.estimatedTokens} tokens`,
+					`Protocols: ${compiled.protocolCount} breadcrumbs | Muscles: ${compiled.muscleCount} digests`,
+					`Full replacement: ${compiled.fullReplacement}`,
+					`Identity: ${builtIdentity ? "yes" : "none"}`,
+					`Persona: ${settings.persona?.name || "default"}`,
+					``,
+					`Use \`/soma prompt\` to view. Changes take effect next session.`,
+				].join("\n");
+				ctx.ui.notify(summary, "info");
 				return;
 			}
 
@@ -744,11 +1107,136 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					`Chain: ${chain.length} level${chain.length !== 1 ? "s" : ""}`,
 					`Preload: ${preload ? "✓" : "none"}`,
 					`Protocols: ${protocols.length}`,
+					`System prompt: ~${frontalCortexCompiled ? "compiled" : "pending"}`,
 				].join("\n"), "info");
 				return;
 			}
 
-			ctx.ui.notify("Usage: /soma status | /soma init", "info");
+			ctx.ui.notify("Usage: /soma status | /soma init | /soma prompt", "info");
+		},
+	});
+
+	// --- hub: /install, /list ---
+
+	const VALID_TYPES: ContentType[] = ["protocol", "muscle", "skill", "template"];
+
+	pi.registerCommand("install", {
+		description: "Install a protocol, muscle, skill, or template from the Soma Hub",
+		getArgumentCompletions: (prefix) =>
+			VALID_TYPES
+				.filter(t => t.startsWith(prefix))
+				.map(t => ({ value: t, label: `${t} — install a ${t} from hub` })),
+		handler: async (args, ctx) => {
+			if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
+
+			const parts = args.trim().split(/\s+/);
+			const force = parts.includes("--force");
+			const filtered = parts.filter(p => p !== "--force");
+
+			if (filtered.length < 2) {
+				ctx.ui.notify("Usage: /install <type> <name> [--force]\nTypes: protocol, muscle, skill, template", "info");
+				return;
+			}
+
+			const type = filtered[0] as ContentType;
+			const name = filtered[1];
+
+			if (!VALID_TYPES.includes(type)) {
+				ctx.ui.notify(`Invalid type: ${type}. Use: ${VALID_TYPES.join(", ")}`, "error");
+				return;
+			}
+
+			ctx.ui.notify(`📦 Installing ${type}: ${name}...`, "info");
+
+			try {
+				const result = await installItem(soma, type, name, { force });
+
+				if (result.success) {
+					const msgs = [`✅ Installed ${type}: ${name}`];
+					if (result.path) msgs.push(`   → ${result.path}`);
+
+					// Show dependency results for templates
+					if (result.dependencies && result.dependencies.length > 0) {
+						msgs.push(`   Dependencies:`);
+						for (const dep of result.dependencies) {
+							const icon = dep.success ? "✓" : dep.error?.includes("Already exists") ? "·" : "✗";
+							msgs.push(`     ${icon} ${dep.type}: ${dep.name}${dep.error ? ` (${dep.error})` : ""}`);
+						}
+					}
+
+					ctx.ui.notify(msgs.join("\n"), "info");
+
+					// Notify about reboot
+					if (type === "protocol" || type === "muscle") {
+						ctx.ui.notify("💡 New content will load on next session boot (or /breathe to rotate now)", "info");
+					}
+				} else {
+					ctx.ui.notify(`❌ ${result.error || "Install failed"}`, "error");
+				}
+			} catch (err: any) {
+				ctx.ui.notify(`❌ Install error: ${err.message}`, "error");
+			}
+		},
+	});
+
+	pi.registerCommand("list", {
+		description: "List installed or remote Soma content",
+		getArgumentCompletions: (prefix) =>
+			["local", "remote", ...VALID_TYPES]
+				.filter(o => o.startsWith(prefix))
+				.map(o => ({ value: o, label: o })),
+		handler: async (args, ctx) => {
+			const parts = args.trim().split(/\s+/).filter(Boolean);
+			const mode = parts[0] || "local";
+			const typeFilter = parts[1] as ContentType | undefined;
+
+			if (mode === "remote") {
+				ctx.ui.notify("🔍 Fetching from hub...", "info");
+				try {
+					const items = await listRemote(typeFilter);
+					if (items.length === 0) {
+						ctx.ui.notify("No remote content found.", "info");
+						return;
+					}
+
+					const grouped: Record<string, string[]> = {};
+					for (const item of items) {
+						if (!grouped[item.type]) grouped[item.type] = [];
+						grouped[item.type].push(item.name);
+					}
+
+					const lines = ["📡 Hub content:"];
+					for (const [type, names] of Object.entries(grouped)) {
+						lines.push(`  ${type}s: ${names.join(", ")}`);
+					}
+					lines.push(`\nInstall: /install <type> <name>`);
+					ctx.ui.notify(lines.join("\n"), "info");
+				} catch (err: any) {
+					ctx.ui.notify(`❌ Failed to fetch: ${err.message}`, "error");
+				}
+				return;
+			}
+
+			// Local listing
+			if (!soma) { ctx.ui.notify("No .soma/ found.", "info"); return; }
+
+			const items = listLocal(soma, typeFilter && VALID_TYPES.includes(typeFilter) ? typeFilter : undefined);
+			if (items.length === 0) {
+				ctx.ui.notify("No local content found. Try /list remote to see what's available.", "info");
+				return;
+			}
+
+			const grouped: Record<string, string[]> = {};
+			for (const item of items) {
+				if (!grouped[item.type]) grouped[item.type] = [];
+				grouped[item.type].push(item.name);
+			}
+
+			const lines = ["📋 Installed content:"];
+			for (const [type, names] of Object.entries(grouped)) {
+				lines.push(`  ${type}s: ${names.join(", ")}`);
+			}
+			ctx.ui.notify(lines.join("\n"), "info");
 		},
 	});
 }

@@ -74,7 +74,7 @@ When context fills up, Soma automatically breathes — saving state and continui
 - **`/rest`** — disable keepalive + exhale (for when you're done for the night)
 
 Either way, Soma:
-1. Writes a **preload** for the next session (`preload-next.md`)
+1. Writes a session-scoped **preload** (`preload-<sessionId>.md`)
 2. Saves protocol and muscle heat state
 3. Commits all work
 
@@ -141,3 +141,49 @@ Soma monitors context usage and provides escalating warnings. All thresholds are
 | `autoExhaleAt` | 85% | **Auto-flush** — writes preload, commits, continues |
 
 For longer sessions, push thresholds up. For aggressive context management, pull them down.
+
+## Parent-Child Workspaces
+
+Soma supports **parent-child inheritance** for monorepos and multi-project workspaces. A child `.soma/` inherits from its parent chain automatically.
+
+```
+~/work/.soma/                    ← parent (workspace-wide)
+├── identity.md                  ← "We use pnpm, conventional commits"
+├── protocols/
+│   └── git-identity.md          ← shared git rules
+└── settings.json
+
+~/work/my-app/.soma/             ← child (project-specific)
+├── identity.md                  ← "I'm a React frontend"
+└── protocols/
+    └── testing.md               ← project-specific testing rules
+```
+
+On boot, Soma walks up the filesystem to find parent `.soma/` directories and layers their content:
+
+- **Identity** — child is primary, parent adds context below
+- **Protocols** — parent protocols discovered alongside child's (heat still applies)
+- **Muscles** — parent muscles available within token budget
+- **Tools/Scripts** — parent scripts surfaced to child
+
+All inheritance is controlled by the `inherit` setting — each dimension defaults to `true`. Set to `false` for standalone projects that shouldn't inherit. See [Configuration](/docs/configuration#inheritance).
+
+**Solo body mode:** When only a parent `.soma/` exists (no child), Soma uses it directly. No need to create a child `.soma/` for every sub-project if the parent covers everything.
+
+## CLAUDE.md Awareness
+
+If a `CLAUDE.md` file exists in the project root, Soma notes its presence in the system prompt. The file is not transplanted into the system prompt — the host agent (Pi/Claude Code) handles CLAUDE.md natively. Soma simply acknowledges it exists so there's no conflict between the two systems.
+
+## The Compiled System Prompt
+
+Soma assembles a system prompt from multiple sources in a specific order:
+
+1. **Static core** — Soma's base behavioral rules
+2. **Identity** — layered identity (project → parent → global)
+3. **Behavioral** — protocols (hot = full body, warm = breadcrumb), muscles (hot/warm within budget)
+4. **Documentation** — Soma docs, Pi docs (toggleable)
+5. **Guard awareness** — file protection rules (if enabled)
+6. **CLAUDE.md note** — awareness marker (if file exists)
+7. **Skills** — Pi skills block (if enabled)
+
+Each section can be toggled via `systemPrompt` settings. Use `/soma prompt` to preview the assembled result with token estimates. See [Configuration](/docs/configuration#system-prompt).

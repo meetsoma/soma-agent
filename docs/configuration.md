@@ -1,7 +1,7 @@
 # Configuration
 
 <!-- tldr -->
-`settings.json` at any level in the soma chain (project → parent → global). Project overrides parent overrides global. Controls: heat thresholds, muscle budgets, boot steps (including git-context), context warning thresholds, preload staleness, auto-detection. Only set what you want to change — defaults fill the rest.
+`settings.json` at any level in the soma chain (project → parent → global). Project overrides parent overrides global. Controls: heat thresholds, muscle budgets, boot steps (including git-context), context warning thresholds, preload staleness, auto-detection, parent-child inheritance, persona, system prompt toggles, guard rules. Only set what you want to change — defaults fill the rest.
 <!-- /tldr -->
 
 Soma's behavior is controlled through `settings.json` files. Settings are optional — Soma works with sensible defaults out of the box.
@@ -22,6 +22,30 @@ Settings files can exist at any level in the Soma chain:
 
 ```json
 {
+  "inherit": {
+    "identity": true,
+    "protocols": true,
+    "muscles": true,
+    "tools": true
+  },
+  "persona": {
+    "name": null,
+    "emoji": null,
+    "icon": null
+  },
+  "guard": {
+    "coreFiles": "warn",
+    "gitIdentity": null
+  },
+  "systemPrompt": {
+    "maxTokens": 4000,
+    "includeSomaDocs": true,
+    "includePiDocs": true,
+    "includeContextAwareness": true,
+    "includeSkills": true,
+    "includeGuardAwareness": true,
+    "identityInSystemPrompt": true
+  },
   "memory": {
     "flowUp": false
   },
@@ -63,11 +87,118 @@ Settings files can exist at any level in the Soma chain:
   },
   "preload": {
     "staleAfterHours": 48
+  },
+  "checkpoints": {
+    "soma": {
+      "autoCommit": true
+    },
+    "project": {
+      "style": "commit",
+      "autoCheckpoint": false,
+      "prefix": "checkpoint:",
+      "workingBranch": null
+    },
+    "diffOnBoot": true,
+    "maxDiffLines": 80
   }
 }
 ```
 
 ## Settings Explained
+
+### Inheritance
+
+Controls what a child `.soma/` inherits from its parent chain. All default to `true` when a parent `.soma/` exists.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `identity` | `true` | Layer parent's identity below the child's in the system prompt |
+| `protocols` | `true` | Discover and load parent's protocols (respects heat) |
+| `muscles` | `true` | Discover and load parent's muscles (respects heat/budget) |
+| `tools` | `true` | Surface parent's scripts and tools |
+
+**Example: standalone project** (no parent inheritance):
+```json
+{
+  "inherit": {
+    "identity": false,
+    "protocols": false,
+    "muscles": false,
+    "tools": false
+  }
+}
+```
+
+See [How It Works](/docs/how-it-works#parent-child-workspaces) for the full inheritance model.
+
+### Persona
+
+Cosmetic identity overrides — give your agent a custom name, emoji, or icon.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `name` | `null` | Custom agent name (appears in system prompt and status) |
+| `emoji` | `null` | Custom emoji for status and logs |
+| `icon` | `null` | Path to custom icon (SVG/PNG) |
+
+**Example:**
+```json
+{
+  "persona": {
+    "name": "Atlas",
+    "emoji": "🗺️"
+  }
+}
+```
+
+When `name` is set, it appears in the system prompt identity section. When `null`, Soma uses the default or inherited name.
+
+### Guard
+
+Protects core Soma files and git identity from accidental modification.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `coreFiles` | `"warn"` | Protection for identity.md, STATE.md, protocols/, settings.json. Options: `"allow"` (no guard), `"warn"` (notify on write), `"block"` (require confirmation) |
+| `gitIdentity` | `null` | Expected git identity. `null` = hook checks email is set. Object = validates specific email/name. |
+
+**Example: strict guard with enforced git identity:**
+```json
+{
+  "guard": {
+    "coreFiles": "block",
+    "gitIdentity": {
+      "email": "dev@example.com",
+      "name": "Dev"
+    }
+  }
+}
+```
+
+### System Prompt
+
+Controls what sections appear in Soma's compiled system prompt. Use `/soma prompt` to preview the assembled result.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `maxTokens` | `4000` | Estimated token budget for Soma's system prompt portion |
+| `includeSomaDocs` | `true` | Include Soma documentation references |
+| `includePiDocs` | `true` | Include Pi framework documentation references |
+| `includeContextAwareness` | `true` | Include CLAUDE.md awareness note |
+| `includeSkills` | `true` | Include skills block from Pi |
+| `includeGuardAwareness` | `true` | Include guard rules in prompt |
+| `identityInSystemPrompt` | `true` | Place identity in system prompt (vs user message) |
+
+**Example: minimal prompt (less context, more room for conversation):**
+```json
+{
+  "systemPrompt": {
+    "includeSomaDocs": false,
+    "includePiDocs": false,
+    "includeSkills": false
+  }
+}
+```
 
 ### Memory
 
@@ -233,6 +364,57 @@ For projects with weekly cadence:
 {
   "preload": {
     "staleAfterHours": 168
+  }
+}
+```
+
+### Checkpoints
+
+Two-track version control: Soma's own `.soma/` state and your project code are checkpointed separately.
+
+#### Soma Track
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `soma.autoCommit` | `true` | Auto-commit `.soma/` changes on exhale (identity, heat state, preload) |
+
+#### Project Track
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `project.style` | `"commit"` | How to save project state: `"commit"` (git commit), `"tag"` (lightweight tag), or `"stash"` (git stash) |
+| `project.autoCheckpoint` | `false` | Auto-create checkpoint on exhale. When `false`, Soma prompts first. |
+| `project.prefix` | `"checkpoint:"` | Commit message prefix for project checkpoints |
+| `project.workingBranch` | `null` | Branch for checkpoints. `null` = use current branch. |
+
+#### Boot Integration
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `diffOnBoot` | `true` | Show diffs from last checkpoint when session starts |
+| `maxDiffLines` | `80` | Max lines of diff to surface on boot |
+
+**Example: auto-checkpoint to a dedicated branch:**
+```json
+{
+  "checkpoints": {
+    "project": {
+      "autoCheckpoint": true,
+      "style": "commit",
+      "workingBranch": "soma-checkpoints"
+    }
+  }
+}
+```
+
+**Example: stash-based (non-destructive):**
+```json
+{
+  "checkpoints": {
+    "project": {
+      "style": "stash",
+      "autoCheckpoint": true
+    }
   }
 }
 ```
