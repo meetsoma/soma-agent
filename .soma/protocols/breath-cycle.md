@@ -2,66 +2,121 @@
 type: protocol
 name: breath-cycle
 status: active
-created: 2025-12-15
-updated: 2026-03-09
 heat-default: hot
 applies-to: [always]
-breadcrumb: "Sessions have 3 phases: inhale (boot, load identity + memory + protocols), hold (work, track context), exhale (flush state, update heat, write preload). Never skip exhale."
-source: meetsoma/agent@0.2.0
-source-version: 0.2.0
-edited-by: system
+breadcrumb: "Sessions have 3 phases: inhale (automated boot), hold (work — context monitored automatically), exhale (write preload, commit, say FLUSH COMPLETE → system offers auto-continue). Never skip exhale."
+author: Curtis Mercier
+license: CC BY 4.0
+version: 1.2.0
+tier: core
+tags: [session, memory, continuity]
+spec-ref: curtismercier/protocols/breath-cycle (v0.2)
+created: 2026-03-09
+updated: 2026-03-10
 ---
 
 # Breath Cycle Protocol
 
 ## TL;DR
-- Three phases, no exceptions: **inhale** (boot identity + memory + protocols), **hold** (work + track context), **exhale** (flush state + write preload)
-- Exhale triggers at 85% context OR `/exhale` (~~`/flush`~~) — never skip it, or session learnings are lost
-- Inhale loads: identity (layered) → preload → muscles (by heat) → protocols → STATE.md
-- Exhale writes: preload-<sessionId>.md (session-scoped continuation) → .protocol-state.json (heat update)
-- This protocol is meta — it governs when all other protocols load and when their heat updates
-- Commands: `/exhale` to flush, `/inhale` to start fresh (~~`/flush`~~ still works as alias, D012)
+- Three phases: **inhale** (boot — automated), **hold** (work — monitored), **exhale** (flush — agent-driven)
+- **Inhale is automated:** identity, preload, protocols, muscles, scripts, git context all load via extension
+- **Hold is monitored:** context warnings fire automatically at 50/70/80/85% — you don't track this manually
+- **Heat tracking is automated:** protocol usage is auto-detected from tool results (writes, git commands, etc.)
+- **Exhale is agent-driven:** write the preload, commit work, say "FLUSH COMPLETE" — system handles the rest
+- After exhale: system offers `/auto-continue` to rotate into fresh session with your preload injected
 
 ## Rule
 
 Every agent session follows three phases. No exceptions.
 
-### Inhale (Boot)
-1. Discover `.soma/` directory (walk up filesystem)
-2. Load identity (project → parent → global, layered)
-3. Load most recent preload-<sessionId>.md if exists and fresh (< 48h)
-4. Load muscles by heat (hottest first, within token budget)
-5. Scan `.soma/protocols/` — inject hot protocols fully, warm as breadcrumbs
-6. Surface available scripts (`.soma/scripts/`) — agent knows its tools
-7. Load STATE.md for architecture context
+### Inhale (Automated)
 
-### Hold (Work)
-1. Monitor context usage (warn at 50%, 70%, 80%)
-2. Track which protocols are being applied (heat events)
-3. Track which muscles are being referenced
-4. Do the actual work the human asked for
+The extension handles boot — you don't do this manually:
 
-### Exhale (Flush)
-1. Triggered at 85% context OR by `/exhale` command (~~`/flush`~~ alias still works)
-2. Extract session state into preload-<sessionId>.md
-3. Update `.protocol-state.json` — heat up used protocols, decay unused
-4. Update muscle frontmatter if muscles were referenced
-5. Note any patterns worth crystallizing (muscle candidates)
-6. Preload-next.md IS the continuation prompt (D011) — no separate file needed
+1. Discover `.soma/` directory (filesystem walk)
+2. Load identity (layered: project → parent → global)
+3. Load preload if fresh (< configurable staleness, default 48h)
+4. Load protocols by heat (hot → full body, warm → breadcrumb, cold → skip)
+5. Load muscles by heat (same tiers)
+6. Surface available scripts with descriptions
+7. Inject git context (recent commits + changed files + .soma checkpoint diff)
 
-### Pre-Publish Gate
-Before any public push or release:
-1. **Default is preservation.** Archive, move, gitignore — deletion requires justification.
-2. Every file being removed: `grep -rn` tests and imports for references first.
-3. Run all test suites after any removal. Count should not silently drop.
-4. See `pre-publish-cleanup` muscle for the full framework.
+All of this is configured in `settings.json` via `boot.steps`. You receive the result as a boot message.
 
-## Critical Rule
+### Hold (Monitored)
 
-**Never skip exhale.** If context runs out before exhale, the session's learnings are lost. The 85% auto-trigger exists to prevent this. If the human ends the session early, exhale what you can.
+Do the work. The extension monitors context automatically:
+
+- **50%** — UI notification: "pace yourself"
+- **70%** — UI notification: "flush soon"
+- **80%** — System prompt injection: "wrap up current task"
+- **85%** — Auto-flush: detailed instructions injected, stop new work immediately
+
+You do NOT need to check context usage — the system tells you. Thresholds are configurable in `settings.json` via `context.notifyAt/warnAt/urgentAt/autoExhaleAt`.
+
+Heat tracking also runs automatically during this phase:
+- Writing frontmatter → frontmatter-standard heat +1
+- Git commands → git-identity heat +1
+- Writing preload → breath-cycle heat +1
+- Writing SVG → svg-logo-design muscle heat +1
+- Checkpoint commits → session-checkpoints heat +1
+
+### Exhale (Agent-Driven)
+
+This is the one phase YOU drive. Triggered by `/exhale`, `/breathe`, `/rest`, or auto-flush at 85%.
+
+The extension sends you structured instructions:
+
+**Step 1: Checkpoint**
+- `.soma/` internal: `cd .soma && git add -A && git commit -m "checkpoint: <timestamp>"`
+- Project code: review uncommitted changes, checkpoint if meaningful
+
+**Step 2: Write preload** (`<.soma>/memory/preload-<sessionId>.md`)
+Follow the preload format — this IS your continuation for the next session:
+- What shipped (with file paths)
+- Key decisions (with rationale)
+- Key file locations
+- Repo state (committed/dirty across repos)
+- Next session priorities (ordered)
+- What NOT to re-read
+
+**Step 3: Daily log** (append to `sessions/YYYY-MM-DD.md`)
+- One file per day per workspace — always append, never overwrite
+- Each entry gets a `## HH:MM` timestamp header
+- Multiple sessions on the same day produce multiple sections in the same file
+- Also write "micro-exhales" here after completing major workflows — structured summaries that bank as persistent memory for later changelog generation, commit messages, or historical queries
+
+**Step 4: Signal completion** — say "FLUSH COMPLETE" (or "BREATHE COMPLETE" for `/breathe`)
+
+### After Exhale
+
+The system detects "FLUSH COMPLETE" in your response and:
+- Notifies user: "preload ready, use /auto-continue"
+- `/auto-continue` creates new session and injects your preload as the first message
+- `/breathe` does this automatically (exhale + rotate in one motion)
+
+## Edge Cases
+
+**Work after preload:** If the user sends more requests after you've written the preload, update the preload before session ends. The preload must reflect the session's final state.
+
+**Context critical during exhale:** Preload takes priority over finishing current work. Write the preload first, even if incomplete. Something is better than nothing.
+
+**Compaction:** If the session compacts mid-work, read your preload and orient from that. The extension does not yet auto-inject recovery (planned).
+
+## Commands
+
+| Command | What it does |
+|---------|-------------|
+| `/exhale` (alias `/flush`) | Save state, session ends |
+| `/breathe` | Save state + auto-continue into fresh session |
+| `/rest` | Disable keepalive + exhale (going to bed) |
+| `/auto-continue` | Create new session with preload injection |
+| `/inhale` | Load preload into current conversation |
 
 ## When to Apply
 
-Always. This protocol governs the session lifecycle. It's meta — it's the protocol that makes other protocols work (they load during inhale, their heat updates during exhale).
+Always. This protocol governs the session lifecycle. It's meta — it's the protocol that makes other protocols work.
 
-<!-- v1.0.0 | created: 2026-03-10 | MIT -->
+## When NOT to Apply
+
+Never. This is always-on.

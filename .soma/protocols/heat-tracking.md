@@ -2,92 +2,95 @@
 type: protocol
 name: heat-tracking
 status: active
-created: 2025-12-15
-updated: 2026-03-09
-heat-default: hot
+heat-default: warm
 applies-to: [always]
-tier: enterprise
-source: meetsoma/agent@0.2.0
-source-version: 0.2.0
-edited-by: system
-breadcrumb: "Protocols have temperature: cold (not loaded), warm (breadcrumb in prompt), hot (full in prompt). Heat rises on use (+1/+2), decays per session if unused (-1). Thresholds configurable in settings.json."
+breadcrumb: "Protocols have temperature: cold (0-2, not loaded), warm (3-7, breadcrumb in prompt), hot (8+, full in prompt). Heat auto-detected from tool results. Manual: /pin (hot), /kill (cold). Decays -1 per unused session."
+author: Curtis Mercier
+license: CC BY 4.0
+version: 1.2.0
+tier: core
+tags: [memory, loading, performance]
+spec-ref: curtismercier/protocols/amp (v0.2, §5)
+created: 2026-03-09
+updated: 2026-03-10
 ---
 
 # Heat Tracking Protocol
 
 ## TL;DR
 - Three temperatures: **cold** (0-2, name only), **warm** (3-7, breadcrumb in prompt), **hot** (8+, full body in prompt)
-- Heat rises on use: +2 explicit reference, +1 applied in action. Decays -1 per session if unused
-- Pin to hot: user says "always use X" → heat 10. Kill: "stop using X" → heat 0
-- Limits: max 3 full protocols in prompt, max 10 breadcrumbs. Highest heat wins ties
-- State persists in `.soma/.protocol-state.json`, updated during exhale phase
-- Enterprise feature — free tier loads protocols statically
-
-> This protocol is self-referential — it governs its own loading behavior.
+- **Auto-detection is limited:** only specific tool results trigger heat (frontmatter writes, git commands, SVG, checkpoints). Many protocol uses go undetected.
+- Manual controls: `/pin <name>` → hot, `/kill <name>` → cold
+- Decays -1 per session if unused (on session shutdown)
+- Thresholds and limits are configurable in `settings.json`, not fixed
 
 ## Rule
 
-Every protocol in `.soma/protocols/` has a temperature that determines how it loads into the agent's system prompt.
+Every protocol and muscle has a temperature that determines how it loads into the agent's boot context.
 
 ### Temperature Scale
 
-| Range | State | System Prompt Behavior |
-|-------|-------|----------------------|
+| Range | State | Boot Behavior |
+|-------|-------|--------------|
 | 0-2 | COLD | Not loaded. Discoverable via search. |
 | 3-7 | WARM | Breadcrumb (1-2 sentence TL;DR) injected. |
 | 8+ | HOT | Full protocol content injected. |
 
-### Heat Events
+### How Heat Changes
 
-| Event | Δ Heat | Example |
-|-------|--------|---------|
-| User explicitly references protocol | +2 | "Use the frontmatter standard" |
-| Agent applies protocol in action | +1 | Agent adds frontmatter to a file |
-| Session ends, protocol was used | +0 | Heat holds, no decay |
-| Session ends, protocol NOT used | -1 | Cooling — unused protocols fade |
-| User says "always use X" | → 10 | Manual pin to HOT |
-| User says "stop using X" | → 0 | Manual kill to COLD |
+**Automated (limited set):**
+The extension watches `tool_result` events and bumps heat when specific patterns match:
 
-### Limits (Token Budget)
+| Pattern | Triggers Heat For |
+|---------|------------------|
+| Write file with YAML frontmatter | frontmatter-standard |
+| Git commands (config/commit/push) | git-identity |
+| Write to preload/continuation file | breath-cycle |
+| Write .svg file | svg-logo-design (muscle) |
+| Checkpoint commits (.soma git) | session-checkpoints |
 
-```json
-{
-  "protocols": {
-    "warm_threshold": 3,
-    "hot_threshold": 8,
-    "max_heat": 15,
-    "decay_rate": 1,
-    "max_breadcrumbs_in_prompt": 10,
-    "max_full_protocols_in_prompt": 3
-  }
-}
-```
+This is a **limited set**. Many protocol applications (e.g., following community-safe rules, applying pattern-evolution principles) are NOT auto-detected. The heat system will under-count usage for protocols without matching tool patterns.
 
-If more protocols qualify for HOT than `max_full_protocols_in_prompt`, highest heat wins. Same for WARM breadcrumbs.
+**Manual:**
 
-### State Persistence
+| Action | Effect |
+|--------|--------|
+| `/pin <name>` | Bump heat by `settings.heat.pinBump` (default +5) |
+| `/kill <name>` | Drop heat to 0 |
 
-Heat state lives in `.soma/.protocol-state.json`. Updated during exhale phase of breath cycle.
+**Decay:**
+On session shutdown, any protocol/muscle NOT used this session decays by `settings.protocols.decayRate` (default -1).
+
+### Configuration
+
+In `settings.json` (all values have sensible defaults):
 
 ```json
 {
   "protocols": {
-    "frontmatter-standard": {
-      "heat": 7,
-      "last_referenced": "2026-03-10",
-      "times_applied": 14,
-      "pinned": false
-    }
+    "hotThreshold": 8,
+    "warmThreshold": 3,
+    "maxHot": 3,
+    "maxWarm": 10,
+    "decayRate": 1
+  },
+  "heat": {
+    "autoDetect": true,
+    "autoDetectBump": 1,
+    "pinBump": 5
   }
 }
 ```
+
+### State Storage
+
+- **Protocols:** `.protocol-state.json` in `.soma/` — JSON map of name → heat + events
+- **Muscles:** `heat:` field in each muscle's YAML frontmatter
 
 ## When to Apply
 
-During every inhale (protocol loading) and every exhale (heat update). This protocol is always-on — it's the engine that makes the protocol system adaptive.
+Automatically — during every inhale (protocol/muscle loading) and every session shutdown (decay). The extension handles this.
 
-## Enterprise Note
+## When NOT to Apply
 
-Heat tracking is an enterprise feature. Free tier loads protocols statically (all or nothing). Enterprise gets the adaptive temperature system — protocols that matter rise, protocols that don't fade. The agent learns what behavioral rules actually get used.
-
-<!-- v1.0.0 | created: 2026-03-10 | MIT -->
+If you prefer static loading (all protocols always fully loaded), set all heat values high and `decayRate: 0`. Works fine for small protocol sets.
