@@ -103,3 +103,5 @@ export {
 export type { CompiledPrompt, CompileOptions, FullCompileOptions, ExtractedSections } from "./prompt.js";
 
 export { safeRead, fmtDuration } from "./utils.js";
+
+export { handleContentCommand } from "./content-cli.js";
