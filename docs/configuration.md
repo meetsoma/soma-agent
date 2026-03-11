@@ -87,6 +87,19 @@ Settings files can exist at any level in the Soma chain:
   },
   "preload": {
     "staleAfterHours": 48
+  },
+  "checkpoints": {
+    "soma": {
+      "autoCommit": true
+    },
+    "project": {
+      "style": "commit",
+      "autoCheckpoint": false,
+      "prefix": "checkpoint:",
+      "workingBranch": null
+    },
+    "diffOnBoot": true,
+    "maxDiffLines": 80
   }
 }
 ```
@@ -351,6 +364,57 @@ For projects with weekly cadence:
 {
   "preload": {
     "staleAfterHours": 168
+  }
+}
+```
+
+### Checkpoints
+
+Two-track version control: Soma's own `.soma/` state and your project code are checkpointed separately.
+
+#### Soma Track
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `soma.autoCommit` | `true` | Auto-commit `.soma/` changes on exhale (identity, heat state, preload) |
+
+#### Project Track
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `project.style` | `"commit"` | How to save project state: `"commit"` (git commit), `"tag"` (lightweight tag), or `"stash"` (git stash) |
+| `project.autoCheckpoint` | `false` | Auto-create checkpoint on exhale. When `false`, Soma prompts first. |
+| `project.prefix` | `"checkpoint:"` | Commit message prefix for project checkpoints |
+| `project.workingBranch` | `null` | Branch for checkpoints. `null` = use current branch. |
+
+#### Boot Integration
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `diffOnBoot` | `true` | Show diffs from last checkpoint when session starts |
+| `maxDiffLines` | `80` | Max lines of diff to surface on boot |
+
+**Example: auto-checkpoint to a dedicated branch:**
+```json
+{
+  "checkpoints": {
+    "project": {
+      "autoCheckpoint": true,
+      "style": "commit",
+      "workingBranch": "soma-checkpoints"
+    }
+  }
+}
+```
+
+**Example: stash-based (non-destructive):**
+```json
+{
+  "checkpoints": {
+    "project": {
+      "style": "stash",
+      "autoCheckpoint": true
+    }
   }
 }
 ```

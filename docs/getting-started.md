@@ -25,7 +25,17 @@ soma
 
 On first run, Soma will ask to create a `.soma/` directory. Say yes.
 
-**Smart init** detects your project automatically — it finds parent `.soma/` directories, reads `CLAUDE.md` if present, identifies your package manager, and detects language/framework signals. Soma uses this to write a tailored identity and suggest relevant protocols.
+**Smart init** detects your project automatically and tailors the setup:
+
+| What's Detected | How | Effect |
+|----------------|-----|--------|
+| **Parent `.soma/`** | Walks up filesystem | Inherits identity, protocols, muscles, tools |
+| **`CLAUDE.md`** | Checks project root | Notes existing project instructions (no conflict) |
+| **Package manager** | Looks for lockfiles (`pnpm-lock.yaml`, `package-lock.json`, `yarn.lock`) | Sets preference in identity |
+| **Language/framework** | Scans for `tsconfig.json`, `Cargo.toml`, `go.mod`, `pyproject.toml`, etc. | Tailors identity and suggests relevant protocols |
+| **Monorepo signals** | Detects `pnpm-workspace.yaml`, multiple `package.json`, etc. | Suggests parent-child setup |
+
+The detected context shapes Soma's initial identity and the protocols she recommends installing. You can always edit `identity.md` afterward.
 
 ## Session Modes
 
