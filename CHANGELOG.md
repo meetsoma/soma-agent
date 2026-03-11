@@ -9,6 +9,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [Unreleased]
 
 ### Added
+- **`soma-guard.ts` extension** — safe file operation enforcement. Intercepts `write` to unread files (confirms), critical path protection (identity, settings, protocols, .env), dangerous bash patterns (rm -rf, force push, git reset). Graduated from `safe-file-ops` muscle to executable extension. `/guard-status` command.
+- **Workspace scan scripts** (`.soma/scripts/`) — `soma-scan.sh` (session/topic scanner), `soma-context.sh` (pre-change context gatherer), `soma-stale.sh` (stale doc finder), `soma-frontmatter.sh` (frontmatter status scanner). Operate across the full workspace.
+- **Community protocols v1.1.0** — all 7 protocols refined with `spec-ref` fields linking to curtismercier/protocols specs. pattern-evolution trimmed 181→89 lines, session-checkpoints trimmed 183→103 lines. Misplaced pre-publish gate removed from breath-cycle.
+- **Muscle review & consolidation** — 93 muscles across 9 sources triaged: 41 archived, 7 duplicate pairs resolved, 6 merges completed, agent-ops cluster consolidated to 4 canonical muscles.
 - **Session checkpoints protocol** — two-track version control: `.soma/` committed every exhale (local git), project code checkpointed locally, squashed before push. Configurable via `settings.checkpoints`.
 - **`soma-audit.sh`** — ecosystem health check orchestrating 11 focused audits: PII, code drift, stale content, stale terms, docs sync, command consistency, roadmap claims, overlap detection, settings validation, test coverage, frontmatter validation.
 - **Hub commands** — `/install <type> <name>` fetches from hub, `/list local|remote` browses content. Templates resolve dependencies automatically.

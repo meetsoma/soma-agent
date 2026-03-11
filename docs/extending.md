@@ -1,7 +1,7 @@
 # Extending Soma
 
 <!-- tldr -->
-Built on Pi — inherits full extension system. Skills: markdown instructions in `.soma/skills/` or `~/.soma/agent/skills/`. Extensions: TypeScript hooks into agent lifecycle (before_agent_start, tool_result, session_shutdown). Built-in extensions: soma-boot (identity + protocols + muscles), soma-header (branded σῶμα header), soma-statusline (context/cost/git footer).
+Built on Pi — inherits full extension system. Skills: markdown instructions in `.soma/skills/` or `~/.soma/agent/skills/`. Extensions: TypeScript hooks into agent lifecycle (before_agent_start, tool_result, session_shutdown). Built-in extensions: soma-boot (identity + protocols + muscles), soma-header (branded σῶμα header), soma-statusline (context/cost/git footer), soma-guard (safe file operations).
 <!-- /tldr -->
 
 Soma is built on [Pi](https://github.com/badlogic/pi-mono) and inherits its full extension system. You can add skills, extensions, and custom tools.
@@ -124,12 +124,25 @@ See the [Pi extension docs](https://github.com/badlogic/pi-mono/blob/main/packag
 
 ## Soma's Built-in Extensions
 
-Soma ships with three extensions:
+Soma ships with these extensions:
 
 | Extension | Purpose |
 |-----------|---------|
 | `soma-boot.ts` | Identity loading, preload, /exhale, /soma commands |
 | `soma-header.ts` | Branded σῶμα header with memory status |
 | `soma-statusline.ts` | Footer with model, context %, cost, git status |
+| `soma-guard.ts` | Safe file operation enforcement — intercepts writes to unread/critical files, blocks dangerous bash commands |
 
 These install to `~/.soma/agent/extensions/` and can be customized or replaced.
+
+### soma-guard.ts
+
+Graduated from the `safe-file-ops` muscle — the muscle teaches the pattern, this extension enforces it.
+
+**What it guards:**
+- **Write to unread file** — confirms before overwriting files the agent hasn't read this session
+- **Critical paths** — always confirms writes to identity files, settings, protocols, `.env`
+- **Dangerous bash** — confirms `rm -rf`, force push, `git reset --hard`, etc.
+- **Safe paths exempt** — preloads, session logs, review directories skip guards
+
+**Commands:** `/guard-status` shows reads tracked, dirs listed, and intervention count.

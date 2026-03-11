@@ -136,6 +136,9 @@ export default function somaGuard(pi: ExtensionAPI) {
 
 			// Critical path — always confirm
 			if (isCriticalPath(path)) {
+				if (!ctx.hasUI) {
+					return { block: true, reason: `Blocked write to critical file (no UI to confirm): ${path}` };
+				}
 				const detail = fileExists
 					? `Existing file: ${existingSize} bytes. Writing will replace all content.`
 					: `New file at a critical path.`;
@@ -152,6 +155,9 @@ export default function somaGuard(pi: ExtensionAPI) {
 
 			// Overwriting a large existing file without reading it first
 			if (fileExists && !hasRead && existingSize > LARGE_FILE_THRESHOLD) {
+				if (!ctx.hasUI) {
+					return { block: true, reason: `Blocked overwrite of unread ${existingSize}-byte file (no UI): ${path}` };
+				}
 				const ok = await ctx.ui.confirm(
 					"⚠️ Overwriting unread file",
 					`${path}\n\nThis file exists (${existingSize} bytes / ~${Math.round(existingSize / 33)} lines) and was NOT read this session.\n\nThe write tool will replace ALL content. Consider using edit for surgical changes.\n\nContinue?`
@@ -163,7 +169,7 @@ export default function somaGuard(pi: ExtensionAPI) {
 			}
 
 			// Overwriting any existing file without reading — lighter warning
-			if (fileExists && !hasRead && !dirListed && existingSize <= LARGE_FILE_THRESHOLD) {
+			if (fileExists && !hasRead && !dirListed && existingSize <= LARGE_FILE_THRESHOLD && ctx.hasUI) {
 				ctx.ui.notify(
 					`📝 Overwriting ${path} (${existingSize}b, not read first)`,
 					"info"
@@ -182,6 +188,10 @@ export default function somaGuard(pi: ExtensionAPI) {
 
 			for (const pattern of DANGEROUS_BASH) {
 				if (pattern.test(cmd)) {
+					if (!ctx.hasUI) {
+						guardEvents++;
+						return { block: true, reason: `Blocked dangerous command (no UI): ${cmd.slice(0, 80)}` };
+					}
 					const ok = await ctx.ui.confirm(
 						"⚠️ Dangerous command",
 						`${cmd}\n\nThis command could cause data loss. Continue?`
@@ -201,10 +211,12 @@ export default function somaGuard(pi: ExtensionAPI) {
 	pi.registerCommand("guard-status", {
 		description: "Show guard statistics",
 		handler: async (_args, ctx) => {
-			ctx.ui.notify(
-				`🛡️ Guard: ${readPaths.size} reads tracked, ${listedDirs.size} dirs listed, ${guardEvents} interventions`,
-				"info"
-			);
+			if (ctx.hasUI) {
+				ctx.ui.notify(
+					`🛡️ Guard: ${readPaths.size} reads tracked, ${listedDirs.size} dirs listed, ${guardEvents} interventions`,
+					"info"
+				);
+			}
 		},
 	});
 }

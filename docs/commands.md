@@ -28,6 +28,12 @@ Soma registers slash commands that control the breath cycle, heat system, and se
 |---------|-------------|
 | `/install <type> <name>` | Install a protocol, muscle, skill, or template from the Soma Hub. Templates resolve dependencies automatically. Use `--force` to overwrite. |
 | `/list local [type]` | Show installed content in your `.soma/`. Optionally filter by type (protocol, muscle, skill, template). |
+
+## Guard Commands
+
+| Command | Description |
+|---------|-------------|
+| `/guard-status` | Show guard statistics: reads tracked, directories listed, interventions blocked. Provided by `soma-guard.ts` extension. |
 | `/list remote [type]` | Browse available content on the hub. Fetches from `meetsoma/community` on GitHub. |
 
 ## Info Commands
@@ -69,18 +75,34 @@ Standalone bash tools in `scripts/` — usable outside the agent session.
 |--------|-------------|
 | `soma-audit.sh` | Ecosystem health check — runs 11 focused audits (PII, drift, stale content, docs sync, command consistency, etc.). `--list` to see audits, `--quiet` for summary only, or name specific audits to run. |
 | `soma-search.sh` | Query soma memory by type, status, tags, domain. Modes: `--brief`, `--deep` (TL;DR extraction), `--missing-tldr`. |
-| `soma-scan.sh` | Frontmatter scanner — audit protocols, muscles, plans for staleness and status. |
+| `soma-scan.sh` | Frontmatter scanner — audit protocols, muscles, plans for staleness and status. (Note: renamed to `soma-frontmatter.sh` at workspace level.) |
 | `soma-snapshot.sh` | Rolling zip snapshots of project directories. |
 | `soma-tldr.sh` | Generate or update TL;DR / digest sections in markdown files. |
 | `frontmatter-date-hook.sh` | Git pre-commit hook — auto-updates `updated:` field in modified `.md` files. |
+
+### Workspace-Level Scripts (`.soma/scripts/`)
+
+These scripts operate across the full workspace, not just the agent project:
+
+| Script | Description |
+|--------|-------------|
+| `soma-scan.sh` | Session & topic scanner. Commands: `topic <term>`, `sessions`, `extractions`, `trail <term>`, `related <term>`, `files <term>`. Scans pi jsonl logs, steno extractions, and frontmatter. |
+| `soma-context.sh` | Pre-change context gatherer. Shows other versions, references, recent discussions, git history, and related concepts for a given file/topic. |
+| `soma-stale.sh` | Stale doc finder. Detects: stale (by age), overlapping (same name in different dirs), orphaned (unreferenced), drafts/seeds. |
+| `soma-frontmatter.sh` | Frontmatter status/type scanner. Reports on frontmatter compliance across the workspace. |
 
 ```bash
 # Examples
 scripts/soma-audit.sh --quiet        # ecosystem health check
 scripts/soma-audit.sh drift pii      # run specific audits
 scripts/soma-search.sh --type protocol --deep
-scripts/soma-scan.sh --stale
+scripts/soma-frontmatter.sh --stale
 scripts/soma-snapshot.sh . "pre-refactor"
+
+# Workspace-level (from .soma/scripts/)
+.soma/scripts/soma-scan.sh topic "checkpoints"
+.soma/scripts/soma-context.sh STATE.md
+.soma/scripts/soma-stale.sh
 ```
 
 ## The Breath Cycle
