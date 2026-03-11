@@ -55,6 +55,17 @@ export default function somaGuard(pi: ExtensionAPI) {
 		/\/node_modules\//,
 	];
 
+	/** Markdown files exempt from frontmatter check */
+	const FRONTMATTER_EXEMPT = [
+		/README\.md$/i,
+		/LICENSE(\.md)?$/i,
+		/CHANGELOG\.md$/i,
+		/CONTRIBUTING\.md$/i,
+		/CODE_OF_CONDUCT\.md$/i,
+		/\/node_modules\//,
+		/\/_archive\//,
+	];
+
 	/** Dangerous bash patterns */
 	const DANGEROUS_BASH = [
 		/rm\s+-rf?\s+[^\s]/,
@@ -179,6 +190,19 @@ export default function somaGuard(pi: ExtensionAPI) {
 			// New file — no guard needed, just track
 			if (!fileExists) {
 				// All good — creating a new file
+			}
+
+			// === FRONTMATTER GUARD (notify only) ===
+			if (path.endsWith(".md") && !FRONTMATTER_EXEMPT.some(pat => pat.test(path))) {
+				const content = input.content as string | undefined;
+				if (content && !content.startsWith("---\n")) {
+					if (ctx.hasUI) {
+						ctx.ui.notify(
+							`📋 ${path.split("/").pop()} written without frontmatter — consider adding ---\\ntype: ...\\n---`,
+							"info"
+						);
+					}
+				}
 			}
 		}
 

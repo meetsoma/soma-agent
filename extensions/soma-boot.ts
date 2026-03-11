@@ -10,6 +10,25 @@
  *   - Heat tracking (auto-detect + decay)
  *
  * Statusline extension ONLY handles: footer rendering, cache keepalive, /status, /keepalive
+ *
+ * ─── Protocol Map ───────────────────────────────────────────────────────
+ * This file embeds logic for multiple protocols. Each section is marked
+ * with a PROTOCOL comment block. When changing one section, you should NOT
+ * need to understand unrelated sections. If you do, it's time to extract.
+ *
+ * Protocol              │ Sections (search for ═══ PROTOCOL: <name>)
+ * ──────────────────────┼─────────────────────────────────────────────
+ * breath-cycle          │ session_start (preload), context warnings,
+ *                       │   /exhale, /breathe, /rest, /auto-continue,
+ *                       │   /inhale, /preload, FLUSH COMPLETE detection,
+ *                       │   preload watcher, post-preload work detection
+ * heat-tracking         │ HEAT_RULES, tool_result auto-detect,
+ *                       │   session_shutdown decay, /pin, /kill
+ * session-checkpoints   │ session_start (git-context), /exhale step 1
+ *                       │   (checkpoint commands), .soma diff on boot
+ * discovery             │ session_start (identity, protocols, muscles,
+ *                       │   scripts), /soma status
+ * ────────────────────────────────────────────────────────────────────────
  */
 
 import { join } from "path";
@@ -44,6 +63,7 @@ import {
 	type SomaSettings,
 	type ProtocolState,
 	type ContentType,
+	type Protocol,
 } from "../core/index.js";
 
 // ---------------------------------------------------------------------------
@@ -67,6 +87,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let protocolState: ProtocolState | null = null;
 	let protocolsReferenced = new Set<string>();
 	let musclesReferenced = new Set<string>();
+	let knownProtocols: Protocol[] = [];
 	let knownProtocolNames: string[] = [];
 	let knownMuscleNames: string[] = [];
 	let booted = false;
@@ -87,9 +108,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let breathePending = false;
 	let currentSessionId = "";
 
-	// -------------------------------------------------------------------
-	// Session start: discover, load identity + preload + protocols
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: discovery — session boot (identity + preload + protocols + muscles + scripts + git)
+	// Also: breath-cycle (preload loading), session-checkpoints (git context)
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("session_start", async (_event, ctx) => {
 		// Capture session ID for preload metadata
@@ -154,6 +176,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			case "protocols": {
 				const signals = detectProjectSignals(soma.projectDir);
 				const protocols = discoverProtocolChain(chain, signals);
+				knownProtocols = protocols;
 				knownProtocolNames = protocols.map(p => p.name);
 				if (protocols.length > 0) {
 					protocolState = loadProtocolState(soma);
@@ -321,10 +344,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	// -------------------------------------------------------------------
-	// Context warnings — single source, escalating thresholds
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: breath-cycle — context warnings + auto-flush
 	// 50%: UI notify | 70%: UI notify | 80%: system prompt warn | 85%: auto-flush
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (!soma || !booted) return;
@@ -380,9 +403,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	// -------------------------------------------------------------------
-	// FLUSH COMPLETE detection — watches assistant messages
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: breath-cycle — FLUSH COMPLETE detection
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("message_end", async (event) => {
 		if (event.message.role !== "assistant") return;
@@ -397,9 +420,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	// -------------------------------------------------------------------
-	// Preload watcher — detects when agent writes preload-next.md
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: breath-cycle — preload watcher + post-preload work detection
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("tool_result", async (event, ctx) => {
 		if (event.toolName !== "write" || event.isError) return;
@@ -420,9 +443,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	// -------------------------------------------------------------------
-	// After agent finishes — offer auto-continue if flush complete
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: breath-cycle — agent_end (auto-continue offer, post-preload warning)
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("agent_end", async (_event, ctx) => {
 		if (flushCompleteDetected && preloadWrittenThisSession) {
@@ -441,9 +464,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	// -------------------------------------------------------------------
-	// /breathe auto-rotate — detects preload written after /breathe
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: breath-cycle — /breathe auto-rotate (turn_end watcher)
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("turn_end", async (_event, ctx) => {
 		if (!breathePending) return;
@@ -470,9 +493,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	// -------------------------------------------------------------------
-	// Session lifecycle resets
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: breath-cycle + heat-tracking — session lifecycle resets + decay
+	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("session_switch", async (event, ctx) => {
 		if (event.reason === "new") {
@@ -503,15 +526,15 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (!soma) return;
 		const decay = settings?.protocols.decayRate ?? 1;
 		if (protocolState) {
-			applyDecay(protocolState, protocolsReferenced, decay);
+			applyDecay(protocolState, protocolsReferenced, decay, knownProtocols);
 			saveProtocolState(soma, protocolState);
 		}
 		decayMuscleHeat(soma, musclesReferenced, decay);
 	});
 
-	// -------------------------------------------------------------------
-	// Mid-session heat tracking — auto-detect from tool results
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: heat-tracking — HEAT_RULES auto-detect from tool results
+	// ═══════════════════════════════════════════════════════════════════
 
 	const HEAT_RULES: Array<{
 		match: (toolName: string, input: any, output: string) => boolean;
@@ -576,9 +599,11 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	// -------------------------------------------------------------------
-	// Commands
-	// -------------------------------------------------------------------
+	// ═══════════════════════════════════════════════════════════════════
+	// COMMANDS — organized by protocol
+	// ═══════════════════════════════════════════════════════════════════
+
+	// --- heat-tracking: /pin, /kill ---
 
 	// /pin — bump heat to hot
 	pi.registerCommand("pin", {
@@ -624,6 +649,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		},
 	});
 
+	// --- breath-cycle: /exhale, /flush, /rest, /breathe, /auto-continue, /inhale, /preload ---
+
 	// /exhale — save state, session ends
 	const exhaleHandler = async (_args: string, ctx: any) => {
 		if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
@@ -635,7 +662,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 		// Save heat
 		const decay = settings?.protocols.decayRate ?? 1;
-		if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay); saveProtocolState(soma, protocolState); }
+		if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma, protocolState); }
 		decayMuscleHeat(soma, musclesReferenced, decay);
 
 		const checkpointSettings = settings?.checkpoints;
@@ -732,7 +759,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 			// Save heat
 			const decay = settings?.protocols.decayRate ?? 1;
-			if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay); saveProtocolState(soma, protocolState); }
+			if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma, protocolState); }
 			decayMuscleHeat(soma, musclesReferenced, decay);
 
 			breathePending = true;
@@ -869,6 +896,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		},
 	});
 
+	// --- discovery: /soma ---
+
 	// /soma — status and management
 	pi.registerCommand("soma", {
 		description: "Soma memory status and management",
@@ -903,9 +932,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	// -------------------------------------------------------------------
-	// /install — fetch content from hub
-	// -------------------------------------------------------------------
+	// --- hub: /install, /list ---
 
 	const VALID_TYPES: ContentType[] = ["protocol", "muscle", "skill", "template"];
 
@@ -967,10 +994,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 		},
 	});
-
-	// -------------------------------------------------------------------
-	// /list — show installed or remote content
-	// -------------------------------------------------------------------
 
 	pi.registerCommand("list", {
 		description: "List installed or remote Soma content",

@@ -424,20 +424,38 @@ export function recordHeatEvent(
 /**
  * Apply session-end decay to all protocols.
  * Protocols referenced this session don't decay.
+ * Protocols never decay below their heat-default floor — a warm protocol
+ * stays warm unless explicitly /kill'd. This prevents behavioral protocols
+ * (which have no auto-detection rules) from systematically losing heat.
  *
  * @param state - The protocol state to mutate
  * @param referencedThisSession - Set of protocol names used this session
  * @param decayRate - How much heat to remove (default: 1)
+ * @param protocols - Discovered protocols (for heat-default floor). If not provided, floor is 0.
  */
 export function applyDecay(
 	state: ProtocolState,
 	referencedThisSession: Set<string>,
-	decayRate: number = DEFAULT_THRESHOLDS.decayRate
+	decayRate: number = DEFAULT_THRESHOLDS.decayRate,
+	protocols?: Protocol[]
 ): void {
+	// Build a lookup for heat-default floors
+	const floors = new Map<string, number>();
+	if (protocols) {
+		for (const p of protocols) {
+			switch (p.heatDefault) {
+				case "hot": floors.set(p.name, DEFAULT_THRESHOLDS.hotThreshold); break;
+				case "warm": floors.set(p.name, DEFAULT_THRESHOLDS.warmThreshold); break;
+				default: floors.set(p.name, 0);
+			}
+		}
+	}
+
 	for (const [name, entry] of Object.entries(state.protocols)) {
 		if (entry.pinned) continue;
 		if (referencedThisSession.has(name)) continue;
-		entry.heat = Math.max(0, entry.heat - decayRate);
+		const floor = floors.get(name) ?? 0;
+		entry.heat = Math.max(floor, entry.heat - decayRate);
 	}
 }
 
