@@ -772,6 +772,12 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 	// --- heat-tracking: /pin, /kill ---
 
+	/** Invalidate compiled system prompt so it recompiles on next turn with updated heat */
+	function invalidateCompiledPrompt() {
+		frontalCortexCompiled = false;
+		compiledSystemPrompt = null;
+	}
+
 	// /pin — bump heat to hot
 	pi.registerCommand("pin", {
 		description: "Pin a protocol or muscle to hot — keeps it loaded across sessions",
@@ -784,11 +790,13 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				recordHeatEvent(protocolState, name, "pinned");
 				saveProtocolState(soma, protocolState);
 				protocolsReferenced.add(name);
-				ctx.ui.notify(`📌 ${name} pinned (heat locked hot)`, "info");
+				invalidateCompiledPrompt();
+				ctx.ui.notify(`📌 ${name} pinned (heat locked hot) — prompt will recompile`, "info");
 			} else if (knownMuscleNames.includes(name)) {
 				bumpMuscleHeat(soma, name, settings?.heat.pinBump ?? 5);
 				musclesReferenced.add(name);
-				ctx.ui.notify(`📌 ${name} pinned (heat bumped to hot)`, "info");
+				invalidateCompiledPrompt();
+				ctx.ui.notify(`📌 ${name} pinned (heat bumped to hot) — prompt will recompile`, "info");
 			} else {
 				ctx.ui.notify(`Unknown protocol or muscle: ${name}`, "error");
 			}
@@ -806,10 +814,12 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			if (knownProtocolNames.includes(name)) {
 				recordHeatEvent(protocolState, name, "killed");
 				saveProtocolState(soma, protocolState);
-				ctx.ui.notify(`💀 ${name} killed (heat → 0)`, "info");
+				invalidateCompiledPrompt();
+				ctx.ui.notify(`💀 ${name} killed (heat → 0) — prompt will recompile`, "info");
 			} else if (knownMuscleNames.includes(name)) {
 				bumpMuscleHeat(soma, name, -15);
-				ctx.ui.notify(`💀 ${name} killed (heat → 0)`, "info");
+				invalidateCompiledPrompt();
+				ctx.ui.notify(`💀 ${name} killed (heat → 0) — prompt will recompile`, "info");
 			} else {
 				ctx.ui.notify(`Unknown protocol or muscle: ${name}`, "error");
 			}
