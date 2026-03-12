@@ -55,6 +55,7 @@ import {
 	decayMuscleHeat,
 	bumpMuscleHeat,
 	recordHeatEvent,
+	getProtocolHeat,
 	loadSettings,
 	initSoma,
 	installItem,
