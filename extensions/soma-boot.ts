@@ -828,6 +828,78 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 	// --- breath-cycle: /exhale, /flush, /rest, /breathe, /auto-continue, /inhale, /preload ---
 
+	// --- Shared preload template for /exhale and /breathe ---
+	function buildPreloadInstructions(target: string, logPath: string, today: string): { template: string; steps: string[] } {
+		const checkpointSettings = settings?.checkpoints;
+		const somaAutoCommit = checkpointSettings?.soma?.autoCommit ?? true;
+		const projectAutoCheckpoint = checkpointSettings?.project?.autoCheckpoint ?? false;
+		const checkpointPrefix = checkpointSettings?.project?.prefix ?? "checkpoint:";
+		const timestamp = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+
+		const steps: string[] = [];
+		if (somaAutoCommit) {
+			steps.push(
+				`**Step 1a:** Commit .soma/ internal state:\n` +
+				`\`\`\`bash\ncd ${soma!.path} && git add -A && git commit -m "${checkpointPrefix} ${timestamp}"\n\`\`\``
+			);
+		}
+		if (projectAutoCheckpoint) {
+			steps.push(
+				`**Step 1b:** Checkpoint project code:\n` +
+				`\`\`\`bash\ngit add -A && git commit -m "${checkpointPrefix} ${timestamp}"\n\`\`\``
+			);
+		} else {
+			steps.push(
+				`**Step 1b:** Review uncommitted project changes — checkpoint if meaningful work exists.`
+			);
+		}
+
+		const template =
+			`**Step 2:** Write \`${target}\`\n\n` +
+			`This IS the continuation prompt for the next session. The next agent sees ONLY this file — ` +
+			`not the conversation history. Write it like a briefing for someone taking over your shift.\n\n` +
+			`**Quality bar:** Could a new agent read this preload and immediately start working without ` +
+			`re-reading any files? If not, add more detail.\n\n` +
+			`**Format:**\n` +
+			`\`\`\`markdown\n` +
+			`---\n` +
+			`type: preload\n` +
+			`created: ${today}\n` +
+			`session: ${currentSessionId || "unknown"}\n` +
+			`---\n\n` +
+			`## Resume Point\n` +
+			`<!-- 2-3 sentences: what was this session about, what state are things in. -->\n\n` +
+			`## What Shipped\n` +
+			`<!-- For each item: what changed, which file(s), commit hash if available.\n` +
+			`     Example:\n` +
+			`     1. **fix(guard): false positive warnings** (\`abc123\`)\n` +
+			`        - \`extensions/soma-guard.ts\` — regex matched 2>/dev/null as dangerous\n` +
+			`        - Fixed: negative lookbehind for stderr redirects -->\n\n` +
+			`## In-Flight (unfinished work)\n` +
+			`<!-- What was started but not completed. Be specific:\n` +
+			`     - What's the bug/feature\n` +
+			`     - Root cause theory (if debugging)\n` +
+			`     - Exact file + line where investigation stopped\n` +
+			`     - What to try next -->\n\n` +
+			`## Key Decisions\n` +
+			`<!-- Decisions with rationale: "Did X because Y, alternative was Z."\n` +
+			`     Architecture choices, naming decisions, why something was rejected. -->\n\n` +
+			`## Architecture Learned\n` +
+			`<!-- Insights about how the codebase works that would be lost.\n` +
+			`     Example: "Pi resets system prompt to base each turn — extensions must\n` +
+			`     return { systemPrompt } every time or it reverts." -->\n\n` +
+			`## Next Session Priorities\n` +
+			`<!-- Ordered list. First item = what to do immediately. -->\n\n` +
+			`## Do NOT Re-Read\n` +
+			`<!-- Files already fully understood. Include WHY — not just the path.\n` +
+			`     Example: "agent-stable/core/prompt.ts — read fully, identity bug at line 549 identified" -->\n` +
+			`\`\`\`\n\n` +
+			`**Step 3:** Append to \`${logPath}\` — daily session log. ` +
+			`Read first if it exists — append a new \`## HH:MM\` section, never overwrite previous entries.`;
+
+		return { template, steps };
+	}
+
 	// /exhale — save state, session ends
 	const exhaleHandler = async (_args: string, ctx: any) => {
 		if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
@@ -842,63 +914,12 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma, protocolState); }
 		decayMuscleHeat(soma, musclesReferenced, decay);
 
-		const checkpointSettings = settings?.checkpoints;
-		const somaAutoCommit = checkpointSettings?.soma?.autoCommit ?? true;
-		const projectAutoCheckpoint = checkpointSettings?.project?.autoCheckpoint ?? false;
-		const checkpointPrefix = checkpointSettings?.project?.prefix ?? "checkpoint:";
-		const timestamp = new Date().toISOString().replace(/\.\d+Z$/, "Z");
-
-		const checkpointSteps: string[] = [];
-		if (somaAutoCommit) {
-			checkpointSteps.push(
-				`**Step 1a:** Commit .soma/ internal state:\n` +
-				`\`\`\`bash\ncd ${soma.path} && git add -A && git commit -m "${checkpointPrefix} ${timestamp}"\n\`\`\``
-			);
-		}
-		if (projectAutoCheckpoint) {
-			checkpointSteps.push(
-				`**Step 1b:** Checkpoint project code:\n` +
-				`\`\`\`bash\ngit add -A && git commit -m "${checkpointPrefix} ${timestamp}"\n\`\`\``
-			);
-		} else {
-			checkpointSteps.push(
-				`**Step 1b:** Review uncommitted project changes — checkpoint if meaningful work exists.`
-			);
-		}
-
-		const preloadTemplate =
-			`\`\`\`markdown\n` +
-			`---\n` +
-			`type: preload\n` +
-			`created: ${today}\n` +
-			`session: ${currentSessionId || "unknown"}\n` +
-			`---\n\n` +
-			`# Session State\n\n` +
-			`## What Shipped\n` +
-			`<!-- Completed items with file paths. Not prose — structured list. -->\n\n` +
-			`## Key Decisions\n` +
-			`<!-- Decisions with rationale. "Did X because Y, alternative was Z." -->\n\n` +
-			`## Key File Locations\n` +
-			`<!-- Full paths to files that matter for next session. -->\n\n` +
-			`## In-Flight\n` +
-			`<!-- Work started but not finished. Where it stopped. Exact next step. -->\n\n` +
-			`## Repo State\n` +
-			`<!-- Git status across repos: what's committed, what's dirty, which branches. -->\n\n` +
-			`## Next Session Priorities\n` +
-			`<!-- Ordered list. What to pick up first. -->\n\n` +
-			`## Loose Ends\n` +
-			`<!-- Items discussed or planned but never executed. Carry forward until resolved or dropped. Don't clear — check off or note why dropped. Accumulates across sessions. -->\n\n` +
-			`## Do NOT Re-Read\n` +
-			`<!-- Files already internalized. Save context. -->\n` +
-			`\`\`\``;
+		const { template, steps } = buildPreloadInstructions(target, logPath, today);
 
 		pi.sendUserMessage(
 			`[EXHALE — save session state]\n\n` +
-			`${checkpointSteps.join("\n\n")}\n\n` +
-			`**Step 2:** Write \`${target}\` using this format:\n\n` +
-			`${preloadTemplate}\n\n` +
-			`This IS your continuation prompt for the next session. Be concrete — file paths, not descriptions. Decisions with rationale, not just outcomes.\n\n` +
-			`**Step 3:** Append to \`${logPath}\` — daily session log. Read first if it exists — append a new \`## HH:MM\` section, never overwrite previous entries.\n\n` +
+			`${steps.join("\n\n")}\n\n` +
+			`${template}\n\n` +
 			`**Step 4:** Say "FLUSH COMPLETE".`,
 			{ deliverAs: "followUp" }
 		);
@@ -942,63 +963,12 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			breathePending = true;
 			breatheCommandCtx = ctx;
 
-			const bCheckpointSettings = settings?.checkpoints;
-			const bSomaAutoCommit = bCheckpointSettings?.soma?.autoCommit ?? true;
-			const bProjectAutoCheckpoint = bCheckpointSettings?.project?.autoCheckpoint ?? false;
-			const bCheckpointPrefix = bCheckpointSettings?.project?.prefix ?? "checkpoint:";
-			const bTimestamp = new Date().toISOString().replace(/\.\d+Z$/, "Z");
-
-			const bSteps: string[] = [];
-			if (bSomaAutoCommit) {
-				bSteps.push(
-					`**Step 1a:** Commit .soma/ internal state:\n` +
-					`\`\`\`bash\ncd ${soma.path} && git add -A && git commit -m "${bCheckpointPrefix} ${bTimestamp}"\n\`\`\``
-				);
-			}
-			if (bProjectAutoCheckpoint) {
-				bSteps.push(
-					`**Step 1b:** Checkpoint project code:\n` +
-					`\`\`\`bash\ngit add -A && git commit -m "${bCheckpointPrefix} ${bTimestamp}"\n\`\`\``
-				);
-			} else {
-				bSteps.push(
-					`**Step 1b:** Review uncommitted project changes — checkpoint if meaningful work exists.`
-				);
-			}
-
-			const bPreloadTemplate =
-				`\`\`\`markdown\n` +
-				`---\n` +
-				`type: preload\n` +
-				`created: ${today}\n` +
-				`session: ${currentSessionId || "unknown"}\n` +
-				`---\n\n` +
-				`# Session State\n\n` +
-				`## What Shipped\n` +
-				`<!-- Completed items with file paths. Not prose — structured list. -->\n\n` +
-				`## Key Decisions\n` +
-				`<!-- Decisions with rationale. "Did X because Y, alternative was Z." -->\n\n` +
-				`## Key File Locations\n` +
-				`<!-- Full paths to files that matter for next session. -->\n\n` +
-				`## In-Flight\n` +
-				`<!-- Work started but not finished. Where it stopped. Exact next step. -->\n\n` +
-				`## Repo State\n` +
-				`<!-- Git status across repos: what's committed, what's dirty, which branches. -->\n\n` +
-				`## Next Session Priorities\n` +
-				`<!-- Ordered list. What to pick up first. -->\n\n` +
-				`## Loose Ends\n` +
-				`<!-- Items discussed or planned but never executed. Carry forward until resolved or dropped. Don't clear — check off or note why dropped. Accumulates across sessions. -->\n\n` +
-				`## Do NOT Re-Read\n` +
-				`<!-- Files already internalized. Save context. -->\n` +
-				`\`\`\``;
+			const { template, steps } = buildPreloadInstructions(target, logPath, today);
 
 			pi.sendUserMessage(
 				`[BREATHE — save and continue]\n\n` +
-				`${bSteps.join("\n\n")}\n\n` +
-				`**Step 2:** Write \`${target}\` using this format:\n\n` +
-				`${bPreloadTemplate}\n\n` +
-				`This IS your continuation prompt for the next session. Be concrete — file paths, not descriptions.\n\n` +
-				`**Step 3:** Append to \`${logPath}\` — daily session log. Read first if it exists — append a new \`## HH:MM\` section, never overwrite previous entries.\n\n` +
+				`${steps.join("\n\n")}\n\n` +
+				`${template}\n\n` +
 				`**Step 4:** Say "BREATHE COMPLETE" when done.`,
 				{ deliverAs: "followUp" }
 			);
