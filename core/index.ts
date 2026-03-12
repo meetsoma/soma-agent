@@ -106,3 +106,6 @@ export type { CompiledPrompt, CompileOptions, FullCompileOptions, ExtractedSecti
 export { safeRead, fmtDuration } from "./utils.js";
 
 export { handleContentCommand } from "./content-cli.js";
+
+export { createDebugLogger } from "./debug.js";
+export type { DebugLogger } from "./debug.js";

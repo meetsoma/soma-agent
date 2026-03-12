@@ -140,6 +140,9 @@ export interface SomaSettings {
 		} | null;
 	};
 
+	/** Enable debug logging to .soma/debug/ (default: false). Also toggleable via SOMA_DEBUG=1 env var. */
+	debug: boolean;
+
 	/** Customizable directory paths (relative to .soma/ root) */
 	paths: {
 		/** Muscles directory (default: "memory/muscles") */
@@ -251,6 +254,7 @@ const DEFAULTS: SomaSettings = {
 		autoDetectBump: 1,
 		pinBump: 5,
 	},
+	debug: false,
 	paths: {
 		muscles: "memory/muscles",
 		protocols: "protocols",
