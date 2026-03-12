@@ -107,6 +107,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let knownMuscleNames: string[] = [];
 	let booted = false;
 	let frontalCortexCompiled = false;
+	let compiledSystemPrompt: string | null = null;
 
 	// Context warning state
 	let lastContextWarningPct = 0;
@@ -445,7 +446,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		// Compiled once per session, cached thereafter.
 		// ═══════════════════════════════════════════════════════════════════
 
-		let systemPrompt = event.systemPrompt;
+		// Use cached compiled prompt on turn 2+, or compile fresh on turn 1.
+		// Pi resets system prompt to base each turn, so we MUST return the compiled
+		// prompt every time — not just the first turn.
+		let systemPrompt = compiledSystemPrompt ?? event.systemPrompt;
 
 		if (!frontalCortexCompiled && settings) {
 			const activeTools = pi.getActiveTools?.() ?? [];
@@ -465,6 +469,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					identity: builtIdentity,
 				});
 				systemPrompt = compiled.block;
+				compiledSystemPrompt = systemPrompt;
 				frontalCortexCompiled = true;
 				debug.systemPrompt(systemPrompt);
 				debug.boot(`system prompt compiled (${systemPrompt.length} chars, ${knownProtocols.length} protocols, ${knownMuscles.length} muscles)`);
@@ -477,21 +482,15 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					settings,
 				});
 				if (compiled.block) {
-					systemPrompt = compiled.block + "\n\n---\n\n" + systemPrompt;
+					systemPrompt = compiled.block + "\n\n---\n\n" + event.systemPrompt;
+					compiledSystemPrompt = systemPrompt;
 					frontalCortexCompiled = true;
 				}
 			}
 		}
 
 		const usage = ctx.getContextUsage?.();
-		if (!usage?.percent) {
-			// No context info yet — still return compiled prompt if we have it
-			if (systemPrompt !== event.systemPrompt) {
-				return { systemPrompt };
-			}
-			return;
-		}
-		const pct = usage.percent;
+		const pct = usage?.percent ?? 0;
 
 		const thresholds = settings?.context ?? { notifyAt: 50, warnAt: 70, urgentAt: 80, autoExhaleAt: 85 };
 		const additions: string[] = [];
@@ -539,10 +538,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			return { systemPrompt: systemPrompt + "\n" + additions.join("\n") };
 		}
 
-		// Return compiled prompt even if no context additions
-		if (systemPrompt !== event.systemPrompt) {
-			return { systemPrompt };
-		}
+		// Always return compiled prompt — Pi resets to base each turn
+		return { systemPrompt };
 	});
 
 	// ═══════════════════════════════════════════════════════════════════
