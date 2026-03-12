@@ -613,18 +613,18 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 				additions.push(
 					`\n## 🫁 Auto-Breathe: Rotate (${Math.round(pct)}%)\n` +
-					`Write preload now. Session will auto-rotate.`
+					`Wrap up and write preload. Session will auto-rotate.`
 				);
 
 				if (preloadWrittenThisSession && preloadPath) {
 					initiateBreathe("auto-breathe-rotate",
-						`[AUTO-BREATHE — rotate at ${Math.round(pct)}%]\n\n` +
+						`[AUTO-BREATHE — time to rotate (${Math.round(pct)}%)]\n\n` +
 						`Preload already at \`${preloadPath}\`. Update it if needed, then say "BREATHE COMPLETE".`
 					);
 				} else {
 					initiateBreathe("auto-breathe-rotate",
-						`[AUTO-BREATHE — rotate at ${Math.round(pct)}%]\n\n` +
-						`Stop and rotate now.\n\n` +
+						`[AUTO-BREATHE — time to rotate (${Math.round(pct)}%)]\n\n` +
+						`Wrap up what you're doing and prepare for rotation.\n\n` +
 						`1. Commit uncommitted work\n` +
 						`2. Update session log\n` +
 						`3. Write \`${preloadTarget}\` — Resume Point, What Shipped, Next Priorities, Orient From\n` +
@@ -643,22 +643,25 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				// Signal for extensions (e.g. soma-steno) — ghost if no listener
 				pi.events.emit("soma:recall", { reason: "auto-breathe-trigger", pct });
 
+				// Phase 1 is a gentle nudge — NOT a shutdown order.
+				// The agent should keep working. Just be aware context is accumulating.
 				additions.push(
-					`\n## 🫁 Auto-Breathe: Wrap-Up (${Math.round(pct)}%)\n` +
-					`Finish current task, then start wrapping up. Update session log. ` +
-					`Tie up loose ends. Preload rotation coming at ~${breatheSettings.rotateAt}%.`
+					`\n## 🫁 Auto-Breathe: Notice (${Math.round(pct)}%)\n` +
+					`Context is at ${Math.round(pct)}%. Keep working — just be aware. ` +
+					`Consider updating session logs as you go. Rotation at ~${breatheSettings.rotateAt}%.`
 				);
 
-				// Send as user message so the agent actually sees and responds to it
+				// Soft notice — agent keeps working, just knows rotation is ahead
 				pendingFollowUps.push(
-					`[AUTO-BREATHE — wrap-up at ${Math.round(pct)}%]\n\n` +
-					`Context is at ${Math.round(pct)}%. Finish what you're doing, then:\n` +
-					`1. Commit any uncommitted work\n` +
-					`2. Update session log\n` +
-					`3. Don't start new tasks — rotation at ~${breatheSettings.rotateAt}%`
+					`[AUTO-BREATHE — ${Math.round(pct)}% context]\n\n` +
+					`Just a heads up — context is at ${Math.round(pct)}%. No need to stop. ` +
+					`Keep working on your current task. As you finish things, consider:\n` +
+					`- Committing completed work\n` +
+					`- Updating session log with what you've done so far\n\n` +
+					`Rotation happens at ~${breatheSettings.rotateAt}% — you've got room.`
 				);
 
-				ctx.ui.notify(`🫁 Auto-breathe: wrap-up phase at ${Math.round(pct)}%`, "info");
+				ctx.ui.notify(`🫁 Context ${Math.round(pct)}% — rotation at ~${breatheSettings.rotateAt}%`, "info");
 				lastContextWarningPct = pct;
 			}
 		}
