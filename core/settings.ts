@@ -141,6 +141,13 @@ export interface SomaSettings {
 		 * "block" — require explicit confirmation before write
 		 */
 		coreFiles: "allow" | "warn" | "block";
+		/**
+		 * Dangerous bash command guard.
+		 * "allow" — no confirmation prompts (power user / dev mode)
+		 * "warn" — confirm before rm -rf, git push --force, etc. (default)
+		 * "block" — block dangerous commands entirely
+		 */
+		bashCommands: "allow" | "warn" | "block";
 		/** Expected git identity for this project. Pre-commit hook validates against this.
 		 * null = hook checks that email is set (not empty), but doesn't enforce a specific value.
 		 */
@@ -314,6 +321,7 @@ const DEFAULTS: SomaSettings = {
 	},
 	guard: {
 		coreFiles: "warn",
+		bashCommands: "warn",
 		gitIdentity: null,
 	},
 	systemPrompt: {

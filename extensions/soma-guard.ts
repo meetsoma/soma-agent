@@ -24,6 +24,8 @@ export default function somaGuard(pi: ExtensionAPI) {
 
 	/** Core file protection tier — loaded from settings.json */
 	let coreFileMode: "allow" | "warn" | "block" = "warn";
+	/** Bash guard — confirm before dangerous commands. "allow" skips all checks. */
+	let bashGuardMode: "allow" | "warn" | "block" = "warn";
 	/** Expected git identity (from settings.json guard.gitIdentity) */
 	let expectedGitEmail: string | null = null;
 	/** Track if we've already warned about identity this session (don't spam) */
@@ -35,6 +37,7 @@ export default function somaGuard(pi: ExtensionAPI) {
 			const chain = getSomaChain();
 			const settings = loadSettings(chain);
 			coreFileMode = settings.guard?.coreFiles ?? "warn";
+			bashGuardMode = (settings.guard as any)?.bashCommands ?? "warn";
 			expectedGitEmail = settings.guard?.gitIdentity?.email ?? null;
 		}
 	} catch { /* default to warn */ }
@@ -91,7 +94,7 @@ export default function somaGuard(pi: ExtensionAPI) {
 	const DANGEROUS_BASH = [
 		/rm\s+-rf?\s+[^\s]/,
 		/rm\s+.*\.(ts|js|md|json|sh)\b/,
-		/(?<![2&])>\s*\/(?!dev\/null|tmp\/)/, // redirect to root (excludes 2>/dev/null, &>/dev/null, >/tmp/)
+		/(?<![\d&>])>\s*\/(?!dev\/null|tmp\/)/, // single > redirect to root (excludes >>, 2>, &>, >/dev/null, >/tmp/)
 		/git\s+push\s+.*--force/,
 		/git\s+reset\s+--hard/,
 		/git\s+clean\s+-fd/,
@@ -239,7 +242,7 @@ export default function somaGuard(pi: ExtensionAPI) {
 		}
 
 		// === BASH GUARD ===
-		if (toolName === "bash" && input?.command) {
+		if (toolName === "bash" && input?.command && bashGuardMode !== "allow") {
 			const cmd = input.command;
 
 			for (const pattern of DANGEROUS_BASH) {

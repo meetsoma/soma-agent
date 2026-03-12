@@ -35,6 +35,7 @@ Settings files can exist at any level in the Soma chain:
   },
   "guard": {
     "coreFiles": "warn",
+    "bashCommands": "warn",
     "gitIdentity": null
   },
   "systemPrompt": {
@@ -165,6 +166,7 @@ Protects core Soma files and git identity from accidental modification.
 | Key | Default | Description |
 |-----|---------|-------------|
 | `coreFiles` | `"warn"` | Protection for identity.md, STATE.md, protocols/, settings.json. Options: `"allow"` (no guard), `"warn"` (notify on write), `"block"` (require confirmation) |
+| `bashCommands` | `"warn"` | Dangerous bash command guard (rm -rf, git push --force, etc.). `"allow"` = no prompts (power user), `"warn"` = confirm first, `"block"` = prevent entirely |
 | `gitIdentity` | `null` | Expected git identity. `null` = hook checks email is set. Object = validates specific email/name. |
 
 **Example: strict guard with enforced git identity:**
@@ -176,6 +178,16 @@ Protects core Soma files and git identity from accidental modification.
       "email": "dev@example.com",
       "name": "Dev"
     }
+  }
+}
+```
+
+**Example: power user / dev mode (no confirmation prompts):**
+```json
+{
+  "guard": {
+    "coreFiles": "allow",
+    "bashCommands": "allow"
   }
 }
 ```
