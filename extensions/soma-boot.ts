@@ -80,15 +80,32 @@ import {
 // Extension
 // ---------------------------------------------------------------------------
 
-// Script descriptions for boot injection
-const SCRIPT_DESCRIPTIONS: Record<string, string> = {
+// Auto-extract script description from first comment line (# description).
+// Falls back to hardcoded overrides for scripts with verbose headers.
+const SCRIPT_DESCRIPTION_OVERRIDES: Record<string, string> = {
 	"soma-audit.sh": "Ecosystem health check — 11 audits: PII, drift, stale content/terms, docs sync, commands, roadmap, overlap, settings, tests, frontmatter. `--list`, `--quiet`, or name specific audits",
-	"soma-search.sh": "Query memory by type/status/tags/domain. `--deep` for TL;DR, `--brief` for breadcrumbs, `--missing-tldr` for audit",
-	"soma-scan.sh": "Scan frontmatter across docs. `--stale` for outdated, `--type`/`--status` filters",
-	"soma-tldr.sh": "Generate TL;DR/digest sections via Haiku. `--scan` gaps, `--batch` all, `--dry-run`",
-	"soma-snapshot.sh": "Rolling backup snapshots of .soma/",
-	"frontmatter-date-hook.sh": "Git pre-commit hook: auto-update `updated:` in frontmatter",
 };
+
+function getScriptDescription(scriptPath: string, scriptName: string): string {
+	// Check overrides first
+	if (SCRIPT_DESCRIPTION_OVERRIDES[scriptName]) return SCRIPT_DESCRIPTION_OVERRIDES[scriptName];
+
+	// Auto-extract: read first 5 lines, find first comment (not shebang)
+	try {
+		const content = readFileSync(scriptPath, "utf-8");
+		const lines = content.split("\n").slice(0, 5);
+		for (const line of lines) {
+			if (line.startsWith("#!")) continue; // skip shebang
+			if (line.startsWith("# ")) {
+				// Strip "scriptname.sh — " prefix if present
+				let desc = line.replace(/^#\s*/, "");
+				desc = desc.replace(/^\S+\.sh\s*[—–-]\s*/, "");
+				if (desc.length > 0) return desc;
+			}
+		}
+	} catch { /* can't read — fall through */ }
+	return "—";
+}
 
 // Resolve agent dir from this module's location (extensions/ → parent)
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -242,7 +259,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 						"| Script | Location | What it does |",
 						"|--------|----------|-------------|",
 						...allScripts.map(({ name, dir }) => {
-							const desc = SCRIPT_DESCRIPTIONS[name] || "—";
+							const desc = getScriptDescription(join(dir, name), name);
 							return `| \`${name}\` | \`${dir}/\` | ${desc} |`;
 						}),
 						"",
