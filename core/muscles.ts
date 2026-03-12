@@ -142,10 +142,11 @@ function estimateTokens(text: string): number {
  * Discover all muscle files in a soma directory.
  *
  * @param soma - The SomaDir to scan
+ * @param overrideDir - Optional override for muscle directory path (from settings.paths)
  * @returns Array of Muscle objects sorted by heat (descending)
  */
-export function discoverMuscles(soma: SomaDir): Muscle[] {
-	const muscleDir = join(soma.path, "memory", "muscles");
+export function discoverMuscles(soma: SomaDir, overrideDir?: string): Muscle[] {
+	const muscleDir = overrideDir || join(soma.path, "memory", "muscles");
 	if (!existsSync(muscleDir)) return [];
 
 	const muscles: Muscle[] = [];
@@ -346,9 +347,10 @@ export function trackMuscleLoads(muscles: Muscle[]): void {
  * @param soma - The SomaDir containing the muscle
  * @param muscleName - Muscle filename (without .md)
  * @param amount - Heat to add (default: 1)
+ * @param overrideDir - Optional override for muscle directory path (from settings.paths)
  */
-export function bumpMuscleHeat(soma: SomaDir, muscleName: string, amount: number = 1): void {
-	const filePath = join(soma.path, "memory", "muscles", `${muscleName}.md`);
+export function bumpMuscleHeat(soma: SomaDir, muscleName: string, amount: number = 1, overrideDir?: string): void {
+	const filePath = join(overrideDir || join(soma.path, "memory", "muscles"), `${muscleName}.md`);
 	const content = safeRead(filePath);
 	if (!content) return;
 

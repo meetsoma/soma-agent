@@ -59,11 +59,15 @@ async function fetchJson(url: string): Promise<any> {
 // Install single item
 // ---------------------------------------------------------------------------
 
-function targetDir(soma: SomaDir, type: ContentType): string {
+/**
+ * Resolve target directory for a content type.
+ * Uses settings.paths when available, falls back to hardcoded defaults.
+ */
+function targetDir(soma: SomaDir, type: ContentType, pathOverrides?: Partial<Record<string, string>>): string {
 	const map: Record<ContentType, string> = {
-		protocol: "protocols",
-		muscle: "memory/muscles",
-		skill: "skills",
+		protocol: pathOverrides?.protocols || "protocols",
+		muscle: pathOverrides?.muscles || "memory/muscles",
+		skill: pathOverrides?.skills || "skills",
 		template: "templates",
 		automation: "automations",
 	};

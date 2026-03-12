@@ -180,6 +180,62 @@ else
 fi
 
 echo ""
+echo "═══ Scaffold Directories ═══"
+
+# Check that memory/ideas and memory/logs are scaffolded
+if grep -q '"memory", "ideas"' "$INIT_TS"; then
+    pass "scaffolds memory/ideas/"
+else
+    fail "missing memory/ideas/ scaffold"
+fi
+
+if grep -q '"memory", "logs"' "$INIT_TS"; then
+    pass "scaffolds memory/logs/"
+else
+    fail "missing memory/logs/ scaffold"
+fi
+
+echo ""
+echo "═══ Settings Paths ═══"
+
+# Check that BUILTIN_SETTINGS includes paths
+if grep -q 'paths:' "$INIT_TS" && grep -q 'muscles: "memory/muscles"' "$INIT_TS"; then
+    pass "BUILTIN_SETTINGS includes paths config"
+else
+    fail "BUILTIN_SETTINGS missing paths"
+fi
+
+# Check settings.ts has paths type
+SETTINGS_TS="$AGENT_DIR/core/settings.ts"
+if grep -q "paths:" "$SETTINGS_TS" && grep -q "muscles: string" "$SETTINGS_TS"; then
+    pass "SomaSettings type has paths"
+else
+    fail "SomaSettings missing paths type"
+fi
+
+# Check resolveSomaPath helper
+if grep -q "export function resolveSomaPath" "$SETTINGS_TS"; then
+    pass "resolveSomaPath helper exported"
+else
+    fail "resolveSomaPath helper missing"
+fi
+
+# Check it's re-exported from index
+if grep -q "resolveSomaPath" "$AGENT_DIR/core/index.ts"; then
+    pass "resolveSomaPath in core/index.ts barrel"
+else
+    fail "resolveSomaPath not in barrel export"
+fi
+
+# Check soma-boot uses resolveSomaPath
+BOOT_TS="$AGENT_DIR/extensions/soma-boot.ts"
+if grep -q "resolveSomaPath" "$BOOT_TS"; then
+    pass "soma-boot.ts uses resolveSomaPath"
+else
+    fail "soma-boot.ts doesn't use resolveSomaPath"
+fi
+
+echo ""
 echo "═══════════════════════════════"
 echo "  Results: $PASS passed, $FAIL failed, $TOTAL total"
 echo "═══════════════════════════════"

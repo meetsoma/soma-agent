@@ -63,6 +63,7 @@ import {
 	compileFrontalCortex,
 	compileFullSystemPrompt,
 	detectProjectContext,
+	resolveSomaPath,
 	type SomaDir,
 	type SomaSettings,
 	type ProtocolState,
@@ -267,10 +268,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 			case "scripts": {
 				// Collect script dirs — child first, then parent chain if inherit.tools
-				const scriptDirs: string[] = [join(soma.path, "scripts")];
+				const scriptDirs: string[] = [resolveSomaPath(soma.path, "scripts", settings)];
 				if (settings.inherit.tools && chain.length > 1) {
 					for (let i = 1; i < chain.length; i++) {
-						scriptDirs.push(join(chain[i].path, "scripts"));
+						scriptDirs.push(resolveSomaPath(chain[i].path, "scripts", settings));
 					}
 				}
 
@@ -483,7 +484,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (pct >= thresholds.autoExhaleAt && !autoFlushSent) {
 			autoFlushSent = true;
 
-			const memDir = join(soma.path, "memory");
+			const memDir = resolveSomaPath(soma.path, "preloads", settings);
 			const preloadTarget = join(memDir, `preload-${currentSessionId || "next"}.md`);
 
 			// System prompt injection
@@ -807,10 +808,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	const exhaleHandler = async (_args: string, ctx: any) => {
 		if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
 
-		const memDir = join(soma.path, "memory");
+		const memDir = resolveSomaPath(soma.path, "preloads", settings);
 		const target = join(memDir, `preload-${currentSessionId || "next"}.md`);
 		const today = new Date().toISOString().split("T")[0];
-		const logPath = join(memDir, "sessions", `${today}.md`);
+		const logPath = join(resolveSomaPath(soma.path, "sessions", settings), `${today}.md`);
 
 		// Save heat
 		const decay = settings?.protocols.decayRate ?? 1;
@@ -904,10 +905,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		handler: async (_args, ctx) => {
 			if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
 
-			const memDir = join(soma.path, "memory");
+			const memDir = resolveSomaPath(soma.path, "preloads", settings);
 			const target = join(memDir, `preload-${currentSessionId || "next"}.md`);
 			const today = new Date().toISOString().split("T")[0];
-			const logPath = join(memDir, "sessions", `${today}.md`);
+			const logPath = join(resolveSomaPath(soma.path, "sessions", settings), `${today}.md`);
 
 			// Save heat
 			const decay = settings?.protocols.decayRate ?? 1;
