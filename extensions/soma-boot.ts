@@ -561,6 +561,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			} else if (pct >= breatheSettings.triggerAt && !autoBreatheTriggerSent) {
 				autoBreatheTriggerSent = true;
 
+				// Signal for extensions (e.g. soma-steno) — ghost if no listener
+				pi.events.emit("soma:recall", { reason: "auto-breathe-trigger", pct });
+
 				additions.push(
 					`\n## 🫁 Auto-Breathe: Wrap-Up (${Math.round(pct)}%)\n` +
 					`Finish current task, then start wrapping up. Update session log. ` +
@@ -607,6 +610,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 		// ── PASSIVE WARNINGS (when auto-breathe is off) ────────────────
 		} else if (!breatheSettings.auto) {
+			// Signal steno at notifyAt even when auto-breathe is off
+			if (pct >= thresholds.notifyAt && lastContextWarningPct < thresholds.notifyAt) {
+				pi.events.emit("soma:recall", { reason: "context-notify", pct });
+			}
 			if (pct >= thresholds.urgentAt && lastContextWarningPct < thresholds.urgentAt) {
 				additions.push(
 					`\n## ⚠️ Context High (${Math.round(pct)}%)\n` +

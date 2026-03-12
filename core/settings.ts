@@ -150,6 +150,12 @@ export interface SomaSettings {
 		} | null;
 	};
 
+	/** Steno — background session observer. Ghost setting: does nothing without soma-steno extension. */
+	steno: {
+		/** Enable steno extraction (default: false) */
+		enabled: boolean;
+	};
+
 	/** Enable debug logging to .soma/debug/ (default: false). Also toggleable via SOMA_DEBUG=1 env var. */
 	debug: boolean;
 
@@ -263,6 +269,9 @@ const DEFAULTS: SomaSettings = {
 		autoDetect: true,
 		autoDetectBump: 1,
 		pinBump: 5,
+	},
+	steno: {
+		enabled: false,
 	},
 	debug: false,
 	paths: {
