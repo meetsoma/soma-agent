@@ -72,7 +72,7 @@ Pick from previous sessions to resume.
 | Command | What it does |
 |---------|-------------|
 | `/breathe` | Save state + auto-continue into fresh session |
-| `/exhale` | Save state, write preload, session ends (alias: `/flush`) |
+| `/exhale` | Save state, write preload, session ends |
 | `/rest` | Disable keepalive + exhale — for when you're done for the night |
 | `/inhale` | Start fresh — shows preload status, suggests `soma -c` |
 | `/pin <name>` | Pin a protocol/muscle to hot (stays loaded) |

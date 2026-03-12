@@ -1,7 +1,7 @@
 # Commands
 
 <!-- tldr -->
-`/inhale` — start fresh. `/breathe` — save + auto-continue. `/exhale` — save + stop (alias: `/flush`). `/rest` — disable keepalive + exhale (going to bed). `/pin <name>` — bump heat +5. `/kill <name>` — drop heat to 0. `/install <type> <name>` — install from hub. `/list local|remote` — browse content. `/soma` — show status. CLI: `soma` (fresh), `soma -c` (continue). Context warnings and auto-exhale thresholds are configurable in `settings.json`.
+`/inhale` — load preload into current session. `/breathe` — save + auto-continue. `/exhale` — save + stop. `/rest` — disable keepalive + exhale (going to bed). `/pin <name>` — bump heat +5. `/kill <name>` — drop heat to 0. `/install <type> <name>` — install from hub. `/list local|remote` — browse content. `/soma` — status + management (subcommands: `init`, `prompt`, `preload`, `debug`). `/auto-commit on|off` — toggle .soma/ auto-commit. CLI: `soma` (fresh), `soma -c` (continue). Context warnings and auto-exhale thresholds are configurable in `settings.json`.
 <!-- /tldr -->
 
 Soma registers slash commands that control the breath cycle, heat system, and session management.
@@ -12,7 +12,7 @@ Soma registers slash commands that control the breath cycle, heat system, and se
 |---------|-------------|
 | `/inhale` | Start a fresh session. Shows preload status and suggests `soma -c` to continue with context. |
 | `/breathe` | Save state and auto-continue into a fresh session. Seamless rotation — exhale + inhale in one motion. |
-| `/exhale` | Save state to disk. Writes session-scoped `preload-<sessionId>.md`, saves heat state with decay for unused content. Session ends. Alias: `/flush` |
+| `/exhale` | Save state to disk. Writes session-scoped `preload-<sessionId>.md`, saves heat state with decay for unused content. Session ends. |
 | `/rest` | Going to bed? Disables cache keepalive, then exhales. No pings will fire after you walk away. |
 
 ## Heat Commands
@@ -28,25 +28,33 @@ Soma registers slash commands that control the breath cycle, heat system, and se
 |---------|-------------|
 | `/install <type> <name>` | Install a protocol, muscle, skill, or template from the Soma Hub. Templates resolve dependencies automatically. Use `--force` to overwrite. |
 | `/list local [type]` | Show installed content in your `.soma/`. Optionally filter by type (protocol, muscle, skill, template). |
+| `/list remote [type]` | Browse available content on the hub. Fetches from `meetsoma/community` on GitHub. |
 
 ## Guard Commands
 
 | Command | Description |
 |---------|-------------|
 | `/guard-status` | Show guard statistics: reads tracked, directories listed, interventions blocked. Provided by `soma-guard.ts` extension. |
-| `/list remote [type]` | Browse available content on the hub. Fetches from `meetsoma/community` on GitHub. |
 
-## Info Commands
+## Info & Management Commands
 
 | Command | Description |
 |---------|-------------|
 | `/soma` | Show Soma status — loaded identity, protocol heat states, muscle states, context usage. |
 | `/soma init` | Create a `.soma/` directory in the current project. |
 | `/soma prompt` | Preview the compiled system prompt — shows all assembled sections, token estimate, and which toggles are active. |
-| `/preload` | Show the current preload content (what will carry to next session). |
+| `/soma prompt full` | Dump the full compiled system prompt text. |
+| `/soma prompt identity` | Show identity debug — chain, layering, char count. |
+| `/soma preload` | Show available preload files (name, age, staleness). |
+| `/soma debug on\|off` | Toggle debug logging to `.soma/debug/`. |
 | `/status` | Show session stats — context usage, turn count, uptime. |
-| `/keepalive` | Toggle cache keepalive. Subcommands: `on`, `off`, `status`. When enabled, sends periodic pings to prevent cache eviction during idle periods. |
-| `/auto-continue` | Inject the last continuation prompt into a new session. Used after FLUSH COMPLETE. |
+
+## Toggle Commands
+
+| Command | Description |
+|---------|-------------|
+| `/auto-commit on\|off` | Toggle auto-commit of `.soma/` state on exhale/breathe. Default: on. |
+| `/keepalive on\|off` | Toggle cache keepalive. When enabled, sends periodic pings to prevent cache eviction during idle periods. |
 
 ## Context Warnings
 

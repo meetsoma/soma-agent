@@ -13,7 +13,7 @@ scope: bundled
 tags: [session, git, workflow, continuity]
 spec-ref: curtismercier/protocols/amp (v0.2, §8)
 created: 2026-03-10
-updated: 2026-03-10
+updated: 2026-03-12
 ---
 
 # Session Checkpoints Protocol
@@ -25,7 +25,7 @@ Two git tracks, two rhythms:
 | | `.soma/` (agent internal) | Project code |
 |---|---|---|
 | **Tracking** | Own local git repo inside `.soma/` | Project's git repo |
-| **Commit cadence** | Every exhale/flush | Checkpoints — local only |
+| **Commit cadence** | Every exhale | Checkpoints — local only |
 | **Push cadence** | Never pushed | Squashed clean before push |
 | **Session resume** | `git diff HEAD~1` | `git diff` from last checkpoint |
 

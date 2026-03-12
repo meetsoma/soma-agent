@@ -55,11 +55,11 @@ else
     fail "soma-boot missing createDebugLogger import"
 fi
 
-# Check /debug command registered
-if grep -q 'registerCommand("debug"' "$BOOT_TS"; then
-    pass "/debug command registered"
+# Check /soma debug subcommand exists
+if grep -q 'cmd.startsWith("debug")' "$BOOT_TS" || grep -q 'debugCmd' "$BOOT_TS"; then
+    pass "/soma debug subcommand registered"
 else
-    fail "/debug command not registered"
+    fail "/soma debug subcommand not found"
 fi
 
 # Check debug logs boot steps

@@ -890,7 +890,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	// --- breath-cycle: /exhale, /flush, /rest, /breathe, /auto-continue, /inhale, /preload ---
+	// --- breath-cycle: /exhale, /rest, /breathe, /auto-continue, /inhale ---
 
 	// --- Auto-commit .soma/ internal state (heat, protocol-state, etc.) ---
 	function autoCommitSomaState(label: string): string | null {
@@ -1021,7 +1021,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	};
 
 	pi.registerCommand("exhale", { description: "Exhale — save session state", handler: exhaleHandler });
-	pi.registerCommand("flush", { description: "Alias for /exhale", handler: exhaleHandler });
 
 	// /rest — disable keepalive + exhale (going to bed)
 	pi.registerCommand("rest", {
@@ -1108,21 +1107,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	// /preload — show available preloads
-	pi.registerCommand("preload", {
-		description: "List available preload files",
-		handler: async (_args, ctx) => {
-			if (!soma) { ctx.ui.notify("No .soma/ found", "info"); return; }
-			const preload = findPreload(soma);
-			if (preload) {
-				const stale = preload.stale ? " ⚠️stale" : "";
-				ctx.ui.notify(`${preload.name} (${Math.floor(preload.ageHours)}h ago${stale})`, "info");
-			} else {
-				ctx.ui.notify("No preloads found", "info");
-			}
-		},
-	});
-
 	// /inhale — orient for fresh session
 	pi.registerCommand("inhale", {
 		description: "Inhale — load preload from last session into current conversation",
@@ -1148,7 +1132,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.registerCommand("soma", {
 		description: "Soma memory status and management",
 		getArgumentCompletions: (prefix) =>
-			["status", "init", "prompt", "prompt full", "prompt identity"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
+			["status", "init", "prompt", "prompt full", "prompt identity", "preload", "debug", "debug on", "debug off"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
 		handler: async (args, ctx) => {
 			const cmd = args.trim().toLowerCase() || "status";
 
@@ -1295,7 +1279,57 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			ctx.ui.notify("Usage: /soma status | /soma init | /soma prompt [full|identity]", "info");
+			// /soma preload — show available preloads (was standalone /preload)
+			if (cmd === "preload") {
+				if (!soma) { ctx.ui.notify("No .soma/ found", "info"); return; }
+				const preload = findPreload(soma);
+				if (preload) {
+					const stale = preload.stale ? " ⚠️stale" : "";
+					ctx.ui.notify(`${preload.name} (${Math.floor(preload.ageHours)}h ago${stale})`, "info");
+				} else {
+					ctx.ui.notify("No preloads found", "info");
+				}
+				return;
+			}
+
+			// /soma debug — toggle debug logging (was standalone /debug)
+			if (cmd.startsWith("debug")) {
+				const debugCmd = cmd.replace("debug", "").trim() || "status";
+
+				if (debugCmd === "status") {
+					const debugDir = soma ? join(soma.path, "debug") : null;
+					const hasLogs = debugDir && existsSync(debugDir);
+					ctx.ui.notify(
+						`Debug mode: ${debug.enabled ? "ON 🔴" : "OFF"}\n` +
+						`Debug dir: ${debugDir || "(no .soma/)"}\n` +
+						(hasLogs ? `Logs exist — read .soma/debug/ for diagnostics` : `No debug logs yet`),
+						"info"
+					);
+					return;
+				}
+
+				if (debugCmd === "on") {
+					if (!soma) { ctx.ui.notify("No .soma/ found.", "error"); return; }
+					debug = createDebugLogger(soma.path, true);
+					debug.boot("debug mode enabled via /soma debug on");
+					ctx.ui.notify("🔴 Debug mode ON — logging to .soma/debug/", "info");
+					return;
+				}
+
+				if (debugCmd === "off") {
+					if (debug.enabled) {
+						debug.boot("debug mode disabled via /soma debug off");
+					}
+					debug = createDebugLogger(null);
+					ctx.ui.notify("Debug mode OFF", "info");
+					return;
+				}
+
+				ctx.ui.notify("Usage: /soma debug on|off|status", "info");
+				return;
+			}
+
+			ctx.ui.notify("Usage: /soma status | init | prompt [full|identity] | preload | debug [on|off]", "info");
 		},
 	});
 
@@ -1426,43 +1460,4 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	// ---------------------------------------------------------------------------
 	// /debug — toggle debug mode
 	// ---------------------------------------------------------------------------
-	pi.registerCommand("debug", {
-		description: "Toggle debug logging to .soma/debug/",
-		getArgumentCompletions: (prefix) =>
-			["on", "off", "status"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
-		handler: async (args, ctx) => {
-			const cmd = args.trim().toLowerCase() || "status";
-
-			if (cmd === "status") {
-				const debugDir = soma ? join(soma.path, "debug") : null;
-				const hasLogs = debugDir && existsSync(debugDir);
-				ctx.ui.notify(
-					`Debug mode: ${debug.enabled ? "ON 🔴" : "OFF"}\n` +
-					`Debug dir: ${debugDir || "(no .soma/)"}\n` +
-					(hasLogs ? `Logs exist — read .soma/debug/ for diagnostics` : `No debug logs yet`),
-					"info"
-				);
-				return;
-			}
-
-			if (cmd === "on") {
-				if (!soma) { ctx.ui.notify("No .soma/ found.", "error"); return; }
-				debug = createDebugLogger(soma.path, true);
-				debug.boot("debug mode enabled via /debug on");
-				ctx.ui.notify("🔴 Debug mode ON — logging to .soma/debug/", "info");
-				return;
-			}
-
-			if (cmd === "off") {
-				if (debug.enabled) {
-					debug.boot("debug mode disabled via /debug off");
-				}
-				debug = createDebugLogger(null);
-				ctx.ui.notify("Debug mode OFF", "info");
-				return;
-			}
-
-			ctx.ui.notify("Usage: /debug on|off|status", "info");
-		},
-	});
 }

@@ -46,6 +46,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **Improved preload template** — DRY'd exhale/breathe preload instructions with `buildPreloadInstructions()` helper (`9bcef17`).
 
 ### Changed
+- **Command cleanup** — removed `/flush` (redundant alias for `/exhale`). Folded `/preload` into `/soma preload` and `/debug` into `/soma debug on|off`. 19 commands → 15, clearer surface.
 - **Extension ownership refactor** — `soma-boot.ts` owns lifecycle + commands. `soma-statusline.ts` owns rendering + keepalive.
 - **Boot user message trimmed** — identity, protocol breadcrumbs, and muscle digests moved to system prompt. Only hot full bodies remain in boot message.
 - **CLAUDE.md awareness, not adoption** — system prompt notes existence but doesn't inject content.

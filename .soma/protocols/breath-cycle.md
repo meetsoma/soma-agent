@@ -13,7 +13,7 @@ scope: bundled
 tags: [session, memory, continuity]
 spec-ref: curtismercier/protocols/breath-cycle (v0.2)
 created: 2026-03-09
-updated: 2026-03-10
+updated: 2026-03-12
 ---
 
 # Breath Cycle Protocol
@@ -108,7 +108,7 @@ The system detects "FLUSH COMPLETE" in your response and:
 
 | Command | What it does |
 |---------|-------------|
-| `/exhale` (alias `/flush`) | Save state, session ends |
+| `/exhale` | Save state, session ends |
 | `/breathe` | Save state + auto-continue into fresh session |
 | `/rest` | Disable keepalive + exhale (going to bed) |
 | `/auto-continue` | Create new session with preload injection |

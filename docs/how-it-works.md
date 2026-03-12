@@ -70,7 +70,7 @@ Set `"enabled": false` to disable. See [Configuration](/docs/configuration#git-c
 When context fills up, Soma automatically breathes — saving state and continuing into a fresh session. You can also trigger this manually:
 
 - **`/breathe`** — save state + auto-continue (seamless rotation)
-- **`/exhale`** — save state + stop (alias: `/flush`)
+- **`/exhale`** — save state + stop
 - **`/rest`** — disable keepalive + exhale (for when you're done for the night)
 
 Either way, Soma:
