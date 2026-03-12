@@ -672,7 +672,19 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			protocolsReferenced = new Set();
 			musclesReferenced = new Set();
 			frontalCortexCompiled = false;
-			builtIdentity = null;
+			compiledSystemPrompt = null;
+
+			// Rebuild identity for the new session (boot steps don't re-run on session_switch)
+			if (soma) {
+				const chain = getSomaChain();
+				const freshSettings = loadSettings(chain);
+				if (freshSettings) {
+					settings = freshSettings;
+					builtIdentity = buildLayeredIdentity(chain, settings);
+				}
+			} else {
+				builtIdentity = null;
+			}
 
 			// If preload exists, notify (user can /auto-continue)
 			if (soma) {
