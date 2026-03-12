@@ -39,6 +39,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **Configurable boot sequence** — `settings.boot.steps` array.
 - **Git context on boot** — `git-context` boot step injects recent commits and changed files.
 - **Configurable context warnings** — `settings.context` thresholds.
+- **`/auto-commit` command** — toggle `.soma/` auto-commit on exhale/breathe (`on|off|status`).
+- **Auto-commit `.soma/` state** — on exhale and breathe, `.soma/` changes are committed to local git automatically. Configurable via `settings.checkpoints.soma.autoCommit`.
+- **`/pin` and `/kill` invalidate prompt cache** — heat changes take effect on the next turn, not next session (`ec7b8fe`).
+- **`/soma prompt` diagnostic** — shows compiled sections, identity status, heat levels, context %, and runtime state (`4dc477c`).
+- **Improved preload template** — DRY'd exhale/breathe preload instructions with `buildPreloadInstructions()` helper (`9bcef17`).
 
 ### Changed
 - **Extension ownership refactor** — `soma-boot.ts` owns lifecycle + commands. `soma-statusline.ts` owns rendering + keepalive.
@@ -47,6 +52,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **Distribution scope** — bundled protocols slimmed from all to 4 (breath-cycle, heat-tracking, session-checkpoints, pattern-evolution). Hub protocols install via templates.
 
 ### Fixed
+- **System prompt dropped after turn 1** — Pi resets to base each `before_agent_start`. Now caches compiled prompt and returns it every turn (`c0070c4`).
+- **Identity never in compiled prompt** — `isPiDefaultPrompt()` checked for "inside pi" but Soma CLI says "inside Soma". Phase 3 full replacement never activated (`f9eadce`).
+- **Context warnings never fired** — `getContextUsage()` returns undefined on turn 1. Now handles gracefully with `usage?.percent ?? 0` (`c0070c4`).
+- **Identity lost after /auto-continue or /breathe** — `session_switch` cleared `builtIdentity` but not `compiledSystemPrompt`, and never rebuilt identity. Now rebuilds identity from chain and clears prompt cache (`5d82af2`).
+- **Guard false positive on `2>/dev/null`** — stderr redirects no longer trigger write warnings (`b162191`).
+- **Preload auto-injected on continue/resume** — `soma -c` and `soma -r` no longer auto-inject preloads (session already has its full history) (`ae24532`).
 - Print-mode race condition — `ctx.hasUI` guard on `sendUserMessage` in `session_start`.
 - Skip scaffolding core extensions into project `.soma/extensions/`.
 - Template placeholder substitution on install.
