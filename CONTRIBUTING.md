@@ -117,6 +117,34 @@ main ────── stable, npm published, what users install
 
 **Settings cascade**: project `.soma/settings.json` → parent → global `~/.soma/`. Deep merge, project wins.
 
+## Cross-Repo Changes
+
+Soma spans two repos. Most PRs touch only one — but some changes span both.
+
+| Change | Where | Example |
+|--------|-------|---------|
+| New protocol or muscle | [soma-community](https://github.com/meetsoma/soma-community) only | A `code-review` protocol |
+| Bug fix in heat tracking | soma-agent only | Fix decay math in `protocols.ts` |
+| New content type | **Both repos** | Adding "Playbooks" needs `ContentType` here + schema/examples there |
+| New settings field a protocol needs | **Both repos** | Protocol references `settings.guard.X` that doesn't exist yet |
+| Bundled protocol update | **Both repos** | Changing `breath-cycle.md` (canonical in community, synced to CLI) |
+
+**When your change spans both repos:**
+
+1. **Code lands first.** The core can support a type/field with zero content using it. Content referencing unsupported code breaks at runtime.
+2. Open the agent PR first, note "companion PR: [link]" in both descriptions.
+3. Agent PR merges to `dev` → smoke test passes → then community PR merges.
+4. For bundled content (`scope: bundled`): the community repo is canonical. `sync-from-agent.sh` copies bundled content to the CLI at publish time. Don't edit bundled protocols in the agent/CLI directly.
+
+**What syncs where:**
+```
+community/ (canonical for all AMPS content)
+    ↓ scope: bundled protocols
+cli/protocols/  (via sync-from-agent.sh at publish)
+    ↓ bundled into npm
+users get it via: npm install meetsoma
+```
+
 ## Code Style
 
 - TypeScript, Node 22+
