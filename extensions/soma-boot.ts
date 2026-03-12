@@ -635,7 +635,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.on("turn_end", async (_event, ctx) => {
 		if (!breathePending) return;
 
-		if (preloadWrittenThisSession && breatheCommandCtx) {
+		if (preloadWrittenThisSession && flushCompleteDetected && breatheCommandCtx) {
 			breathePending = false;
 			ctx.ui.notify("🫁 Preload saved — rotating to fresh session...", "info");
 			const cmdCtx = breatheCommandCtx;
@@ -942,7 +942,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 
 		const template =
-			`**Step 2:** Write \`${target}\`\n\n` +
+			`**Step 2:** Append to \`${logPath}\` — daily session log. ` +
+			`Read first if it exists — append a new \`## HH:MM\` section, never overwrite previous entries. ` +
+			`Only record what actually happened — never claim a preload was written before you write it.\n\n` +
+			`**Step 3:** Write \`${target}\` — this is the LAST file you write.\n\n` +
 			`This IS the continuation prompt for the next session. The next agent sees ONLY this file — ` +
 			`not the conversation history. Write it like a briefing for someone taking over your shift.\n\n` +
 			`**Quality bar:** Could a new agent read this preload and immediately start working without ` +
@@ -981,8 +984,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			`<!-- Files already fully understood. Include WHY — not just the path.\n` +
 			`     Example: "agent-stable/core/prompt.ts — read fully, identity bug at line 549 identified" -->\n` +
 			`\`\`\`\n\n` +
-			`**Step 3:** Append to \`${logPath}\` — daily session log. ` +
-			`Read first if it exists — append a new \`## HH:MM\` section, never overwrite previous entries.`;
+			`⚠️ **Order matters:** session log (Step 2) FIRST, then preload (Step 3) LAST. ` +
+			`The preload write triggers the rotation watcher.`;
 
 		return { template, steps };
 	}
