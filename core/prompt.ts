@@ -171,11 +171,13 @@ export function extractSections(prompt: string): ExtractedSections {
 }
 
 /**
- * Detect whether a system prompt is Pi's default (vs. a custom SYSTEM.md).
- * Per spec Q3: only do full replacement when we detect Pi's default.
+ * Detect whether a system prompt is the runtime's default (vs. a custom SYSTEM.md).
+ * Per spec Q3: only do full replacement when we detect the default prompt.
+ * Matches both Pi's original prompt and Soma CLI's customized version.
  */
 export function isPiDefaultPrompt(prompt: string): boolean {
-	return prompt.includes("You are an expert coding assistant operating inside pi");
+	return prompt.includes("You are an expert coding assistant operating inside pi")
+		|| prompt.includes("You are an expert coding assistant operating inside Soma");
 }
 
 // ---------------------------------------------------------------------------
