@@ -318,8 +318,14 @@ export function buildMuscleInjection(
 
 	if (hot.length > 0) {
 		for (const m of hot) {
-			const body = stripFrontmatter(m.content);
-			lines.push(`### ${m.name}\n${body}\n`);
+			// System prompt gets digests only — full bodies are in the boot message
+			// to avoid duplication. If no digest, use the name as a placeholder.
+			if (m.digest) {
+				lines.push(`### ${m.name}\n${m.digest}\n`);
+			} else {
+				const body = stripFrontmatter(m.content);
+				lines.push(`### ${m.name}\n${body}\n`);
+			}
 		}
 	}
 
