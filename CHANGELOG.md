@@ -33,6 +33,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **`/keepalive` command** — toggle cache keepalive on/off/status (soma-statusline.ts).
 - **`/status` command** — footer status display (soma-statusline.ts).
 - **Cache keepalive system** — 300s TTL, 45s threshold, 30s cooldown. Auto-ping on idle. ◷ cache TTL in footer.
+- **Test suites** — 9 bash test scripts, 230/230 passing. Covers: protocols, muscles, settings, init, discovery, identity, preload, utils, applies-to.
+- **Workspace scripts** — `soma-scan.sh`, `soma-search.sh`, `soma-snapshot.sh`, `soma-tldr.sh` (query memory, scan frontmatter, snapshot .soma/, generate TL;DRs).
 - **`_tool-template.ts`** — starter template for agent-created extensions.
 - **Configurable boot sequence** — `settings.boot.steps` array.
 - **Git context on boot** — `git-context` boot step injects recent commits and changed files.
