@@ -96,11 +96,11 @@ fi
 # ---------------------------------------------------------------------------
 section "Signal Detection (this repo)"
 
-# This repo has .git/ — should detect git
-if [[ -d "$SOMA_DIR/.git" ]]; then
-  pass "This repo has .git/ — git signal expected"
+# This repo has .git (dir or worktree file) — should detect git
+if [[ -d "$SOMA_DIR/.git" || -f "$SOMA_DIR/.git" ]]; then
+  pass "This repo has .git — git signal expected"
 else
-  fail "Expected .git/ in $SOMA_DIR"
+  fail "Expected .git in $SOMA_DIR"
 fi
 
 # This repo has no package.json — should NOT detect typescript/javascript
