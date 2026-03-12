@@ -9,6 +9,7 @@ author: Curtis Mercier
 license: CC BY 4.0
 version: 1.2.0
 tier: core
+scope: bundled
 tags: [session, memory, continuity]
 spec-ref: curtismercier/protocols/breath-cycle (v0.2)
 created: 2026-03-09

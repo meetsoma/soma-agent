@@ -9,6 +9,7 @@ author: Curtis Mercier
 license: CC BY 4.0
 version: 1.0.0
 tier: core
+scope: hub
 tags: [tools, workflow, discipline]
 created: 2026-03-10
 updated: 2026-03-10
