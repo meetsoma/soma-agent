@@ -20,25 +20,21 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Test — Protocols
-        run: bash tests/test-protocols.sh
-
-      - name: Test — Muscles
+      - name: Run all test suites
         run: |
-          if [ -d ".soma/memory/muscles" ]; then
-            bash tests/test-muscles.sh
-          else
-            echo "Muscle directory gitignored — skipping in CI"
-          fi
-
-      - name: Test — Settings
-        run: bash tests/test-settings.sh
-
-      - name: Test — Init
-        run: bash tests/test-init.sh
-
-      - name: Test — Applies-to
-        run: bash tests/test-applies-to.sh
+          PASS=0
+          FAIL=0
+          for t in tests/test-*.sh; do
+            echo "=== $(basename $t) ==="
+            if bash "$t" 2>&1; then
+              PASS=$((PASS + 1))
+            else
+              FAIL=$((FAIL + 1))
+            fi
+          done
+          echo ""
+          echo "Suites: $PASS passed, $FAIL failed (of $((PASS + FAIL)))"
+          [ $FAIL -eq 0 ] || exit 1
 
   publish:
     needs: test
@@ -80,16 +76,10 @@ jobs:
           fi
           echo "Publishing v$TAG"
 
-      - name: Sync docs from agent → CLI packages
+      - name: Sync agent → CLI (full sync — core, extensions, docs, protocols, scripts)
         run: |
-          for pkg in cli; do  # Add cli-pro when ready
-            mkdir -p "$pkg/docs"
-            for doc in getting-started.md how-it-works.md identity.md protocols.md memory-layout.md extending.md muscles.md configuration.md commands.md; do
-              [ -f "agent/docs/$doc" ] && cp "agent/docs/$doc" "$pkg/docs/$doc"
-            done
-            [ -f "agent/CHANGELOG.md" ] && cp "agent/CHANGELOG.md" "$pkg/docs/CHANGELOG.md"
-          done
-          echo "✓ Docs synced"
+          AGENT_DIR="$GITHUB_WORKSPACE/agent" bash cli/scripts/sync-from-agent.sh
+          echo "✓ Full sync complete"
 
       - name: Bump version in CLI packages
         run: |

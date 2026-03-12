@@ -13,20 +13,21 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Test — Protocols
-        run: bash tests/test-protocols.sh
-
-      - name: Test — Muscles
-        run: bash tests/test-muscles.sh
-
-      - name: Test — Settings
-        run: bash tests/test-settings.sh
-
-      - name: Test — Init
-        run: bash tests/test-init.sh
-
-      - name: Test — Applies-to
-        run: bash tests/test-applies-to.sh
+      - name: Run all test suites
+        run: |
+          PASS=0
+          FAIL=0
+          for t in tests/test-*.sh; do
+            echo "=== $(basename $t) ==="
+            if bash "$t" 2>&1; then
+              PASS=$((PASS + 1))
+            else
+              FAIL=$((FAIL + 1))
+            fi
+          done
+          echo ""
+          echo "Suites: $PASS passed, $FAIL failed (of $((PASS + FAIL)))"
+          [ $FAIL -eq 0 ] || exit 1
 
   checks:
     runs-on: ubuntu-latest
@@ -40,3 +41,9 @@ jobs:
           if ! git diff origin/${{ github.base_ref }}...HEAD --name-only | grep -q CHANGELOG.md; then
             echo "::warning::No CHANGELOG.md update in this PR — is this intentional?"
           fi
+
+      - name: Command consistency
+        run: bash scripts/audits/commands.sh check . || echo "::warning::Command documentation may be out of sync"
+
+      - name: Frontmatter validation
+        run: bash scripts/audits/frontmatter.sh check . || echo "::warning::Frontmatter issues found"
