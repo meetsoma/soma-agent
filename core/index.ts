@@ -77,6 +77,7 @@ export {
 	getDefaultSettings,
 } from "./settings.js";
 export type { SomaSettings } from "./settings.js";
+export { resolveSomaPath } from "./settings.js";
 
 export {
 	installItem,

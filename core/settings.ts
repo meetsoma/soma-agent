@@ -140,6 +140,34 @@ export interface SomaSettings {
 		} | null;
 	};
 
+	/** Customizable directory paths (relative to .soma/ root) */
+	paths: {
+		/** Muscles directory (default: "memory/muscles") */
+		muscles: string;
+		/** Protocols directory (default: "protocols") */
+		protocols: string;
+		/** Scripts directory (default: "scripts") */
+		scripts: string;
+		/** Skills directory (default: "skills") */
+		skills: string;
+		/** Extensions directory (default: "extensions") */
+		extensions: string;
+		/** Preloads directory — where preload-*.md files live (default: "memory") */
+		preloads: string;
+		/** Identity file path (default: "identity.md") */
+		identity: string;
+		/** Plans directory (default: "plans") */
+		plans: string;
+		/** Ideas directory (default: "memory/ideas") */
+		ideas: string;
+		/** Sessions directory (default: "memory/sessions") */
+		sessions: string;
+		/** Logs directory (default: "memory/logs") */
+		logs: string;
+		/** Secrets directory (default: "secrets") */
+		secrets: string;
+	};
+
 	/** System prompt compilation settings */
 	systemPrompt: {
 		/** Max estimated tokens for Soma's portion (default: 4000) */
@@ -222,6 +250,20 @@ const DEFAULTS: SomaSettings = {
 		autoDetect: true,
 		autoDetectBump: 1,
 		pinBump: 5,
+	},
+	paths: {
+		muscles: "memory/muscles",
+		protocols: "protocols",
+		scripts: "scripts",
+		skills: "skills",
+		extensions: "extensions",
+		preloads: "memory",
+		identity: "identity.md",
+		plans: "plans",
+		ideas: "memory/ideas",
+		sessions: "memory/sessions",
+		logs: "memory/logs",
+		secrets: "secrets",
 	},
 	boot: {
 		steps: ["identity", "preload", "protocols", "muscles", "scripts", "git-context"],
@@ -318,6 +360,24 @@ export function loadSettings(chain: SomaDir[]): SomaSettings {
  */
 export function getDefaultSettings(): SomaSettings {
 	return structuredClone(DEFAULTS);
+}
+
+/**
+ * Resolve a configured path relative to the soma root.
+ * If settings is null/undefined, uses built-in defaults.
+ *
+ * @param somaPath - Absolute path to the .soma/ directory
+ * @param key - Path key from settings.paths
+ * @param settings - SomaSettings (optional — falls back to defaults)
+ * @returns Absolute path
+ */
+export function resolveSomaPath(
+	somaPath: string,
+	key: keyof SomaSettings["paths"],
+	settings?: SomaSettings | null
+): string {
+	const paths = settings?.paths ?? DEFAULTS.paths;
+	return join(somaPath, paths[key]);
 }
 
 // ---------------------------------------------------------------------------
