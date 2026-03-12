@@ -484,6 +484,7 @@ export function initSoma(cwd: string, options: InitOptions = {}): string {
 		join(somaDir, "memory", "ideas"),
 		join(somaDir, "memory", "logs"),
 		join(somaDir, "protocols"),
+		join(somaDir, "automations"),
 		join(somaDir, "scripts"),
 		join(somaDir, "skills"),
 		join(somaDir, "extensions"),
