@@ -2,7 +2,7 @@
 type: state
 method: atlas
 project: soma
-updated: 2026-03-10
+updated: 2026-03-12
 status: active
 rule: Update this file whenever architecture, memory structure, or extension behavior changes.
 ---
@@ -47,6 +47,9 @@ An AI coding agent with self-growing memory. Built on Pi (0.57.1) with custom `p
 │  │                      from soma chain              │
 │  ├── init.ts         — scaffold new .soma/           │
 │  ├── install.ts      — hub install + list (GitHub raw)│
+│  ├── prompt.ts       — compiled system prompt        │
+│  ├── content-cli.ts  — non-interactive hub commands  │
+│  ├── debug.ts        — debug logging to .soma/debug/ │
 │  ├── utils.ts        — safeRead, fmtDuration         │
 │  └── index.ts        — public API re-exports         │
 │                                                      │
@@ -167,7 +170,7 @@ Configured via `~/.gitconfig` `includeIf` rules. See `protocols/git-identity/`.
 - ✅ Context warnings: configurable thresholds (default 50/80/85%, via `settings.context`)
 - ✅ Preload staleness: configurable (default 48h, via `settings.preload.staleAfterHours`)
 - ✅ Script awareness: `.soma/scripts/` surfaced at boot with descriptions
-- ✅ /exhale (~~`/flush`~~), /inhale, /preload, /soma, /status, /auto-continue, /rest commands
+- ✅ /exhale, /inhale, /breathe, /rest, /soma (status/init/prompt/preload/debug), /auto-commit, /status, /keepalive, /auto-continue
 - ✅ /breathe — exhale + auto-rotate into fresh session with preload injection
 - ✅ /inhale — loads most recent preload into current conversation (not just status)
 - ✅ Auto-init — first run creates .soma/ without interactive prompt (Pi TUI timing workaround)
@@ -175,6 +178,10 @@ Configured via `~/.gitconfig` `includeIf` rules. See `protocols/git-identity/`.
 - ✅ FLUSH COMPLETE + BREATHE COMPLETE detection in flush watcher
 - ✅ Cache keepalive via statusline extension
 - ✅ Core modules importable from extensions via symlink chain
+- ✅ Compiled system prompt (Frontal Cortex) — full Pi prompt replacement with identity + protocols + muscles + tools
+- ✅ Identity in system prompt — persists across turns, rebuilt on session_switch
+- ✅ Auto-commit .soma/ on exhale/breathe (configurable via settings.checkpoints.soma.autoCommit)
+- ✅ /soma prompt diagnostic — sections, identity, heat, context %
 - ✅ CLI v0.3.0 published to npm (`meetsoma@0.3.0`)
 - ✅ /install — fetch protocols, muscles, skills, templates from hub (GitHub raw URLs as registry)
 - ✅ /list — show local or remote content
