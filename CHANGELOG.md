@@ -18,9 +18,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **`soma:recall` event signal** — extensions can listen for context pressure events (used by steno integration).
 - **`soma-compat.sh`** — compatibility checker. Detects protocol/muscle overlap, redundancy, directive conflicts. Scores 0–100.
 - **`soma-update-check.sh`** — compare local protocol/muscle versions against hub. `--update` to pull, `--json` for machine output.
+- **`/scratch` command** — quick notes to `.soma/scratchpad.md`. Agent doesn't see it unless `/scratch read`. Append-only by default, `/scratch clear` to reset.
+- **`guard.bashCommands` setting** — `"allow"` / `"warn"` / `"block"` for dangerous bash command prompts. Default `"warn"`. Set `"allow"` for power user mode (no confirmation prompts).
+- **Automations system** — `.soma/automations/` directory for step-by-step procedural flows. First automation: `dev-session` (orient → pre-flight → plan → implement → ship → doc-refresh → wrap-up).
 
 ### Fixed
 - **Auto-breathe race condition** — `sendUserMessage` from `before_agent_start` raced with Pi's prompt processing. Now deferred to `agent_end` via pending message queue.
+- **Auto-breathe phase 1 ignored by agent** — wrap-up trigger only added to system prompt + UI toast, which agents don't reliably act on. Now sends a followUp user message so the agent actually responds.
+- **Bash guard false positive on `>>`** — append redirects (`>>`) no longer trigger the dangerous redirect guard. Only single `>` to root paths triggers.
+- **CLI docs not syncing** — `sync-from-agent.sh` was missing `docs/` copy step. All 14 doc files now sync.
 - **New protocols missing breadcrumbs/TL;DRs** — correction-capture and detection-triggers now pass all protocol tests.
 - **Settings audit false positive** — `breathe` and `steno` recognized as valid top-level settings keys.
 
