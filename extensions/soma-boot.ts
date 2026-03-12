@@ -216,14 +216,14 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 
 			case "preload": {
-				if (isResumed) {
-					const staleHours = settings.preload.staleAfterHours;
-					const preload = findPreload(soma, staleHours);
-					if (preload) {
-						const staleTag = preload.stale ? " ⚠️ stale" : "";
-						parts.push(`\n---\n# Session Preload (${preload.name})${staleTag}\n${preload.content}`);
-					}
-				}
+				// Preloads are NOT auto-loaded on session continue/resume.
+				// Continuing a session already has its full history — injecting a
+				// preload would be redundant or stale (possibly from a different session).
+				//
+				// Preload injection paths:
+				//   /auto-continue — creates fresh session + injects preload
+				//   /inhale — manual injection into any session
+				//   /breathe — exhale then auto-continue
 				break;
 			}
 
