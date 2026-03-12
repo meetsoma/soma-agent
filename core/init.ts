@@ -603,7 +603,26 @@ function installGitHooks(projectDir: string, somaDir: string): void {
 	const gitDir = join(projectDir, ".git");
 	if (!existsSync(gitDir)) return;
 
-	const hooksDir = join(gitDir, "hooks");
+	// In git worktrees, .git is a file (not directory) pointing to the main repo.
+	// Resolve the actual git directory for hooks installation.
+	let actualGitDir = gitDir;
+	try {
+		const stat = statSync(gitDir);
+		if (!stat.isDirectory()) {
+			// Worktree: .git file contains "gitdir: /path/to/main/.git/worktrees/<name>"
+			const content = readFileSync(gitDir, "utf-8").trim();
+			const match = content.match(/^gitdir:\s*(.+)$/);
+			if (match) {
+				actualGitDir = match[1].startsWith("/") ? match[1] : join(projectDir, match[1]);
+			} else {
+				return; // Can't resolve, skip hooks
+			}
+		}
+	} catch {
+		return; // Can't stat, skip hooks
+	}
+
+	const hooksDir = join(actualGitDir, "hooks");
 	if (!existsSync(hooksDir)) {
 		mkdirSync(hooksDir, { recursive: true });
 	}
