@@ -91,7 +91,7 @@ export default function somaGuard(pi: ExtensionAPI) {
 	const DANGEROUS_BASH = [
 		/rm\s+-rf?\s+[^\s]/,
 		/rm\s+.*\.(ts|js|md|json|sh)\b/,
-		/>\s*\//, // redirect to root
+		/(?<![2&])>\s*\/(?!dev\/null|tmp\/)/, // redirect to root (excludes 2>/dev/null, &>/dev/null, >/tmp/)
 		/git\s+push\s+.*--force/,
 		/git\s+reset\s+--hard/,
 		/git\s+clean\s+-fd/,
