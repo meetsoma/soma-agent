@@ -4,8 +4,8 @@
  * Single source of truth for session lifecycle:
  *   - Discovery + identity + preload + protocols + muscles + scripts + git-context
  *   - Context warnings (50% → 70% → 80% → 85% auto-flush)
- *   - FLUSH COMPLETE detection + auto-continue
- *   - Preload watcher (tool_result)
+ *   - FLUSH COMPLETE detection + auto-rotation
+ *   - Preload watcher (tool_result) + auto-inject on fresh boot
  *   - /exhale, /breathe, /inhale, /pin, /kill, /soma, /preload, /auto-continue
  *   - Heat tracking (auto-detect + decay)
  *
@@ -18,10 +18,11 @@
  *
  * Protocol              │ Sections (search for ═══ PROTOCOL: <name>)
  * ──────────────────────┼─────────────────────────────────────────────
- * breath-cycle          │ session_start (preload), context warnings,
- *                       │   /exhale, /breathe, /rest, /auto-continue,
- *                       │   /inhale, /preload, FLUSH COMPLETE detection,
- *                       │   preload watcher, post-preload work detection
+ * breath-cycle          │ session_start (preload auto-inject),
+ *                       │   session_switch (re-discovery + preload),
+ *                       │   context warnings, /exhale, /breathe, /rest,
+ *                       │   /auto-continue, /inhale, /preload,
+ *                       │   FLUSH COMPLETE detection, preload watcher
  * heat-tracking         │ HEAT_RULES, tool_result auto-detect,
  *                       │   session_shutdown decay, /pin, /kill
  * session-checkpoints   │ session_start (git-context), /exhale step 1
@@ -133,83 +134,19 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let autoBreatheRotateSent = false;
 	let currentSessionId = "";
 
+	// Queued boot message for post-rotation delivery (set in session_switch, sent after newSession returns)
+	let pendingRotationBoot: string | null = null;
+
 	// ═══════════════════════════════════════════════════════════════════
-	// PROTOCOL: discovery — session boot (identity + preload + protocols + muscles + scripts + git)
-	// Also: breath-cycle (preload loading), session-checkpoints (git context)
+	// PROTOCOL: discovery — boot context builder (reusable)
+	// Builds protocol bodies, muscle bodies, script table, git-context.
+	// Called from session_start AND session_switch (after rotation).
 	// ═══════════════════════════════════════════════════════════════════
 
-	pi.on("session_start", async (_event, ctx) => {
-		// Capture session ID for preload metadata
-		try {
-			const sessionFile = ctx.sessionManager.getSessionFile?.() || "";
-			currentSessionId = sessionFile ? sessionFile.split("/").pop()?.replace(/\.[^.]+$/, "") || "" : "";
-		} catch { currentSessionId = ""; }
-
-		soma = findSomaDir();
-
-		if (!soma) {
-			// Auto-init: create .soma/ without prompting.
-			// ctx.ui.confirm() doesn't work during session_start because
-			// the TUI input handler isn't active yet (Pi framework timing).
-			const detection = detectProjectContext(process.cwd());
-			const somaPath = initSoma(process.cwd());
-			soma = findSomaDir();
-			ctx.ui.notify(`🌱 Soma planted at ${somaPath}`, "info");
-
-			// Build context-aware first-run message
-			const contextNotes: string[] = [];
-			if (detection.parent) {
-				contextNotes.push(`Parent workspace detected at \`${detection.parent.path}\` (${detection.parent.distance} level${detection.parent.distance > 1 ? "s" : ""} up).`);
-			}
-			if (detection.claudeMd) {
-				contextNotes.push(`CLAUDE.md found at \`${detection.claudeMd.path}\` (${detection.claudeMd.ageDays}d old). Review it as one input for understanding this project.`);
-			}
-			if (detection.agentsMd) {
-				contextNotes.push(`AGENTS.md found at \`${detection.agentsMd.path}\` (${detection.agentsMd.ageDays}d old).`);
-			}
-			if (detection.signals.length > 0) {
-				contextNotes.push(`Detected stack: ${detection.signals.join(", ")}.`);
-			}
-			if (detection.packageManager) {
-				contextNotes.push(`Package manager: ${detection.packageManager}.`);
-			}
-
-			const contextBlock = contextNotes.length > 0
-				? `\n**Context detected:**\n${contextNotes.map(n => `- ${n}`).join("\n")}\n`
-				: "";
-
-			// Skip follow-up in print/RPC mode — sendUserMessage races with the initial prompt
-			if (ctx.hasUI) {
-				pi.sendUserMessage(
-					`[Soma Boot — First Run]\n\n` +
-					`Created memory at \`${somaPath}\`.\n` +
-					contextBlock +
-					`\nA starter identity file is at \`${somaPath}/identity.md\` (pre-filled with detected context).\n` +
-					`Review it, examine the project structure, and rewrite it to reflect who you are in this context. ` +
-					`Keep it specific and under 30 lines.`,
-					{ deliverAs: "followUp" }
-				);
-			}
-		}
-
-		// Build boot context
+	/** Run discovery steps and return boot context parts for injection. */
+	function runBootDiscovery(chain: SomaDir[], opts?: { skipGitContext?: boolean }): string[] {
+		if (!soma || !settings) return [];
 		const parts: string[] = [];
-		const chain = getSomaChain();
-
-		settings = loadSettings(chain);
-
-		// Initialize debug logger (reads settings.debug + SOMA_DEBUG env)
-		debug = createDebugLogger(soma?.path ?? null, settings.debug);
-		if (debug.enabled) {
-			debug.boot(`session start — soma: ${soma?.path}, cwd: ${process.cwd()}`);
-			debug.boot(`settings loaded from chain: [${chain.map(c => c.path).join(", ")}]`);
-			debug.boot(`session id: ${currentSessionId}`);
-		}
-
-		const isResumed = ctx.sessionManager.getEntries().some(
-			(e: any) => e.type === "message"
-		);
-
 		const steps = settings.boot.steps;
 
 		for (const step of steps) {
@@ -219,19 +156,11 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			case "identity": {
 				builtIdentity = buildLayeredIdentity(chain, settings);
 				debug.boot(`identity built (${builtIdentity?.length ?? 0} chars)`);
-				// Identity now goes in compiled system prompt (Wave 2), not boot user message
 				break;
 			}
 
 			case "preload": {
-				// Preloads are NOT auto-loaded on session continue/resume.
-				// Continuing a session already has its full history — injecting a
-				// preload would be redundant or stale (possibly from a different session).
-				//
-				// Preload injection paths:
-				//   /auto-continue — creates fresh session + injects preload
-				//   /inhale — manual injection into any session
-				//   /breathe — exhale then auto-continue
+				// Preload injection is handled separately — see session_start and session_switch.
 				break;
 			}
 
@@ -253,8 +182,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 						}
 					}
 
-					// Breadcrumbs now in compiled system prompt (Wave 2).
-					// Boot message only gets hot protocol FULL BODIES.
 					const injection = buildProtocolInjection(protocols, protocolState, protoThresholds);
 					if (injection.hot.length > 0) {
 						const hotBlock = injection.hot.map(p => {
@@ -272,8 +199,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				knownMuscles = muscles;
 				knownMuscleNames = muscles.map(m => m.name);
 				if (muscles.length > 0) {
-					// Digests now in compiled system prompt (Wave 2).
-					// Boot message only gets hot muscle FULL BODIES.
 					const muscleInjection = buildMuscleInjection(muscles, settings.muscles);
 					if (muscleInjection.hot.length > 0) {
 						const hotBlock = muscleInjection.hot.map(m => {
@@ -289,7 +214,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 
 			case "scripts": {
-				// Collect script dirs — child first, then parent chain if inherit.tools
 				const scriptDirs: string[] = [resolveSomaPath(soma.path, "scripts", settings)];
 				if (settings.inherit.tools && chain.length > 1) {
 					for (let i = 1; i < chain.length; i++) {
@@ -297,7 +221,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					}
 				}
 
-				// Deduplicate by filename (child wins)
 				const seenScripts = new Set<string>();
 				const allScripts: { name: string; dir: string }[] = [];
 				for (const dir of scriptDirs) {
@@ -332,10 +255,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 
 			case "git-context": {
+				if (opts?.skipGitContext) break;
 				const gc = settings.boot.gitContext;
 				if (!gc.enabled) break;
 
-				// .soma internal diff (checkpoint protocol)
 				if (settings.checkpoints?.diffOnBoot) {
 					try {
 						const somaGit = join(soma.path, ".git");
@@ -421,6 +344,93 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 		}
 
+		return parts;
+	}
+
+	// ═══════════════════════════════════════════════════════════════════
+	// PROTOCOL: discovery — session boot (first process start)
+	// Also: breath-cycle (preload auto-injection), session-checkpoints (git context)
+	// ═══════════════════════════════════════════════════════════════════
+
+	pi.on("session_start", async (_event, ctx) => {
+		// Capture session ID for preload metadata
+		try {
+			const sessionFile = ctx.sessionManager.getSessionFile?.() || "";
+			currentSessionId = sessionFile ? sessionFile.split("/").pop()?.replace(/\.[^.]+$/, "") || "" : "";
+		} catch { currentSessionId = ""; }
+
+		soma = findSomaDir();
+
+		if (!soma) {
+			// Auto-init: create .soma/ without prompting.
+			const detection = detectProjectContext(process.cwd());
+			const somaPath = initSoma(process.cwd());
+			soma = findSomaDir();
+			ctx.ui.notify(`🌱 Soma planted at ${somaPath}`, "info");
+
+			const contextNotes: string[] = [];
+			if (detection.parent) {
+				contextNotes.push(`Parent workspace detected at \`${detection.parent.path}\` (${detection.parent.distance} level${detection.parent.distance > 1 ? "s" : ""} up).`);
+			}
+			if (detection.claudeMd) {
+				contextNotes.push(`CLAUDE.md found at \`${detection.claudeMd.path}\` (${detection.claudeMd.ageDays}d old). Review it as one input for understanding this project.`);
+			}
+			if (detection.agentsMd) {
+				contextNotes.push(`AGENTS.md found at \`${detection.agentsMd.path}\` (${detection.agentsMd.ageDays}d old).`);
+			}
+			if (detection.signals.length > 0) {
+				contextNotes.push(`Detected stack: ${detection.signals.join(", ")}.`);
+			}
+			if (detection.packageManager) {
+				contextNotes.push(`Package manager: ${detection.packageManager}.`);
+			}
+
+			const contextBlock = contextNotes.length > 0
+				? `\n**Context detected:**\n${contextNotes.map(n => `- ${n}`).join("\n")}\n`
+				: "";
+
+			if (ctx.hasUI) {
+				pi.sendUserMessage(
+					`[Soma Boot — First Run]\n\n` +
+					`Created memory at \`${somaPath}\`.\n` +
+					contextBlock +
+					`\nA starter identity file is at \`${somaPath}/identity.md\` (pre-filled with detected context).\n` +
+					`Review it, examine the project structure, and rewrite it to reflect who you are in this context. ` +
+					`Keep it specific and under 30 lines.`,
+					{ deliverAs: "followUp" }
+				);
+			}
+		}
+
+		// Initialize settings + debug
+		const chain = getSomaChain();
+		settings = loadSettings(chain);
+		debug = createDebugLogger(soma?.path ?? null, settings.debug);
+		if (debug.enabled) {
+			debug.boot(`session start — soma: ${soma?.path}, cwd: ${process.cwd()}`);
+			debug.boot(`settings loaded from chain: [${chain.map(c => c.path).join(", ")}]`);
+			debug.boot(`session id: ${currentSessionId}`);
+		}
+
+		const isResumed = ctx.sessionManager.getEntries().some(
+			(e: any) => e.type === "message"
+		);
+
+		// Run all boot discovery steps
+		const parts = runBootDiscovery(chain);
+
+		// Auto-inject preload on fresh boot (not resumed sessions — those have full history)
+		if (!isResumed && soma) {
+			const preload = findPreload(soma, settings.preload.staleAfterHours);
+			if (preload && !preload.stale) {
+				const staleTag = preload.stale ? " ⚠️stale" : "";
+				parts.unshift(
+					`\n---\n## Preload (from last session${staleTag})\n\n${preload.content}\n`
+				);
+				debug.boot(`preload auto-injected: ${preload.name} (${Math.floor(preload.ageHours)}h old)`);
+			}
+		}
+
 		if (parts.length > 0) {
 			booted = true;
 			pi.appendEntry("soma-boot", { timestamp: Date.now(), resumed: isResumed });
@@ -429,7 +439,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				? `You've resumed a Soma session. Your preload and hot protocols are above. Identity and behavioral rules are in your system prompt. If the preload has an "Orient From" section, read those files before doing anything else. Then greet the user briefly and await instructions.`
 				: `You've booted into a fresh Soma session. Identity and behavioral rules are in your system prompt. Hot protocols are above if any. Greet the user briefly and await instructions.`;
 
-			// Skip follow-up in print/RPC mode — sendUserMessage races with the initial prompt
 			if (ctx.hasUI) {
 				pi.sendUserMessage(
 					`[Soma Boot${isResumed ? " — resumed" : ""}]\n\n${parts.join("\n")}\n\n${greetStyle}`,
@@ -738,7 +747,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (breathePending && !flushCompleteDetected) {
 			if (preloadWrittenThisSession) {
 				ctx.ui.notify(
-					"⚠️ Preload written but rotation didn't complete. Use /auto-continue to resume.",
+					"⚠️ Preload written but rotation didn't complete. Say BREATHE COMPLETE to rotate, or /breathe to retry.",
 					"warning"
 				);
 			} else {
@@ -748,9 +757,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				);
 			}
 		} else if (flushCompleteDetected && preloadWrittenThisSession && !breathePending) {
-			// Flush complete but no breathe — manual exhale flow
+			// Flush complete but no breathe — manual exhale flow. Preload auto-loads on next boot.
 			ctx.ui.notify(
-				"🟢 Preload saved. Use /auto-continue to resume in a fresh session.",
+				"🟢 Preload saved. Next session will auto-load it, or use /inhale to load now.",
 				"info"
 			);
 		}
@@ -782,16 +791,26 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const rotateCtx = ctx;
 			setTimeout(async () => {
 				try {
+					pendingRotationBoot = null; // reset before newSession
 					const result = await rotateCtx.newSession({});
 					if (!result.cancelled) {
-						const preload = findPreload(soma!);
-						if (preload) {
-							pi.sendUserMessage(preload.content, { deliverAs: "followUp" });
-							rotateCtx.ui.notify("✅ Auto-continued — preload injected", "info");
+						// session_switch handler queued a boot message with preload included.
+						// Send it now that newSession() has returned and agent is idle.
+						if (pendingRotationBoot) {
+							pi.sendUserMessage(pendingRotationBoot, { deliverAs: "followUp" });
+							pendingRotationBoot = null;
+							rotateCtx.ui.notify("✅ Rotated — boot context + preload injected", "info");
+						} else {
+							// Fallback: no boot message queued — inject preload directly
+							const preload = findPreload(soma!);
+							if (preload) {
+								pi.sendUserMessage(preload.content, { deliverAs: "followUp" });
+								rotateCtx.ui.notify("✅ Rotated — preload injected", "info");
+							}
 						}
 					}
 				} catch (err: any) {
-					rotateCtx.ui.notify(`❌ Auto-continue failed: ${err.message}`, "error");
+					rotateCtx.ui.notify(`❌ Rotation failed: ${err.message}`, "error");
 				}
 			}, 1500);
 			return;
@@ -824,6 +843,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 	pi.on("session_switch", async (event, ctx) => {
 		if (event.reason === "new") {
+			// Reset all session state
 			lastContextWarningPct = 0;
 			wrapUpSent = false;
 			autoFlushSent = false;
@@ -840,26 +860,32 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			frontalCortexCompiled = false;
 			compiledSystemPrompt = null;
 
-			// Rebuild identity for the new session (boot steps don't re-run on session_switch)
+			// Re-run full boot discovery (protocols, muscles, scripts — NOT git-context to save tokens)
+			// Also inject preload inline so everything arrives in ONE message.
 			if (soma) {
 				const chain = getSomaChain();
-				const freshSettings = loadSettings(chain);
-				if (freshSettings) {
-					settings = freshSettings;
-					builtIdentity = buildLayeredIdentity(chain, settings);
-				}
-			} else {
-				builtIdentity = null;
-			}
+				settings = loadSettings(chain);
+				const parts = runBootDiscovery(chain, { skipGitContext: true });
 
-			// If preload exists, notify (user can /auto-continue)
-			if (soma) {
-				const preload = findPreload(soma);
+				// Inject preload into the boot message (not separately — avoids race with newSession)
+				const preload = findPreload(soma, settings.preload?.staleAfterHours);
 				if (preload && !preload.stale) {
-					ctx.ui.notify(
-						`📋 Preload available (${Math.floor(preload.ageHours)}h ago). Use /auto-continue to load.`,
-						"info"
+					parts.unshift(
+						`\n---\n## Preload (from last session)\n\n${preload.content}\n`
 					);
+				}
+
+				// Queue boot message for delivery AFTER newSession() completes.
+				// We can't call sendUserMessage here — we're inside newSession()'s
+				// session_switch emit, and prompt() during newSession() causes issues.
+				// Instead, queue it and let the turn_end handler (or next prompt cycle) pick it up.
+				if (parts.length > 0 && ctx.hasUI) {
+					pendingRotationBoot = 
+						`[Soma Boot — rotated session]\n\n${parts.join("\n")}\n\n` +
+						`You've rotated into a fresh session. Identity and behavioral rules are in your system prompt. ` +
+						`Hot protocols and muscles are above. ` +
+						(preload ? `Your preload from the previous session is included above — read it, orient from its targets, then greet the user briefly and await instructions.` :
+						`Greet the user briefly and await instructions.`);
 				}
 			}
 		}
@@ -1348,36 +1374,37 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	// /auto-continue — manual trigger for new session + preload injection
+	// /auto-continue — manual trigger for new session + preload + boot context
+	// (same as what /breathe's rotation does, but manually triggered)
 	pi.registerCommand("auto-continue", {
-		description: "Create new session and inject preload as continuation",
+		description: "Rotate to fresh session with preload + full boot context",
 		handler: async (_args, ctx) => {
 			if (!soma) { ctx.ui.notify("No .soma/ found", "error"); return; }
 
 			const preload = findPreload(soma);
 			if (!preload) {
-				ctx.ui.notify("⚠️ No preload found — nothing to continue from", "warning");
+				ctx.ui.notify("⚠️ No preload found — nothing to continue from. Use /inhale after writing one.", "warning");
 				return;
 			}
 
-			// Reset state
-			flushCompleteDetected = false;
-			preloadWrittenThisSession = false;
-			lastContextWarningPct = 0;
-			wrapUpSent = false;
-			autoFlushSent = false;
-			autoBreatheTriggerSent = false;
-			autoBreatheRotateSent = false;
-
-			ctx.ui.notify("🔄 Creating new session with preload...", "info");
+			ctx.ui.notify("🔄 Rotating to fresh session...", "info");
 			try {
+				pendingRotationBoot = null;
 				const result = await ctx.newSession({});
 				if (!result.cancelled) {
-					pi.sendUserMessage(preload.content, { deliverAs: "followUp" });
-					ctx.ui.notify("✅ Auto-continued — preload injected", "info");
+					// session_switch handler queued boot context + preload
+					if (pendingRotationBoot) {
+						pi.sendUserMessage(pendingRotationBoot, { deliverAs: "followUp" });
+						pendingRotationBoot = null;
+						ctx.ui.notify("✅ Rotated — boot context + preload injected", "info");
+					} else {
+						// Fallback
+						pi.sendUserMessage(preload.content, { deliverAs: "followUp" });
+						ctx.ui.notify("✅ Rotated — preload injected", "info");
+					}
 				}
 			} catch (err: any) {
-				ctx.ui.notify(`⚠️ Auto-continue failed: ${err?.message?.slice(0, 100)}`, "error");
+				ctx.ui.notify(`⚠️ Rotation failed: ${err?.message?.slice(0, 100)}`, "error");
 			}
 		},
 	});
