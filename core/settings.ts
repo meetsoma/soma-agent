@@ -76,6 +76,20 @@ export interface SomaSettings {
 		digestThreshold: number;
 	};
 
+	/** Automation loading settings */
+	automations: {
+		/** Max estimated tokens for all automation content (default: 1500) */
+		tokenBudget: number;
+		/** Max automations to load with full body (default: 1) */
+		maxFull: number;
+		/** Max automations to load with digest (default: 3) */
+		maxDigest: number;
+		/** Heat threshold for full loading (default: 5) */
+		fullThreshold: number;
+		/** Heat threshold for digest loading (default: 1) */
+		digestThreshold: number;
+	};
+
 	/** Heat tracking settings */
 	heat: {
 		/** Auto-detect protocol usage from tool results (default: true) */
@@ -272,6 +286,13 @@ const DEFAULTS: SomaSettings = {
 		fullThreshold: 5,
 		digestThreshold: 1,
 	},
+	automations: {
+		tokenBudget: 1500,
+		maxFull: 1,
+		maxDigest: 3,
+		fullThreshold: 5,
+		digestThreshold: 1,
+	},
 	heat: {
 		autoDetect: true,
 		autoDetectBump: 1,
@@ -296,7 +317,7 @@ const DEFAULTS: SomaSettings = {
 		secrets: "secrets",
 	},
 	boot: {
-		steps: ["identity", "preload", "protocols", "muscles", "scripts", "git-context"],
+		steps: ["identity", "preload", "protocols", "muscles", "automations", "scripts", "git-context"],
 		gitContext: {
 			enabled: true,
 			since: "24h",

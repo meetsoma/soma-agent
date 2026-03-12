@@ -103,7 +103,16 @@ export {
 } from "./prompt.js";
 export type { CompiledPrompt, CompileOptions, FullCompileOptions, ExtractedSections } from "./prompt.js";
 
-export { safeRead, fmtDuration } from "./utils.js";
+export {
+	discoverAutomations,
+	discoverAutomationChain,
+	buildAutomationInjection,
+	bumpAutomationHeat,
+	decayAutomationHeat,
+} from "./automations.js";
+export type { Automation, AutomationInjection, AutomationLoadConfig } from "./automations.js";
+
+export { safeRead, fmtDuration, extractFrontmatter, extractDigest, parseArrayField, estimateTokens, stripFrontmatter } from "./utils.js";
 
 export { handleContentCommand } from "./content-cli.js";
 

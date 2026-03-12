@@ -20,16 +20,21 @@ function isValidType(t: string): t is ContentType {
 function printUsage(): void {
 	console.log(`
 Usage:
+  soma install <type> <name> [--force]
+  soma list [--remote] [--local] [--type <type>]
+  soma init --template <name> [--force]
+
+  # Also available as:
   soma content install <type> <name> [--force]
   soma content list [--remote] [--local] [--type <type>]
 
 Types: protocol, muscle, skill, template, automation
 
 Examples:
-  soma content install protocol breath-cycle
-  soma content install template architect --force
-  soma content list --remote
-  soma content list --local --type protocol
+  soma install protocol breath-cycle
+  soma install template architect --force
+  soma list --remote
+  soma list --local --type protocol
   soma init --template devops
 `);
 }
@@ -50,6 +55,15 @@ export async function handleContentCommand(args: string[]): Promise<boolean> {
 		return await handleInitTemplate(templateName, args.includes("--force"));
 	}
 
+	// Direct commands: soma install ..., soma list ...
+	if (args[0] === "install") {
+		return await handleInstall(args.slice(1));
+	}
+	if (args[0] === "list") {
+		return await handleList(args.slice(1));
+	}
+
+	// Namespaced: soma content install ..., soma content list ...
 	if (args[0] !== "content") return false;
 
 	const subCommand = args[1];

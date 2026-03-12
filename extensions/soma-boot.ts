@@ -71,9 +71,14 @@ import {
 	type SomaDir,
 	type SomaSettings,
 	type ProtocolState,
+	discoverAutomationChain,
+	buildAutomationInjection,
+	bumpAutomationHeat,
+	decayAutomationHeat,
 	type ContentType,
 	type Protocol,
 	type Muscle,
+	type Automation,
 } from "../core/index.js";
 
 // ---------------------------------------------------------------------------
@@ -113,6 +118,8 @@ const somaAgentDir = resolve(__dirname, "..");
 
 export default function somaBootExtension(pi: ExtensionAPI) {
 
+	// REFACTOR: #1 — 30+ state vars should be grouped into typed objects (SessionState, BreatheState, etc.)
+	// See .soma/plans/soma-boot-refactor.md for details.
 	let soma: SomaDir | null = null;
 	let settings: SomaSettings | null = null;
 	let debug: DebugLogger = createDebugLogger(null); // no-op until boot
@@ -124,6 +131,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let knownProtocolNames: string[] = [];
 	let knownMuscles: Muscle[] = [];
 	let knownMuscleNames: string[] = [];
+	let knownAutomations: Automation[] = [];
+	let knownAutomationNames: string[] = [];
+	let automationsReferenced = new Set<string>();
 	let booted = false;
 	let frontalCortexCompiled = false;
 	let compiledSystemPrompt: string | null = null;
@@ -226,6 +236,41 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					}
 					const loaded = [...muscleInjection.hot, ...muscleInjection.warm];
 					if (loaded.length > 0) trackMuscleLoads(loaded);
+				}
+				break;
+			}
+
+			// REFACTOR: #7 — muscles and automations discovery have identical load/format patterns.
+			// Extract shared formatHotBlock() and formatColdList() helpers.
+			case "automations": {
+				const automations = discoverAutomationChain(chain, settings);
+				knownAutomations = automations;
+				knownAutomationNames = automations.map(a => a.name);
+				if (automations.length > 0) {
+					const automationInjection = buildAutomationInjection(automations, settings.automations);
+					if (automationInjection.hot.length > 0) {
+						const hotBlock = automationInjection.hot.map(a => {
+							const body = a.content.replace(/^---\n[\s\S]*?\n---\n*/, "").trim();
+							return `### Automation: ${a.name}\n${body}`;
+						}).join("\n\n");
+						parts.push(`\n---\n## Hot Automations (full reference)\n\n${hotBlock}`);
+					}
+					if (automationInjection.warm.length > 0) {
+						const warmBlock = automationInjection.warm.map(a => {
+							const desc = a.description ? ` — ${a.description}` : "";
+							return a.digest
+								? `- **${a.name}**${desc}\n  ${a.digest}`
+								: `- **${a.name}**${desc}`;
+						}).join("\n");
+						parts.push(`\n**Available automations (digest):** ${warmBlock}`);
+					}
+					if (automationInjection.cold.length > 0) {
+						const coldList = automationInjection.cold.map(a => {
+							const desc = a.description ? ` (${a.description})` : "";
+							return `${a.name}${desc}`;
+						}).join("; ");
+						parts.push(`\n**Available automations (not loaded):** ${coldList}`);
+					}
 				}
 				break;
 			}
@@ -470,6 +515,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	// 50%: UI notify | 70%: UI notify | 80%: system prompt warn | 85%: auto-flush
 	// ═══════════════════════════════════════════════════════════════════
 
+	// REFACTOR: #2 — this handler does prompt compilation + context warnings + auto-breathe.
+	// 200+ lines. Extract: compileSessionPrompt(), evaluateContextPressure(), handleAutoBreathe().
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (!soma || !booted) return;
 
@@ -542,6 +589,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const decay = settings?.protocols.decayRate ?? 1;
 			if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma!, protocolState); }
 			decayMuscleHeat(soma!, musclesReferenced, decay);
+			decayAutomationHeat(soma!, automationsReferenced, decay);
 			const commitResult = autoCommitSomaState(label);
 			if (commitResult) ctx.ui.notify(`✅ ${commitResult}`, "info");
 			breathePending = true;
@@ -872,8 +920,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			autoBreatheRotateSent = false;
 			toolCallsAfterPreload = 0;
 			pendingFollowUps = [];
+			// REFACTOR: #1 — these 15+ resets should be `sessionState = createFreshState()`
 			protocolsReferenced = new Set();
 			musclesReferenced = new Set();
+			automationsReferenced = new Set();
 			frontalCortexCompiled = false;
 			compiledSystemPrompt = null;
 
@@ -916,6 +966,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			saveProtocolState(soma, protocolState);
 		}
 		decayMuscleHeat(soma, musclesReferenced, decay);
+		// REFACTOR: #8 — this 3-line heat decay pattern is called in 4+ places. Extract saveHeatState().
+		decayAutomationHeat(soma, automationsReferenced, decay);
 	});
 
 	// ═══════════════════════════════════════════════════════════════════
@@ -1018,18 +1070,23 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				musclesReferenced.add(name);
 				invalidateCompiledPrompt();
 				ctx.ui.notify(`📌 ${name} pinned (heat bumped to hot) — prompt will recompile`, "info");
+			} else if (knownAutomationNames.includes(name)) {
+				bumpAutomationHeat(soma, name, settings?.heat.pinBump ?? 5);
+				automationsReferenced.add(name);
+				invalidateCompiledPrompt();
+				ctx.ui.notify(`📌 ${name} automation pinned (heat bumped to hot) — prompt will recompile`, "info");
 			} else {
-				ctx.ui.notify(`Unknown protocol or muscle: ${name}`, "error");
+				ctx.ui.notify(`Unknown protocol, muscle, or automation: ${name}`, "error");
 			}
 		},
 	});
 
 	// /kill — drop heat to zero
 	pi.registerCommand("kill", {
-		description: "Kill a protocol or muscle — drops heat to zero",
+		description: "Kill a protocol, muscle, or automation — drops heat to zero",
 		handler: async (args, ctx) => {
 			const name = args.trim();
-			if (!name) { ctx.ui.notify("Usage: /kill <protocol-or-muscle-name>", "info"); return; }
+			if (!name) { ctx.ui.notify("Usage: /kill <name>", "info"); return; }
 			if (!soma || !protocolState) { ctx.ui.notify("No soma booted", "error"); return; }
 
 			if (knownProtocolNames.includes(name)) {
@@ -1041,13 +1098,19 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				bumpMuscleHeat(soma, name, -15);
 				invalidateCompiledPrompt();
 				ctx.ui.notify(`💀 ${name} killed (heat → 0) — prompt will recompile`, "info");
+			} else if (knownAutomationNames.includes(name)) {
+				bumpAutomationHeat(soma, name, -15);
+				invalidateCompiledPrompt();
+				ctx.ui.notify(`💀 ${name} automation killed (heat → 0) — prompt will recompile`, "info");
 			} else {
-				ctx.ui.notify(`Unknown protocol or muscle: ${name}`, "error");
+				ctx.ui.notify(`Unknown protocol, muscle, or automation: ${name}`, "error");
 			}
 		},
 	});
 
 	// --- session toggles: /auto-commit ---
+	// REFACTOR: #4 — /auto-commit and /auto-breathe are structurally identical.
+	// Extract registerToggleCommand(pi, { name, settingsPath, onLabel, offLabel }).
 
 	pi.registerCommand("auto-commit", {
 		description: "Toggle auto-commit of .soma/ state on exhale/breathe",
@@ -1269,6 +1332,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const decay = settings?.protocols.decayRate ?? 1;
 		if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma, protocolState); }
 		decayMuscleHeat(soma, musclesReferenced, decay);
+		decayAutomationHeat(soma, automationsReferenced, decay);
 
 		// Auto-commit .soma/ internal state (heat, protocol-state, etc.)
 		const commitResult = autoCommitSomaState("exhale");
@@ -1320,9 +1384,11 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const logPath = join(resolveSomaPath(soma.path, "sessions", settings), `${today}.md`);
 
 			// Save heat state to disk
+			// REFACTOR: #8 — this 4-line block is copy-pasted 4 times. Extract saveAllHeatState().
 			const decay = settings?.protocols.decayRate ?? 1;
 			if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma, protocolState); }
 			decayMuscleHeat(soma, musclesReferenced, decay);
+			decayAutomationHeat(soma, automationsReferenced, decay);
 
 			// Auto-commit .soma/ internal state
 			const commitResult = autoCommitSomaState("breathe");
@@ -1446,6 +1512,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	});
 
 	// --- discovery: /soma ---
+	// REFACTOR: #6 — /soma is 200 lines with 6 subcommands. Consider a dispatch table.
 
 	// /soma — status and management
 	pi.registerCommand("soma", {
