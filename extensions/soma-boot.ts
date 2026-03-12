@@ -32,7 +32,7 @@
  */
 
 import { join, dirname, resolve } from "path";
-import { existsSync, readdirSync } from "fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
@@ -823,6 +823,57 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			} else {
 				ctx.ui.notify(`Unknown protocol or muscle: ${name}`, "error");
 			}
+		},
+	});
+
+	// --- session toggles: /auto-commit ---
+
+	pi.registerCommand("auto-commit", {
+		description: "Toggle auto-commit of .soma/ state on exhale/breathe",
+		getArgumentCompletions: (prefix) =>
+			["on", "off", "status"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
+		handler: async (args, ctx) => {
+			if (!soma || !settings) { ctx.ui.notify("No soma booted", "error"); return; }
+
+			const arg = args.trim().toLowerCase();
+
+			if (arg === "status" || !arg) {
+				const current = settings.checkpoints?.soma?.autoCommit ?? true;
+				const projectAuto = settings.checkpoints?.project?.autoCheckpoint ?? false;
+				ctx.ui.notify(
+					`Auto-commit status:\n` +
+					`  .soma/ state: ${current ? "✅ on" : "❌ off"}\n` +
+					`  project code: ${projectAuto ? "✅ on" : "❌ off"}\n\n` +
+					`Toggle: /auto-commit on | /auto-commit off\n` +
+					`Persists in settings.json via checkpoints.soma.autoCommit`,
+					"info"
+				);
+				return;
+			}
+
+			if (arg === "on" || arg === "off") {
+				const value = arg === "on";
+				// Update in-memory settings
+				if (!settings.checkpoints) (settings as any).checkpoints = {};
+				if (!settings.checkpoints.soma) (settings as any).checkpoints.soma = {};
+				settings.checkpoints.soma.autoCommit = value;
+
+				// Persist to settings.json
+				try {
+					const settingsPath = join(soma.path, "settings.json");
+					const raw = existsSync(settingsPath) ? JSON.parse(readFileSync(settingsPath, "utf-8")) : {};
+					if (!raw.checkpoints) raw.checkpoints = {};
+					if (!raw.checkpoints.soma) raw.checkpoints.soma = {};
+					raw.checkpoints.soma.autoCommit = value;
+					writeFileSync(settingsPath, JSON.stringify(raw, null, 2) + "\n");
+					ctx.ui.notify(`${value ? "✅" : "❌"} Auto-commit .soma/ state: ${arg}`, "info");
+				} catch (err: any) {
+					ctx.ui.notify(`⚠️ Updated in-memory but failed to persist: ${err?.message?.slice(0, 80)}`, "warning");
+				}
+				return;
+			}
+
+			ctx.ui.notify("Usage: /auto-commit on | off | status", "info");
 		},
 	});
 
