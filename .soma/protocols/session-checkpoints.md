@@ -9,6 +9,7 @@ author: Curtis Mercier
 license: CC BY 4.0
 version: 1.1.0
 tier: core
+scope: bundled
 tags: [session, git, workflow, continuity]
 spec-ref: curtismercier/protocols/amp (v0.2, §8)
 created: 2026-03-10

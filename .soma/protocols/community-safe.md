@@ -9,6 +9,7 @@ author: Curtis Mercier
 license: CC BY 4.0
 version: 1.1.0
 tier: core
+scope: hub
 tags: [safety, privacy, sharing]
 created: 2026-03-09
 updated: 2026-03-10
