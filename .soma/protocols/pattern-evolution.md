@@ -4,45 +4,47 @@ name: pattern-evolution
 status: active
 heat-default: warm
 applies-to: [always]
-breadcrumb: "Patterns mature: observation → muscle → muscle memory → protocol/skill/ritual. Muscles grow from gaps noticed during work. Repetition builds heat fast. Mature patterns crystallize into the system."
+breadcrumb: "Patterns mature through AMPS layers: Skills → Muscles → Protocols → Automations. Muscles grow from gaps noticed during work. Repetition builds heat fast. Mature patterns crystallize into the system."
 author: Curtis Mercier
 license: CC BY 4.0
-version: 1.1.0
+version: 1.2.0
 tier: core
 tags: [learning, patterns, growth]
 spec-ref: curtismercier/protocols/amp (v0.2, §3.2)
 created: 2026-03-09
-updated: 2026-03-10
+updated: 2026-03-12
 ---
 
 # Pattern Evolution Protocol
 
 ## TL;DR
-- Patterns climb: **observation** → **muscle** (seen 2+ times) → **muscle memory** (automatic) → **protocol/skill/ritual** (crystallized)
+- Patterns evolve through **AMPS layers**: **Skills** (knowledge) → **Muscles** (learned patterns) → **Protocols** (behavioral rules) → **Automations** (executable)
 - Muscles are born from **gaps** — moments where you notice missing patterns, repeated friction, workflow holes
 - **Burst heat**: 3+ uses in one session → +3 bonus heat (intense repetition accelerates learning)
 - Not every pattern climbs the full ladder. Some stay muscles forever. That's fine.
 
-## The Hierarchy
+## The AMPS Layers
 
 ```
 observation (noticed gap, repeated action)
-  ↓ seen 2+ times → write it down
-muscle (learned pattern, markdown file)
-  ↓ loaded repeatedly, applied automatically
-muscle memory (subconscious — agent applies without thinking)
-  ↓ crystallizes based on nature
-protocol | skill | ritual | script
+  ↓ write it down as reusable knowledge
+skill (plug-and-play expertise — works across frameworks)
+  ↓ applied repeatedly, patterns emerge
+muscle (learned pattern — refines through use, tracked by heat)
+  ↓ becomes mandatory, skipping causes failures
+protocol (behavioral rule — crystallized, enforced)
+  ↓ becomes executable, runs without thinking
+automation (executable workflow — hooks, rituals, enforcement)
 ```
 
-| Destination | When | Nature |
-|-------------|------|--------|
+| Layer | When | Nature |
+|-------|------|--------|
+| **Skill** | Domain knowledge — teaches, doesn't enforce. Works across any agent. | On-demand. |
+| **Muscle** | Repeated pattern — refines through use, builds heat. | Learned. |
 | **Protocol** | Pattern becomes a behavioral *rule*. Skipping it causes mistakes. | Mandatory. |
-| **Skill** | Pattern is domain knowledge. Teaches, doesn't enforce. | On-demand. |
-| **Ritual** | Pattern is a multi-step workflow. Sequences actions. | Triggered. |
-| **Script** | Pattern is automated — protocol becomes executable enforcement. | Automatic. |
+| **Automation** | Protocol becomes executable — enforces without thinking. | Automatic. |
 
-Scripts are the final crystallization. The protocol explains *why*; the script enforces *how*. An agent with the script but without the protocol can't reason about edge cases.
+Automations are the final crystallization. The protocol explains *why*; the automation enforces *how*. An agent with the automation but without the protocol can't reason about edge cases.
 
 ## How Muscles Are Born
 
@@ -52,7 +54,7 @@ Muscles come from **gaps** — not from planning sessions.
 |--------|---------|
 | Agent notices own friction | "I keep checking test counts manually" |
 | Agent notices user friction | "User keeps asking me to open URLs" |
-| Post-incident | "We deleted working scripts with no cleanup protocol" |
+| Post-incident | "We deleted working automations with no cleanup protocol" |
 | Cross-session repetition | "Third session in a row doing this sequence" |
 | Failed assumption | "API works differently than I assumed" |
 
@@ -70,10 +72,10 @@ Standard: +1 applied in action, +2 explicitly referenced.
 
 | From → To | Signal |
 |-----------|--------|
+| Skill → Muscle | You keep applying this knowledge — it's becoming a pattern. |
 | Muscle → Protocol | Skipping it causes failures. It's not optional. |
-| Muscle → Skill | It's domain knowledge, loads on demand, not a rule. |
-| Muscle → Ritual | It's a repeatable multi-step workflow triggered by command. |
-| Muscle stays muscle | Useful pattern but doesn't rise to rule/expertise/workflow. |
+| Protocol → Automation | The rule is clear enough to enforce without thinking. |
+| Muscle stays muscle | Useful pattern but doesn't rise to rule/workflow. |
 
 ## What Doesn't Evolve
 
