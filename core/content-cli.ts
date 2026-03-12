@@ -20,22 +20,23 @@ function isValidType(t: string): t is ContentType {
 function printUsage(): void {
 	console.log(`
 Usage:
+  soma init [--orphan|-o] [--template <name>] [--force]
   soma install <type> <name> [--force]
   soma list [--remote] [--local] [--type <type>]
-  soma init --template <name> [--force]
-
-  # Also available as:
-  soma content install <type> <name> [--force]
-  soma content list [--remote] [--local] [--type <type>]
 
 Types: protocol, muscle, skill, template, automation
 
+Flags:
+  --orphan, -o    Initialize without inheriting from parent .soma/
+  --force         Overwrite existing content on install
+  --template      Apply a template during init
+
 Examples:
-  soma install protocol breath-cycle
-  soma install template architect --force
-  soma list --remote
-  soma list --local --type protocol
-  soma init --template devops
+  soma init                              # initialize with parent inheritance
+  soma init --orphan                     # standalone, no parent inheritance
+  soma init -o --template architect      # orphan + template
+  soma install protocol breath-cycle     # install from hub
+  soma list --remote                     # browse available content
 `);
 }
 
@@ -44,15 +45,23 @@ Examples:
  * Returns true if the command was handled (caller should exit).
  */
 export async function handleContentCommand(args: string[]): Promise<boolean> {
-	// soma init --template <name>
-	if (args[0] === "init" && args.includes("--template")) {
-		const idx = args.indexOf("--template");
-		const templateName = args[idx + 1];
-		if (!templateName) {
-			console.error("Error: --template requires a name");
-			return true;
+	// soma init [--template <name>] [--orphan|-o] [--force]
+	if (args[0] === "init") {
+		const orphan = args.includes("--orphan") || args.includes("-o");
+		const force = args.includes("--force");
+
+		if (args.includes("--template")) {
+			const idx = args.indexOf("--template");
+			const templateName = args[idx + 1];
+			if (!templateName) {
+				console.error("Error: --template requires a name");
+				return true;
+			}
+			return await handleInitTemplate(templateName, force, orphan);
 		}
-		return await handleInitTemplate(templateName, args.includes("--force"));
+
+		// Plain init: soma init [--orphan]
+		return handleInit(orphan);
 	}
 
 	// Direct commands: soma install ..., soma list ...
@@ -106,9 +115,10 @@ async function handleInstall(args: string[]): Promise<boolean> {
 	if (!soma) {
 		// Auto-init .soma/ if not found
 		console.log("No .soma/ found — initializing...");
-		const initResult = initSoma(cwd);
-		if (!initResult.success) {
-			console.error(`Failed to initialize .soma/: ${initResult.error}`);
+		try {
+			initSoma(cwd);
+		} catch (err: any) {
+			console.error(`Failed to initialize .soma/: ${err.message}`);
 			return true;
 		}
 		soma = findSomaDir(cwd);
@@ -206,14 +216,38 @@ async function handleList(args: string[]): Promise<boolean> {
 	return true;
 }
 
-async function handleInitTemplate(name: string, force: boolean): Promise<boolean> {
+function handleInit(orphan: boolean): boolean {
+	const cwd = process.cwd();
+	const existing = findSomaDir(cwd);
+	if (existing) {
+		console.log(`Soma already initialized at ${existing.path}`);
+		return true;
+	}
+
+	try {
+		const somaPath = initSoma(cwd, {
+			inheritFromParent: !orphan,
+		});
+		console.log(`🌱 Soma planted at ${somaPath}`);
+		if (orphan) {
+			console.log(`   (orphan mode — no parent inheritance)`);
+		}
+		console.log(`\nRun \`soma\` to start your agent session.`);
+	} catch (err: any) {
+		console.error(`Failed to initialize: ${err.message}`);
+	}
+	return true;
+}
+
+async function handleInitTemplate(name: string, force: boolean, orphan: boolean = false): Promise<boolean> {
 	const cwd = process.cwd();
 
 	// Init .soma/ first
-	console.log(`Initializing Soma with template: ${name}...`);
-	const initResult = initSoma(cwd);
-	if (!initResult.success) {
-		console.error(`Failed to initialize .soma/: ${initResult.error}`);
+	console.log(`Initializing Soma with template: ${name}${orphan ? " (orphan)" : ""}...`);
+	try {
+		initSoma(cwd, { inheritFromParent: !orphan });
+	} catch (err: any) {
+		console.error(`Failed to initialize .soma/: ${err.message}`);
 		return true;
 	}
 
