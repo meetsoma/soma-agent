@@ -32,7 +32,7 @@ if [ ${#SETTINGS_FILES[@]} -eq 0 ]; then
 fi
 
 # Known top-level keys (must match SomaSettings interface in core/settings.ts)
-KNOWN_KEYS="\$schema root inherit persona memory protocols muscles heat boot context preload guard debug paths systemPrompt checkpoints"
+KNOWN_KEYS="\$schema root inherit persona memory protocols muscles heat boot context preload guard debug paths systemPrompt checkpoints breathe steno"
 
 for sf in "${SETTINGS_FILES[@]}"; do
   short=$(echo "$sf" | sed "s|$HOME|~|")

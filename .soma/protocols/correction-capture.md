@@ -10,9 +10,14 @@ tags: [learning, self-improvement, memory, corrections]
 tier: core
 scope: bundled
 appliesTo: [always]
+breadcrumb: "When corrected, acknowledge without justifying, log old→new pattern, write a muscle if repeated. Third correction on same thing → escalate to protocol or identity."
 ---
 
 # Correction Capture
+
+## TL;DR
+
+When corrected: acknowledge, don't justify. Log `old_pattern → new_pattern`. First time: adjust this session. Second time: write a muscle. Third time: escalate to protocol or identity.md. Never defend old behavior or over-apologize.
 
 When the user corrects you, capture the learning immediately. Don't let it evaporate into conversation.
 

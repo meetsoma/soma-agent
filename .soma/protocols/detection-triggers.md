@@ -10,9 +10,14 @@ tags: [learning, self-improvement, memory, awareness]
 tier: core
 scope: bundled
 appliesTo: [always]
+breadcrumb: "Recognize capture moments: corrections/preferences/repeated patterns → muscle. Knowledge gaps/errors → session log. One-time instructions and transient state are NOT worth capturing. Bubble-up: log → muscle → protocol → core."
 ---
 
 # Detection Triggers
+
+## TL;DR
+
+Capture learnings when you see: corrections ("no", "wrong", user edits your output), preferences ("I prefer", "always do X"), repeated patterns (3+ times), knowledge gaps, or environment gotchas. Don't capture one-time instructions or transient state. Bubble-up path: session log → muscle → protocol → core. Each level needs more evidence.
 
 Know when to capture a learning. Don't rely on discipline alone — recognize the moments.
 
