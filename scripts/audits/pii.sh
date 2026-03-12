@@ -14,7 +14,7 @@ ISSUES=0
 EMAILS=$(grep -rn --include="*.md" --include="*.ts" --include="*.json" --include="*.sh" \
   -E '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' "$PROJECT_DIR" \
   --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist \
-  2>/dev/null | grep -v "team@meetsoma" | grep -v "example@" | grep -v "user@" | grep -v "noreply@github" | grep -v "@types" || true)
+  2>/dev/null | grep -v "team@meetsoma" | grep -v "example@" | grep -v "@example\." | grep -v "@company\." | grep -v "user@" | grep -v "noreply@github" | grep -v "@types" || true)
 
 if [ -n "$EMAILS" ]; then
   echo "⚠  Potential email addresses:"

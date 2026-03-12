@@ -22,7 +22,7 @@ for loc in "${SCAN_DIRS[@]}"; do
   for f in "$loc"/*.md; do
     [ ! -f "$f" ] && continue
     name=$(basename "$f")
-    [ "$name" = "_template.md" ] && continue
+    [[ "$name" == "_template.md" || "$name" == "README.md" ]] && continue
 
     short=$(echo "$f" | sed "s|$PROJECT_DIR/||")
     CHECKED=$((CHECKED + 1))

@@ -36,8 +36,15 @@ ALL_DOC2=$(grep -oE '\| `/[a-z-]+' "$COMMANDS_DOC" 2>/dev/null \
   | sed 's/.*`\/\([a-z-]*\).*/\1/' | sort -u | grep -v '^$')
 ALL_DOC=$(echo -e "$ALL_DOC\n$ALL_DOC2" | sort -u | grep -v '^$')
 
+# Commands that are intentionally undocumented (internal/power-user)
+KNOWN_INTERNAL="auto-continue"
+
 # Commands implemented but not documented
 for cmd in $IMPL_COMMANDS; do
+  # Skip known internal commands
+  if echo "$KNOWN_INTERNAL" | grep -qw "$cmd"; then
+    continue
+  fi
   if ! echo "$ALL_DOC" | grep -qx "$cmd"; then
     echo "⚠  Implemented but not documented: /$cmd"
     ISSUES=$((ISSUES + 1))

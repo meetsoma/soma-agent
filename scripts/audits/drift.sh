@@ -47,15 +47,29 @@ if [ -d "$PROJECT_DIR/extensions" ] && [ -d "$CLI_DIR/extensions" ]; then
   done
 fi
 
-# Compare .soma protocols
+# Compare .soma protocols (only bundled ones ship in CLI)
 if [ -d "$PROJECT_DIR/.soma/protocols" ] && [ -d "$CLI_DIR/.soma/protocols" ]; then
+  COMMUNITY_DIR="$(dirname "$PROJECT_DIR")/community"
   for f in "$PROJECT_DIR/.soma/protocols/"*.md; do
     [ ! -f "$f" ] && continue
     name=$(basename "$f")
-    [ "$name" = "_template.md" ] && continue
+    [[ "$name" == _* || "$name" == "README.md" ]] && continue
+
+    # Check scope — only bundled protocols should be in CLI
+    scope=""
+    community_proto="$COMMUNITY_DIR/protocols/$name"
+    if [ -f "$community_proto" ]; then
+      scope=$(awk '/^---$/{c++;next} c==1 && /^scope:/{gsub(/^scope:[[:space:]]*/, ""); print; exit} c>=2{exit}' "$community_proto")
+    fi
+    if [ -z "$scope" ]; then
+      scope=$(awk '/^---$/{c++;next} c==1 && /^scope:/{gsub(/^scope:[[:space:]]*/, ""); print; exit} c>=2{exit}' "$f")
+    fi
+    # Skip hub-only protocols — they install via /install, not bundled
+    [ "$scope" != "bundled" ] && continue
+
     cli_file="$CLI_DIR/.soma/protocols/$name"
     if [ ! -f "$cli_file" ]; then
-      echo "⚠  Missing in CLI: .soma/protocols/$name"
+      echo "⚠  Missing in CLI: .soma/protocols/$name (bundled)"
       DRIFT=$((DRIFT + 1))
     elif ! diff -q "$f" "$cli_file" > /dev/null 2>&1; then
       echo "⚠  Diverged: .soma/protocols/$name"
