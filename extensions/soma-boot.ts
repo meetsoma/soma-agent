@@ -773,24 +773,25 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		breatheTurnCount++;
 
 		// Happy path: preload written + completion signal → rotate
-		if (preloadWrittenThisSession && flushCompleteDetected && breatheCommandCtx) {
+		if (preloadWrittenThisSession && flushCompleteDetected && breathePending) {
 			breathePending = false;
 			breatheTurnCount = 0;
-			ctx.ui.notify("🫁 Preload saved — rotating to fresh session...", "info");
-			const cmdCtx = breatheCommandCtx;
 			breatheCommandCtx = null;
+			ctx.ui.notify("🫁 Preload saved — rotating to fresh session...", "info");
+			// Use turn_end ctx for newSession — before_agent_start ctx may not have it
+			const rotateCtx = ctx;
 			setTimeout(async () => {
 				try {
-					const result = await cmdCtx.newSession({});
+					const result = await rotateCtx.newSession({});
 					if (!result.cancelled) {
 						const preload = findPreload(soma!);
 						if (preload) {
 							pi.sendUserMessage(preload.content, { deliverAs: "followUp" });
-							cmdCtx.ui.notify("✅ Auto-continued — preload injected", "info");
+							rotateCtx.ui.notify("✅ Auto-continued — preload injected", "info");
 						}
 					}
 				} catch (err: any) {
-					cmdCtx.ui.notify(`❌ Auto-continue failed: ${err.message}`, "error");
+					rotateCtx.ui.notify(`❌ Auto-continue failed: ${err.message}`, "error");
 				}
 			}, 1500);
 			return;

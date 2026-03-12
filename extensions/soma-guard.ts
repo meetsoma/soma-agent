@@ -72,8 +72,11 @@ export default function somaGuard(pi: ExtensionAPI) {
 
 	/** Paths where writes are always safe (no guard needed) */
 	const SAFE_WRITE_PATTERNS = [
-		/preload-next\.md$/,
-		/\.soma\/memory\/sessions\//,
+		/preload-.*\.md$/,            // all preload files
+		/\.soma\/memory\//,           // all memory (sessions, muscles, preloads, logs)
+		/\.soma\/automations\//,      // automations
+		/\.soma\/scripts\//,          // scripts
+		/scratchpad\.md$/,            // user scratchpad
 		/\/review\//,
 		/\/_archive\//,
 		/\/node_modules\//,
