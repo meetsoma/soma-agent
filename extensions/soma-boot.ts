@@ -64,6 +64,8 @@ import {
 	compileFullSystemPrompt,
 	detectProjectContext,
 	resolveSomaPath,
+	createDebugLogger,
+	type DebugLogger,
 	type SomaDir,
 	type SomaSettings,
 	type ProtocolState,
@@ -94,6 +96,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 	let soma: SomaDir | null = null;
 	let settings: SomaSettings | null = null;
+	let debug: DebugLogger = createDebugLogger(null); // no-op until boot
 	let protocolState: ProtocolState | null = null;
 	let builtIdentity: string | null = null;
 	let protocolsReferenced = new Set<string>();
@@ -186,6 +189,14 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 		settings = loadSettings(chain);
 
+		// Initialize debug logger (reads settings.debug + SOMA_DEBUG env)
+		debug = createDebugLogger(soma?.path ?? null, settings.debug);
+		if (debug.enabled) {
+			debug.boot(`session start — soma: ${soma?.path}, cwd: ${process.cwd()}`);
+			debug.boot(`settings loaded from chain: [${chain.map(c => c.path).join(", ")}]`);
+			debug.boot(`session id: ${currentSessionId}`);
+		}
+
 		const isResumed = ctx.sessionManager.getEntries().some(
 			(e: any) => e.type === "message"
 		);
@@ -193,10 +204,12 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const steps = settings.boot.steps;
 
 		for (const step of steps) {
+			debug.boot(`step: ${step}`);
 			switch (step) {
 
 			case "identity": {
 				builtIdentity = buildLayeredIdentity(chain, settings);
+				debug.boot(`identity built (${builtIdentity?.length ?? 0} chars)`);
 				// Identity now goes in compiled system prompt (Wave 2), not boot user message
 				break;
 			}
@@ -453,6 +466,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				});
 				systemPrompt = compiled.block;
 				frontalCortexCompiled = true;
+				debug.systemPrompt(systemPrompt);
+				debug.boot(`system prompt compiled (${systemPrompt.length} chars, ${knownProtocols.length} protocols, ${knownMuscles.length} muscles)`);
 			} else {
 				// Fallback: Phase 0 prepend (tools not yet available)
 				const compiled = compileFrontalCortex({
@@ -742,11 +757,13 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				if (!protocolsReferenced.has(rule.target)) {
 					protocolsReferenced.add(rule.target);
 					recordHeatEvent(protocolState, rule.target, "applied");
+					debug.heat(`protocol detected: ${rule.target} (auto-detect from tool_result)`);
 				}
 			} else if (rule.type === "muscle" && knownMuscleNames.includes(rule.target)) {
 				if (!musclesReferenced.has(rule.target)) {
 					musclesReferenced.add(rule.target);
 					bumpMuscleHeat(soma, rule.target, bump);
+					debug.heat(`muscle detected: ${rule.target} +${bump} (auto-detect from tool_result)`);
 				}
 			}
 		}
@@ -1238,6 +1255,49 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				lines.push(`  ${type}s: ${names.join(", ")}`);
 			}
 			ctx.ui.notify(lines.join("\n"), "info");
+		},
+	});
+
+	// ---------------------------------------------------------------------------
+	// /debug — toggle debug mode
+	// ---------------------------------------------------------------------------
+	pi.registerCommand("debug", {
+		description: "Toggle debug logging to .soma/debug/",
+		getArgumentCompletions: (prefix) =>
+			["on", "off", "status"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
+		handler: async (args, ctx) => {
+			const cmd = args.trim().toLowerCase() || "status";
+
+			if (cmd === "status") {
+				const debugDir = soma ? join(soma.path, "debug") : null;
+				const hasLogs = debugDir && existsSync(debugDir);
+				ctx.ui.notify(
+					`Debug mode: ${debug.enabled ? "ON 🔴" : "OFF"}\n` +
+					`Debug dir: ${debugDir || "(no .soma/)"}\n` +
+					(hasLogs ? `Logs exist — read .soma/debug/ for diagnostics` : `No debug logs yet`),
+					"info"
+				);
+				return;
+			}
+
+			if (cmd === "on") {
+				if (!soma) { ctx.ui.notify("No .soma/ found.", "error"); return; }
+				debug = createDebugLogger(soma.path, true);
+				debug.boot("debug mode enabled via /debug on");
+				ctx.ui.notify("🔴 Debug mode ON — logging to .soma/debug/", "info");
+				return;
+			}
+
+			if (cmd === "off") {
+				if (debug.enabled) {
+					debug.boot("debug mode disabled via /debug off");
+				}
+				debug = createDebugLogger(null);
+				ctx.ui.notify("Debug mode OFF", "info");
+				return;
+			}
+
+			ctx.ui.notify("Usage: /debug on|off|status", "info");
 		},
 	});
 }

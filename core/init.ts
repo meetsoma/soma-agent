@@ -352,6 +352,9 @@ memory/preload-*.md
 memory/sessions/
 .protocol-state.json
 
+# Debug logs
+debug/
+
 # Secrets
 secrets/
 *.env
