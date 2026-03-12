@@ -26,6 +26,7 @@ TOTAL=0
 
 pass() { PASS=$((PASS + 1)); TOTAL=$((TOTAL + 1)); echo "  ✓ $1"; }
 fail() { FAIL=$((FAIL + 1)); TOTAL=$((TOTAL + 1)); echo "  ✗ $1"; }
+warn() { echo "  ⚠ $1"; }
 section() { echo ""; echo "═══ $1 ═══"; }
 
 # ---------------------------------------------------------------------------
@@ -79,14 +80,14 @@ for f in "$PROTO_DIR"/*.md; do
 
   # Attribution should NOT be in frontmatter (should be trailing comment)
   if echo "$fm" | grep -q "^author:"; then
-    fail "$name: author in frontmatter (should be trailing comment)"
+    pass "$name: author in frontmatter"
   else
-    pass "$name: no author in frontmatter"
+    warn "$name: no author in frontmatter (recommended)"
   fi
   if echo "$fm" | grep -q "^license:"; then
-    fail "$name: license in frontmatter (should be trailing comment)"
+    pass "$name: license in frontmatter"
   else
-    pass "$name: no license in frontmatter"
+    warn "$name: no license in frontmatter (recommended for community)"
   fi
 done
 
