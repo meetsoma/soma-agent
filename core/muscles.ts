@@ -46,6 +46,8 @@ export interface Muscle {
 	loads: number;
 	/** Status */
 	status: "active" | "dormant" | "retired";
+	/** Created date (YYYY-MM-DD from frontmatter, if present) */
+	created: string | null;
 }
 
 export interface MuscleInjection {
@@ -177,6 +179,7 @@ export function discoverMuscles(soma: SomaDir, overrideDir?: string): Muscle[] {
 				heat: parseInt(fm["heat"] || "0", 10) || 0,
 				loads: parseInt(fm["loads"] || "0", 10) || 0,
 				status,
+				created: (fm["created"] as string) || null,
 			});
 		}
 	} catch {
@@ -239,20 +242,44 @@ export function buildMuscleInjection(
 ): MuscleInjection {
 	const cfg = { ...DEFAULT_CONFIG, ...config };
 
+	// Cold-start boost: muscles created in the last 48h get a temporary heat bump
+	// so they can compete with established muscles for loading slots.
+	// This doesn't mutate the original — we work with effective heat values.
+	const COLD_START_WINDOW_MS = 48 * 3600 * 1000;
+	const COLD_START_BOOST = 3;
+	const now = Date.now();
+
+	const effectiveHeat = (m: Muscle): number => {
+		if (m.created) {
+			try {
+				const createdMs = new Date(m.created).getTime();
+				if (now - createdMs < COLD_START_WINDOW_MS) {
+					return Math.max(m.heat, cfg.digestThreshold + COLD_START_BOOST);
+				}
+			} catch { /* invalid date, no boost */ }
+		}
+		return m.heat;
+	};
+
+	// Re-sort with effective heat so boosted muscles compete fairly
+	const sorted = [...muscles].sort((a, b) => effectiveHeat(b) - effectiveHeat(a));
+
 	const hot: Muscle[] = [];
 	const warm: Muscle[] = [];
 	const cold: Muscle[] = [];
 	let tokensUsed = 0;
 
-	for (const muscle of muscles) {
+	for (const muscle of sorted) {
+		const heat = effectiveHeat(muscle);
+
 		// Skip dormant muscles unless explicitly hot
-		if (muscle.status === "dormant" && muscle.heat < cfg.fullThreshold) {
+		if (muscle.status === "dormant" && heat < cfg.fullThreshold) {
 			cold.push(muscle);
 			continue;
 		}
 
 		if (
-			muscle.heat >= cfg.fullThreshold &&
+			heat >= cfg.fullThreshold &&
 			hot.length < cfg.maxFull
 		) {
 			// Full body loading
@@ -267,7 +294,7 @@ export function buildMuscleInjection(
 		}
 
 		if (
-			muscle.heat >= cfg.digestThreshold &&
+			heat >= cfg.digestThreshold &&
 			warm.length < cfg.maxDigest &&
 			muscle.digest
 		) {
@@ -303,7 +330,20 @@ export function buildMuscleInjection(
 	}
 
 	if (cold.length > 0) {
-		lines.push(`**Available muscles (not loaded):** ${cold.map(m => m.name).join(", ")}\n`);
+		const coldList = cold.map(m => {
+			// Extract a brief hint from digest or first content line after frontmatter
+			let hint = "";
+			if (m.digest) {
+				// Strip markdown bold wrapper and leading "Name —" pattern, take first ~60 chars
+				hint = m.digest
+					.replace(/^>\s*\*\*[^*]+\*\*\s*[—–-]\s*/m, "")
+					.replace(/\n.*/s, "")
+					.trim();
+				if (hint.length > 60) hint = hint.slice(0, 57) + "...";
+			}
+			return hint ? `${m.name} (${hint})` : m.name;
+		});
+		lines.push(`**Available muscles (not loaded):** ${coldList.join("; ")}\n`);
 	}
 
 	return {

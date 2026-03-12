@@ -14,7 +14,7 @@ import { readFileSync, existsSync } from "fs";
 import { join, dirname, resolve } from "path";
 import type { Protocol, ProtocolState } from "./protocols.js";
 import { getProtocolHeat } from "./protocols.js";
-import type { Muscle } from "./muscles.js";
+import { type Muscle, buildMuscleInjection } from "./muscles.js";
 import type { SomaSettings } from "./settings.js";
 
 // Known Soma doc files — label + filename pairs
@@ -380,22 +380,12 @@ function buildBehavioralSection(
 		parts.push("## Active Behavioral Rules\n\n" + protoSummaries.join("\n"));
 	}
 
-	// Muscle instincts — hot muscles get digests, capped from settings
-	const digestThreshold = settings.muscles.digestThreshold;
-	const maxDigestsInPrompt = settings.muscles.maxDigest;
-	const muscleLines: string[] = [];
-	for (const muscle of muscles) {
-		if (muscleCount >= maxDigestsInPrompt) break;
-		if (muscle.heat < digestThreshold) continue;
-		if (muscle.status !== "active") continue;
-		const digest = muscleDigest(muscle);
-		if (digest) {
-			muscleLines.push(`### ${muscle.name}\n${digest}`);
-			muscleCount++;
-		}
-	}
-	if (muscleLines.length > 0) {
-		parts.push("## Learned Patterns (Muscle Memory)\n\n" + muscleLines.join("\n\n"));
+	// Muscle instincts — delegate to buildMuscleInjection for consistent
+	// budget enforcement, cold-start boost, and heat-sorted selection.
+	const injection = buildMuscleInjection(muscles, settings.muscles);
+	muscleCount = injection.hot.length + injection.warm.length;
+	if (injection.systemPromptBlock) {
+		parts.push(injection.systemPromptBlock);
 	}
 
 	return { section: parts.join("\n\n"), protocolCount, muscleCount };

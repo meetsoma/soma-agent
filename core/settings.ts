@@ -113,8 +113,18 @@ export interface SomaSettings {
 		warnAt: number;
 		/** Urgent threshold (default: 80) */
 		urgentAt: number;
-		/** Auto-exhale threshold (default: 85) */
+		/** Auto-exhale threshold (default: 85) — safety net, should never be reached with auto-breathe */
 		autoExhaleAt: number;
+	};
+
+	/** Breathe settings — session rotation behavior */
+	breathe: {
+		/** Enable proactive auto-breathe — wraps up at triggerAt% instead of panicking at 85% */
+		auto: boolean;
+		/** Context % to start wrap-up sequence (default: 50) */
+		triggerAt: number;
+		/** Context % to write preload and rotate (default: 70) */
+		rotateAt: number;
 	};
 
 	/** Preload settings */
@@ -284,6 +294,11 @@ const DEFAULTS: SomaSettings = {
 		warnAt: 70,
 		urgentAt: 80,
 		autoExhaleAt: 85,
+	},
+	breathe: {
+		auto: false,
+		triggerAt: 50,
+		rotateAt: 70,
 	},
 	preload: {
 		staleAfterHours: 48,

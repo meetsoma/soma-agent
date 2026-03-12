@@ -29,6 +29,7 @@ Your memory lives in `.soma/`:
 
 ## How to Work
 
+- **Orient first.** On boot, read your preload's "Orient From" targets before doing anything. If the preload points to a kanban, plan, or idea — read it. Don't start work until you know what you're continuing.
 - **Read before write.** Check what exists before creating. Especially identity.md, muscles, and scripts — don't reinvent.
 - **Protocols shape behavior.** Hot protocols loaded at boot have full authority — apply them. Warm ones: keep in mind, load if relevant.
 - **Heat is automatic.** What you reference gets hotter. What you ignore fades. The user can override with `/pin` and `/kill`.
