@@ -6,6 +6,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Bundled protocols: `correction-capture` + `detection-triggers`** — learning-agent protocols from ClawHub competitive analysis. Capture corrections as muscles, recognize when to log vs crystallize patterns.
+- **Auto-breathe mode** — proactive context management. Triggers wrap-up at configurable %, auto-rotates at higher %. Safety net at 85% always on. Opt-in via `settings.json` `breathe.auto`.
+- **Smarter `/breathe`** — context-aware instructions (light/full/urgent). Handles edge cases: preload already written, timeout after 4 turns, re-prompt after 2.
+- **Cold-start muscle boost** — muscles created <48h get +3 effective heat so they load as digests for at least 2 sessions.
+- **Orient-from preloads** — preload template includes `## Orient From` section pointing to files next session should read first.
+- **`soma:recall` event signal** — extensions can listen for context pressure events (used by steno integration).
+
+### Fixed
+- **New protocols missing breadcrumbs/TL;DRs** — correction-capture and detection-triggers now pass all protocol tests.
+- **Settings audit false positive** — `breathe` and `steno` recognized as valid top-level settings keys.
+
+---
+
 ## [0.5.0] — 2026-03-12
 
 ### Added
