@@ -1079,7 +1079,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.registerCommand("soma", {
 		description: "Soma memory status and management",
 		getArgumentCompletions: (prefix) =>
-			["status", "init", "prompt"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
+			["status", "init", "prompt", "prompt full", "prompt identity"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
 		handler: async (args, ctx) => {
 			const cmd = args.trim().toLowerCase() || "status";
 
@@ -1091,34 +1091,123 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			if (cmd === "prompt") {
+			if (cmd.startsWith("prompt")) {
 				if (!soma || !settings) { ctx.ui.notify("No Soma found. Use /soma init", "info"); return; }
 
-				// Re-compile to show current state (uses cached core template)
+				const subCmd = cmd.replace("prompt", "").trim();
+
+				// Re-compile to show current state
 				const activeTools = pi.getActiveTools?.() ?? [];
 				const allToolsList = pi.getAllTools?.() ?? [];
+
+				// Get the current base system prompt for accurate Phase 3 test
+				const currentBasePrompt = ctx.getSystemPrompt?.() ?? "";
 				const compiled = compileFullSystemPrompt({
 					protocols: knownProtocols,
 					protocolState: protocolState,
 					muscles: knownMuscles,
 					settings,
-					piSystemPrompt: "", // Don't need Pi's prompt for display
+					piSystemPrompt: currentBasePrompt || "You are an expert coding assistant operating inside pi",
 					activeTools,
 					allTools: allToolsList,
 					agentDir: somaAgentDir,
 					identity: builtIdentity,
 				});
 
-				const summary = [
-					`**Compiled System Prompt** — ${compiled.estimatedTokens} tokens`,
-					`Protocols: ${compiled.protocolCount} breadcrumbs | Muscles: ${compiled.muscleCount} digests`,
-					`Full replacement: ${compiled.fullReplacement}`,
-					`Identity: ${builtIdentity ? "yes" : "none"}`,
-					`Persona: ${settings.persona?.name || "default"}`,
-					``,
-					`Use \`/soma prompt\` to view. Changes take effect next session.`,
-				].join("\n");
-				ctx.ui.notify(summary, "info");
+				// Section detection
+				const sectionChecks = [
+					["Soma core", "You are Soma"],
+					["Identity", "# Identity"],
+					["Behavioral rules", "## Active Behavioral Rules"],
+					["Learned patterns", "## Learned Patterns"],
+					["Tools", "Available tools:"],
+					["Guard", "## Guard"],
+					["Soma docs", "Soma documentation"],
+					["External context", "## External Project Context"],
+					["Skills", "<available_skills>"],
+					["Date/time", "Current date and time:"],
+				] as const;
+
+				// Heat tables
+				const protoHeat = knownProtocols
+					.map(p => ({ name: p.name, heat: getProtocolHeat(p, protocolState) }))
+					.sort((a, b) => b.heat - a.heat);
+				const warmThresh = settings.protocols?.warmThreshold ?? 3;
+				const hotThresh = settings.protocols?.hotThreshold ?? 8;
+
+				const muscleDigestThresh = settings.muscles?.digestThreshold ?? 1;
+				const muscleFullThresh = settings.muscles?.fullThreshold ?? 4;
+
+				if (subCmd === "full") {
+					// Dump the full compiled prompt via sendUserMessage
+					pi.sendUserMessage(
+						`[/soma prompt full — compiled system prompt (${compiled.estimatedTokens} tokens)]\n\n` +
+						"```\n" + compiled.block + "\n```",
+						{ deliverAs: "followUp" }
+					);
+					return;
+				}
+
+				if (subCmd === "identity") {
+					pi.sendUserMessage(
+						`[/soma prompt identity]\n\n` +
+						`**Built identity:** ${builtIdentity ? `${builtIdentity.length} chars` : "❌ NONE"}\n` +
+						`**In compiled prompt:** ${compiled.block.includes("# Identity") ? "✅ yes" : "❌ NO — BUG"}\n` +
+						`**persona.name:** ${settings.persona?.name ?? "(null)"}\n` +
+						`**identityInSystemPrompt:** ${(settings as any).systemPrompt?.identityInSystemPrompt ?? "(default: true)"}\n\n` +
+						(builtIdentity ? "```\n" + builtIdentity.slice(0, 2000) + "\n```" : "No identity found in chain."),
+						{ deliverAs: "followUp" }
+					);
+					return;
+				}
+
+				// Default: diagnostic summary
+				const lines: string[] = [];
+				lines.push(`**Compiled System Prompt** — ${compiled.block.length} chars (~${compiled.estimatedTokens} tokens)`);
+				lines.push(`Full replacement: ${compiled.fullReplacement} | Cached: ${frontalCortexCompiled}`);
+				lines.push(``);
+
+				// Sections
+				lines.push(`**Sections:**`);
+				for (const [label, marker] of sectionChecks) {
+					const found = compiled.block.includes(marker);
+					lines.push(`  ${found ? "✅" : "❌"} ${label}`);
+				}
+				lines.push(``);
+
+				// Identity
+				lines.push(`**Identity:** ${builtIdentity ? `${builtIdentity.length} chars` : "❌ NONE"} → ${compiled.block.includes("# Identity") ? "in prompt ✅" : "MISSING from prompt ❌"}`);
+				lines.push(`  persona.name: ${settings.persona?.name ?? "(null)"} | emoji: ${settings.persona?.emoji ?? "(null)"}`);
+				lines.push(``);
+
+				// Protocol heat
+				lines.push(`**Protocols:** ${compiled.protocolCount} in prompt (max ${settings.protocols?.maxBreadcrumbsInPrompt ?? 12})`);
+				for (const p of protoHeat) {
+					const tier = p.heat >= hotThresh ? "🔴" : p.heat >= warmThresh ? "🟡" : "⚪";
+					const inPrompt = p.heat >= warmThresh ? "✅" : "—";
+					lines.push(`  ${tier} ${p.name}: heat=${p.heat} ${inPrompt}`);
+				}
+				lines.push(``);
+
+				// Muscle heat
+				lines.push(`**Muscles:** ${compiled.muscleCount} digests in prompt (max ${settings.muscles?.maxDigest ?? 5})`);
+				for (const m of knownMuscles.slice(0, 10)) {
+					const tier = m.heat >= muscleFullThresh ? "🔴" : m.heat >= muscleDigestThresh ? "🟡" : "⚪";
+					const status = m.status !== "active" ? ` [${m.status}]` : "";
+					lines.push(`  ${tier} ${m.name}: heat=${m.heat}${status}`);
+				}
+				lines.push(``);
+
+				// Context state
+				const usage = ctx.getContextUsage?.();
+				lines.push(`**Runtime:**`);
+				lines.push(`  Context: ${usage?.percent != null ? Math.round(usage.percent) + "%" : "unknown"}`);
+				lines.push(`  Warnings sent at: ${lastContextWarningPct > 0 ? Math.round(lastContextWarningPct) + "%" : "none yet"}`);
+				lines.push(`  Thresholds: ${JSON.stringify(settings.context ?? { notifyAt: 50, warnAt: 70, urgentAt: 80, autoExhaleAt: 85 })}`);
+				lines.push(``);
+				lines.push(`💡 \`/soma prompt full\` — dump compiled prompt | \`/soma prompt identity\` — identity debug`);
+
+				ctx.ui.notify(lines.join("\n"), "info");
 				return;
 			}
 
@@ -1137,7 +1226,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			ctx.ui.notify("Usage: /soma status | /soma init | /soma prompt", "info");
+			ctx.ui.notify("Usage: /soma status | /soma init | /soma prompt [full|identity]", "info");
 		},
 	});
 
