@@ -14,7 +14,7 @@ const BRANCH = "main";
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}`;
 const API_BASE = `https://api.github.com/repos/${REPO}`;
 
-export type ContentType = "protocol" | "muscle" | "skill" | "template";
+export type ContentType = "protocol" | "muscle" | "skill" | "template" | "automation";
 
 export interface InstallResult {
 	success: boolean;
@@ -65,6 +65,7 @@ function targetDir(soma: SomaDir, type: ContentType): string {
 		muscle: "memory/muscles",
 		skill: "skills",
 		template: "templates",
+		automation: "automations",
 	};
 	return join(soma.path, map[type]);
 }
@@ -81,8 +82,8 @@ export async function installItem(
 		return installTemplate(soma, name, options);
 	}
 
-	// Single file content (protocol, muscle, skill)
-	const remoteDir = type === "protocol" ? "protocols" : type === "muscle" ? "muscles" : "skills";
+	// Single file content (protocol, muscle, skill, automation)
+	const remoteDir = type === "protocol" ? "protocols" : type === "muscle" ? "muscles" : type === "automation" ? "automations" : "skills";
 	const localPath = join(dir, `${name}.md`);
 
 	// Check if already exists
@@ -175,7 +176,7 @@ async function installTemplate(
 	// Install required dependencies
 	const requires = manifest.requires || {};
 
-	for (const type of ["protocol", "muscle", "skill"] as ContentType[]) {
+	for (const type of ["protocol", "muscle", "skill", "automation"] as ContentType[]) {
 		const pluralKey = type + "s";
 		const names: string[] = requires[pluralKey] || [];
 		for (const depName of names) {
@@ -201,11 +202,11 @@ async function installTemplate(
 // ---------------------------------------------------------------------------
 
 export async function listRemote(type?: ContentType): Promise<RemoteItem[]> {
-	const types: ContentType[] = type ? [type] : ["protocol", "muscle", "skill", "template"];
+	const types: ContentType[] = type ? [type] : ["protocol", "muscle", "skill", "template", "automation"];
 	const items: RemoteItem[] = [];
 
 	for (const t of types) {
-		const remoteDir = t === "protocol" ? "protocols" : t === "muscle" ? "muscles" : t === "skill" ? "skills" : "templates";
+		const remoteDir = t === "protocol" ? "protocols" : t === "muscle" ? "muscles" : t === "skill" ? "skills" : t === "automation" ? "automations" : "templates";
 		try {
 			const entries = await fetchJson(`${API_BASE}/contents/${remoteDir}?ref=${BRANCH}`);
 			if (!Array.isArray(entries)) continue;
@@ -234,7 +235,7 @@ export interface LocalItem {
 }
 
 export function listLocal(soma: SomaDir, type?: ContentType): LocalItem[] {
-	const types: ContentType[] = type ? [type] : ["protocol", "muscle", "skill", "template"];
+	const types: ContentType[] = type ? [type] : ["protocol", "muscle", "skill", "template", "automation"];
 	const items: LocalItem[] = [];
 
 	for (const t of types) {

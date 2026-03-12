@@ -11,7 +11,7 @@
 import { findSomaDir, initSoma } from "./discovery.js";
 import { installItem, listRemote, listLocal, type ContentType } from "./install.js";
 
-const VALID_TYPES: ContentType[] = ["protocol", "muscle", "skill", "template"];
+const VALID_TYPES: ContentType[] = ["protocol", "muscle", "skill", "template", "automation"];
 
 function isValidType(t: string): t is ContentType {
 	return VALID_TYPES.includes(t as ContentType);
@@ -23,7 +23,7 @@ Usage:
   soma content install <type> <name> [--force]
   soma content list [--remote] [--local] [--type <type>]
 
-Types: protocol, muscle, skill, template
+Types: protocol, muscle, skill, template, automation
 
 Examples:
   soma content install protocol breath-cycle
