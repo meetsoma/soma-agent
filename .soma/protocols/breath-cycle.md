@@ -7,7 +7,7 @@ applies-to: [always]
 breadcrumb: "Sessions have 3 phases: inhale (automated boot), hold (work — context monitored automatically), exhale (write preload, commit, say FLUSH COMPLETE → system offers auto-continue). Never skip exhale."
 author: Curtis Mercier
 license: CC BY 4.0
-version: 1.2.0
+version: 1.0.0
 tier: core
 scope: bundled
 tags: [session, memory, continuity]

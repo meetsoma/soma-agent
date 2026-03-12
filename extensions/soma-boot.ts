@@ -118,6 +118,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	// Track work after preload (edge case: user sends more requests after preload written)
 	let toolCallsAfterPreload = 0;
 
+	// Deferred followUp messages — sendUserMessage from before_agent_start races with
+	// Pi's prompt processing. We queue messages here and flush them in agent_end.
+	let pendingFollowUps: string[] = [];
+
 	// Flush/continue state
 	let flushCompleteDetected = false;
 	let preloadWrittenThisSession = false;
@@ -503,6 +507,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const preloadTarget = memDir ? join(memDir, `preload-${currentSessionId || "next"}.md`) : null;
 
 		// Helper: initiate breathe rotation (shared by auto-breathe and auto-flush safety net)
+		// NOTE: This runs inside before_agent_start. Calling pi.sendUserMessage here races
+		// with Pi's prompt processing (the agent is about to start). Instead, we queue the
+		// message and flush it in agent_end, when it's safe to send followUps.
 		const initiateBreathe = (label: string, message: string) => {
 			if (breathePending) return; // already in progress
 			// Save heat state
@@ -514,7 +521,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			breathePending = true;
 			breatheTurnCount = 0;
 			breatheCommandCtx = ctx;
-			pi.sendUserMessage(message, { deliverAs: "followUp" });
+			// Queue for delivery after agent finishes this turn
+			pendingFollowUps.push(message);
 		};
 
 		// ── AUTO-BREATHE MODE (proactive) ──────────────────────────────
@@ -707,6 +715,19 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("agent_end", async (_event, ctx) => {
+		// Flush deferred followUp messages (queued from before_agent_start to avoid race condition)
+		if (pendingFollowUps.length > 0) {
+			const messages = [...pendingFollowUps];
+			pendingFollowUps = [];
+			for (const msg of messages) {
+				try {
+					pi.sendUserMessage(msg, { deliverAs: "followUp" });
+				} catch (err: any) {
+					debug.boot(`deferred followUp failed: ${err?.message?.slice(0, 100)}`);
+				}
+			}
+		}
+
 		// If breathe/auto-breathe is pending but didn't complete, give the user a way forward
 		if (breathePending && !flushCompleteDetected) {
 			if (preloadWrittenThisSession) {
@@ -806,6 +827,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			autoBreatheTriggerSent = false;
 			autoBreatheRotateSent = false;
 			toolCallsAfterPreload = 0;
+			pendingFollowUps = [];
 			protocolsReferenced = new Set();
 			musclesReferenced = new Set();
 			frontalCortexCompiled = false;
@@ -1023,6 +1045,55 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 
 			ctx.ui.notify("Usage: /auto-commit on | off | status", "info");
+		},
+	});
+
+	// --- session toggles: /auto-breathe ---
+
+	pi.registerCommand("auto-breathe", {
+		description: "Toggle auto-breathe — proactive context management that rotates before 85%",
+		getArgumentCompletions: (prefix) =>
+			["on", "off", "status"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
+		handler: async (args, ctx) => {
+			if (!soma || !settings) { ctx.ui.notify("No soma booted", "error"); return; }
+
+			const breatheSettings = (settings as any).breathe ?? { auto: false, triggerAt: 50, rotateAt: 70 };
+			const arg = args.trim().toLowerCase();
+
+			if (arg === "status" || !arg) {
+				ctx.ui.notify(
+					`Auto-breathe: ${breatheSettings.auto ? "✅ on" : "❌ off"}\n` +
+					`  Wrap-up at: ${breatheSettings.triggerAt}%\n` +
+					`  Rotate at: ${breatheSettings.rotateAt}%\n` +
+					`  Safety net: 85% (always on)\n\n` +
+					`Toggle: /auto-breathe on | /auto-breathe off\n` +
+					`Persists in settings.json via breathe.auto`,
+					"info"
+				);
+				return;
+			}
+
+			if (arg === "on" || arg === "off") {
+				const value = arg === "on";
+				// Update in-memory settings
+				if (!(settings as any).breathe) (settings as any).breathe = {};
+				(settings as any).breathe.auto = value;
+
+				// Persist to settings.json
+				try {
+					const settingsPath = join(soma.path, "settings.json");
+					const raw = existsSync(settingsPath) ? JSON.parse(readFileSync(settingsPath, "utf-8")) : {};
+					if (!raw.breathe) raw.breathe = {};
+					raw.breathe.auto = value;
+					writeFileSync(settingsPath, JSON.stringify(raw, null, 2) + "\n");
+					ctx.ui.notify(`${value ? "🫁 Auto-breathe ON" : "❌ Auto-breathe OFF"} — ${value ? `wrap-up at ${breatheSettings.triggerAt}%, rotate at ${breatheSettings.rotateAt}%` : "using passive warnings only"}`, "info");
+				} catch (err: any) {
+					ctx.ui.notify(`⚠️ Updated in-memory but failed to persist: ${err?.message?.slice(0, 80)}`, "warning");
+				}
+				return;
+			}
+
+			ctx.ui.notify("Usage: /auto-breathe on | off | status", "info");
 		},
 	});
 

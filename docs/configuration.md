@@ -79,6 +79,11 @@ Settings files can exist at any level in the Soma chain:
       "diffMode": "stat"
     }
   },
+  "breathe": {
+    "auto": false,
+    "triggerAt": 50,
+    "rotateAt": 70
+  },
   "context": {
     "notifyAt": 50,
     "warnAt": 70,
@@ -319,6 +324,40 @@ Disable git context entirely:
   }
 }
 ```
+
+### Auto-Breathe
+
+Proactive context management. Instead of waiting for the 85% emergency, auto-breathe starts wrapping up earlier and rotates gracefully.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `auto` | `false` | Enable auto-breathe mode |
+| `triggerAt` | `50` | Context % to start wrap-up phase (finish current task, update session log) |
+| `rotateAt` | `70` | Context % to write preload and auto-rotate to a fresh session |
+
+The 85% safety net is always active regardless of this setting.
+
+**Example: enable auto-breathe with default thresholds:**
+```json
+{
+  "breathe": {
+    "auto": true
+  }
+}
+```
+
+**Example: later triggers for long sessions:**
+```json
+{
+  "breathe": {
+    "auto": true,
+    "triggerAt": 60,
+    "rotateAt": 80
+  }
+}
+```
+
+You can also toggle at runtime with `/auto-breathe on|off`.
 
 ### Context Warnings
 

@@ -142,6 +142,15 @@ Soma monitors context usage and provides escalating warnings. All thresholds are
 
 For longer sessions, push thresholds up. For aggressive context management, pull them down.
 
+### Auto-Breathe
+
+For proactive sessions, enable **auto-breathe** (`/auto-breathe on` or `settings.json`). Instead of waiting for the 85% emergency:
+
+1. **Wrap-up** at `triggerAt` (default 50%) — finish current task, update session log
+2. **Rotate** at `rotateAt` (default 70%) — write preload, auto-continue into fresh session
+
+The 85% safety net always stays active as a backstop. See [Configuration](/docs/configuration#auto-breathe) for thresholds.
+
 ## Parent-Child Workspaces
 
 Soma supports **parent-child inheritance** for monorepos and multi-project workspaces. A child `.soma/` inherits from its parent chain automatically.

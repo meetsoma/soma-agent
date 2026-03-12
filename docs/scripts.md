@@ -96,6 +96,37 @@ scripts/soma-snapshot.sh . "pre-refactor"
 scripts/soma-snapshot.sh ./src "before-migration"
 ```
 
+### soma-compat.sh
+
+Compatibility checker — detects protocol/muscle overlap, redundancy, and directive conflicts in your `.soma/` setup. Produces a 0–100 compatibility score.
+
+```bash
+# Run compat check
+scripts/soma-compat.sh
+
+# JSON output (for CI)
+scripts/soma-compat.sh --json
+```
+
+Checks: protocol overlap, muscle redundancy, contradictory directives, orphaned references.
+
+### soma-update-check.sh
+
+Check installed protocols and muscles against the hub for newer versions.
+
+```bash
+# Check for updates
+scripts/soma-update-check.sh
+
+# Auto-pull updates
+scripts/soma-update-check.sh --update
+
+# Machine-readable output
+scripts/soma-update-check.sh --json
+```
+
+Compares local protocol/muscle versions against `hub-index.json`. Reports which items are outdated, up to date, or local-only.
+
 ### git-identity-hook.sh
 
 Git pre-commit hook that validates git identity matches `guard.gitIdentity` settings.

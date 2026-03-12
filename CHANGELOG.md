@@ -11,12 +11,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ### Added
 - **Bundled protocols: `correction-capture` + `detection-triggers`** — learning-agent protocols from ClawHub competitive analysis. Capture corrections as muscles, recognize when to log vs crystallize patterns.
 - **Auto-breathe mode** — proactive context management. Triggers wrap-up at configurable %, auto-rotates at higher %. Safety net at 85% always on. Opt-in via `settings.json` `breathe.auto`.
+- **`/auto-breathe` command** — runtime toggle for auto-breathe mode (`on|off|status`). Persists to settings.json.
 - **Smarter `/breathe`** — context-aware instructions (light/full/urgent). Handles edge cases: preload already written, timeout after 4 turns, re-prompt after 2.
 - **Cold-start muscle boost** — muscles created <48h get +3 effective heat so they load as digests for at least 2 sessions.
 - **Orient-from preloads** — preload template includes `## Orient From` section pointing to files next session should read first.
 - **`soma:recall` event signal** — extensions can listen for context pressure events (used by steno integration).
+- **`soma-compat.sh`** — compatibility checker. Detects protocol/muscle overlap, redundancy, directive conflicts. Scores 0–100.
+- **`soma-update-check.sh`** — compare local protocol/muscle versions against hub. `--update` to pull, `--json` for machine output.
 
 ### Fixed
+- **Auto-breathe race condition** — `sendUserMessage` from `before_agent_start` raced with Pi's prompt processing. Now deferred to `agent_end` via pending message queue.
 - **New protocols missing breadcrumbs/TL;DRs** — correction-capture and detection-triggers now pass all protocol tests.
 - **Settings audit false positive** — `breathe` and `steno` recognized as valid top-level settings keys.
 
