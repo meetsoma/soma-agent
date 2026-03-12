@@ -545,20 +545,17 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				if (preloadWrittenThisSession && preloadPath) {
 					initiateBreathe("auto-breathe-rotate",
 						`[AUTO-BREATHE — rotate at ${Math.round(pct)}%]\n\n` +
-						`Preload already written to \`${preloadPath}\`. Review and update it with any work done since, ` +
-						`then say "BREATHE COMPLETE" to rotate.`
+						`Preload already at \`${preloadPath}\`. Update it if needed, then say "BREATHE COMPLETE".`
 					);
 				} else {
 					initiateBreathe("auto-breathe-rotate",
 						`[AUTO-BREATHE — rotate at ${Math.round(pct)}%]\n\n` +
-						`Time to rotate. You've been wrapping up — now write the preload.\n\n` +
-						`1. Commit any uncommitted work.\n` +
-						`2. Append to session log if not done already.\n` +
-						`3. Write \`${preloadTarget}\` — full quality preload. You have room. Include:\n` +
-						`   - **Resume Point**, **What Shipped**, **In-Flight**, **Key Decisions**, **Next Priorities**\n` +
-						`   - **Orient From** — list files the next session should read before starting work\n` +
-						`   - **Do NOT Re-Read**\n` +
-						`4. Say "BREATHE COMPLETE" — session auto-rotates with your preload injected.`
+						`Stop and rotate now.\n\n` +
+						`1. Commit uncommitted work\n` +
+						`2. Update session log\n` +
+						`3. Write \`${preloadTarget}\` — Resume Point, What Shipped, Next Priorities, Orient From\n` +
+						`4. Say "BREATHE COMPLETE"\n\n` +
+						`Session auto-rotates with your preload injected.`
 					);
 				}
 
@@ -576,6 +573,15 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					`\n## 🫁 Auto-Breathe: Wrap-Up (${Math.round(pct)}%)\n` +
 					`Finish current task, then start wrapping up. Update session log. ` +
 					`Tie up loose ends. Preload rotation coming at ~${breatheSettings.rotateAt}%.`
+				);
+
+				// Send as user message so the agent actually sees and responds to it
+				pendingFollowUps.push(
+					`[AUTO-BREATHE — wrap-up at ${Math.round(pct)}%]\n\n` +
+					`Context is at ${Math.round(pct)}%. Finish what you're doing, then:\n` +
+					`1. Commit any uncommitted work\n` +
+					`2. Update session log\n` +
+					`3. Don't start new tasks — rotation at ~${breatheSettings.rotateAt}%`
 				);
 
 				ctx.ui.notify(`🫁 Auto-breathe: wrap-up phase at ${Math.round(pct)}%`, "info");

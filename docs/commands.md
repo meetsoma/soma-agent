@@ -1,7 +1,7 @@
 # Commands
 
 <!-- tldr -->
-`/inhale` — load preload into current session. `/breathe` — save + auto-continue. `/exhale` — save + stop. `/rest` — disable keepalive + exhale (going to bed). `/pin <name>` — bump heat +5. `/kill <name>` — drop heat to 0. `/install <type> <name>` — install from hub. `/list local|remote` — browse content. `/soma` — status + management (subcommands: `init`, `prompt`, `preload`, `debug`). `/auto-breathe on|off` — toggle proactive context rotation. `/auto-commit on|off` — toggle .soma/ auto-commit. CLI: `soma` (fresh), `soma -c` (continue). Context warnings and auto-exhale thresholds are configurable in `settings.json`.
+`/inhale` — load preload into current session. `/breathe` — save + auto-continue. `/exhale` — save + stop. `/rest` — disable keepalive + exhale (going to bed). `/pin <name>` — bump heat +5. `/kill <name>` — drop heat to 0. `/install <type> <name>` — install from hub. `/list local|remote` — browse content. `/soma` — status + management (subcommands: `init`, `prompt`, `preload`, `debug`). `/scratch <note>` — quick notes to scratchpad. `/auto-breathe on|off` — toggle proactive context rotation. `/auto-commit on|off` — toggle .soma/ auto-commit. CLI: `soma` (fresh), `soma -c` (continue).
 <!-- /tldr -->
 
 Soma registers slash commands that control the breath cycle, heat system, and session management.
@@ -48,6 +48,14 @@ Soma registers slash commands that control the breath cycle, heat system, and se
 | `/soma preload` | Show available preload files (name, age, staleness). |
 | `/soma debug on\|off` | Toggle debug logging to `.soma/debug/`. |
 | `/status` | Show session stats — context usage, turn count, uptime. |
+
+## User Tools
+
+| Command | Description |
+|---------|-------------|
+| `/scratch <note>` | Append a quick note to `.soma/scratchpad.md`. The agent doesn't see it — it's your private notepad. |
+| `/scratch read` | Show the scratchpad contents to the agent. |
+| `/scratch clear` | Empty the scratchpad. |
 
 ## Toggle Commands
 
