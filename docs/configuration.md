@@ -65,13 +65,20 @@ Settings files can exist at any level in the Soma chain:
     "fullThreshold": 5,
     "digestThreshold": 1
   },
+  "automations": {
+    "tokenBudget": 1500,
+    "maxFull": 1,
+    "maxDigest": 3,
+    "fullThreshold": 5,
+    "digestThreshold": 1
+  },
   "heat": {
     "autoDetect": true,
     "autoDetectBump": 1,
     "pinBump": 5
   },
   "boot": {
-    "steps": ["identity", "preload", "protocols", "muscles", "scripts", "git-context"],
+    "steps": ["identity", "preload", "protocols", "muscles", "automations", "scripts", "git-context"],
     "gitContext": {
       "enabled": true,
       "since": "24h",
@@ -234,6 +241,8 @@ Controls what sections appear in Soma's compiled system prompt. Use `/soma promp
 | `maxBreadcrumbsInPrompt` | `10` | Maximum warm protocols shown as breadcrumbs |
 | `maxFullProtocolsInPrompt` | `3` | Maximum hot protocols loaded in full |
 
+**Why adjust:** If protocols appear too eagerly, raise `warmThreshold`. If important protocols keep fading between sessions, lower `decayRate` or raise `maxHeat`. If you have many protocols competing, increase `maxBreadcrumbsInPrompt` (costs more tokens) or decrease `hotThreshold` (so fewer reach full-body loading).
+
 See [Heat System](heat-system.md) for the full explanation.
 
 ### Muscles
@@ -246,7 +255,23 @@ See [Heat System](heat-system.md) for the full explanation.
 | `fullThreshold` | `5` | Heat needed to load a muscle in full |
 | `digestThreshold` | `1` | Heat needed to load a muscle as digest |
 
+**Why adjust:** If your agent frequently says "I don't remember how to do X" for things you've written muscles about, increase `tokenBudget` or `maxFull`. If boot messages are too long, decrease them. The digest system (via `<!-- digest:start -->` markers) is the best compromise — compact summaries that give the agent enough to know when to read the full muscle.
+
 See [Muscles](muscles.md) for writing muscles and the digest system.
+
+### Automations
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `tokenBudget` | `1500` | Total estimated tokens for all loaded automations |
+| `maxFull` | `1` | Maximum automations loaded with full body text |
+| `maxDigest` | `3` | Maximum automations loaded with digest only |
+| `fullThreshold` | `5` | Heat needed to load an automation in full |
+| `digestThreshold` | `1` | Heat needed to load an automation as digest |
+
+Automations are procedural step-by-step flows — like protocols but action-oriented. "Do this sequence" rather than "behave like this." They live in `.soma/automations/` and support heat, `/pin`, `/kill`, and cold-start boost just like muscles.
+
+**Why adjust:** If you have many automations competing for prompt space, increase `tokenBudget`. If you want multiple automations loaded in full (e.g. a deploy automation AND a review automation), increase `maxFull`.
 
 ### Heat Tracking
 
@@ -262,7 +287,7 @@ The boot sequence controls what loads into the agent's context on session start.
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `steps` | `["identity", "preload", "protocols", "muscles", "scripts", "git-context"]` | Ordered list of boot steps. Remove a step to skip it, reorder to change priority. |
+| `steps` | `["identity", "preload", "protocols", "muscles", "automations", "scripts", "git-context"]` | Ordered list of boot steps. Remove a step to skip it, reorder to change priority. |
 
 **Available steps:**
 
@@ -272,8 +297,11 @@ The boot sequence controls what loads into the agent's context on session start.
 | `preload` | Load session continuation state (on resumed sessions only) |
 | `protocols` | Discover and inject protocols by heat tier |
 | `muscles` | Discover and inject muscles by heat within token budget |
+| `automations` | Discover and inject automations by heat (procedural step-by-step flows) |
 | `scripts` | List available `.soma/scripts/` with descriptions |
 | `git-context` | Inject recent git commits and changed files |
+
+**Why adjust:** Order matters — items earlier in the list get priority in the system prompt. If your automations are more important than scripts, they're already ordered that way by default. If you're on a model with a smaller context window, remove steps to save tokens (e.g. drop `git-context` and `scripts`).
 
 To disable a step, remove it from the array:
 
@@ -339,17 +367,27 @@ Disable git context entirely:
 
 ### Auto-Breathe
 
-Proactive context management. Instead of waiting for the 85% emergency, auto-breathe starts wrapping up earlier and rotates gracefully.
+Proactive context management. Instead of waiting until context is critical, auto-breathe gives the agent progressive awareness of context pressure and handles rotation gracefully.
 
 | Key | Default | Description |
 |-----|---------|-------------|
 | `auto` | `false` | Enable auto-breathe mode |
-| `triggerAt` | `50` | Context % to start wrap-up phase (finish current task, update session log) |
+| `triggerAt` | `50` | Context % to send a gentle notice (agent keeps working, just stays aware) |
 | `rotateAt` | `70` | Context % to write preload and auto-rotate to a fresh session |
 
-The 85% safety net is always active regardless of this setting.
+**How the phases work:**
 
-**Example: enable auto-breathe with default thresholds:**
+| Phase | Default % | What happens |
+|-------|-----------|-------------|
+| Notice | `triggerAt` (50%) | Gentle heads-up. Agent keeps working. "Consider updating logs as you go." |
+| Rotate | `rotateAt` (70%) | Firm wrap-up. Agent writes preload, says BREATHE COMPLETE, session auto-rotates. |
+| Emergency | 85% (always on) | Safety net. Fires regardless of auto-breathe setting. "Stop all work, preload NOW." |
+
+The key insight: the notice at 50% is *not* a shutdown signal. It's awareness. The agent should keep working on its current task — it just knows rotation is ahead and can start logging work incrementally.
+
+**Why enable auto-breathe:** Without it, sessions run until the 85% emergency — which is too late for a clean handoff. Auto-breathe produces better preloads because the agent has time to write them thoughtfully instead of in a panic.
+
+**Example: enable with defaults:**
 ```json
 {
   "breathe": {
@@ -358,7 +396,8 @@ The 85% safety net is always active regardless of this setting.
 }
 ```
 
-**Example: later triggers for long sessions:**
+**Example: later triggers for deep work sessions.**
+If your work involves reading many large files, context fills faster. Push triggers later so the agent doesn't get distracted by notices too early:
 ```json
 {
   "breathe": {
@@ -369,20 +408,39 @@ The 85% safety net is always active regardless of this setting.
 }
 ```
 
-You can also toggle at runtime with `/auto-breathe on|off`.
+**Example: tighter rotation for short focused tasks.**
+If you're doing quick iterations (fix a bug, ship, rotate), pull the triggers closer together:
+```json
+{
+  "breathe": {
+    "auto": true,
+    "triggerAt": 40,
+    "rotateAt": 55
+  }
+}
+```
+
+You can also toggle at runtime with `/auto-breathe on|off` — useful for switching between deep focus and quick iteration within the same project.
 
 ### Context Warnings
 
-Controls when context usage warnings fire during a session. Thresholds are percentages of the model's context window.
+Controls when context usage warnings fire during a session. These are the **passive warnings** — they fire when auto-breathe is off (or as a fallback alongside auto-breathe).
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `notifyAt` | `50` | Percentage to show a subtle notification |
-| `warnAt` | `70` | Percentage to show a warning (currently fires at `urgentAt` in prompt injection) |
-| `urgentAt` | `80` | Percentage to inject an urgent warning into the system prompt |
-| `autoExhaleAt` | `85` | Percentage to trigger auto-exhale prompt |
+| `notifyAt` | `50` | Subtle notification in the status area |
+| `warnAt` | `70` | Warning-level notification |
+| `urgentAt` | `80` | Urgent warning injected into the system prompt |
+| `autoExhaleAt` | `85` | Safety net — triggers emergency preload + rotation prompt |
 
-For longer sessions, push the thresholds up:
+**How context warnings relate to auto-breathe:**
+- With auto-breathe **off**: context warnings are your only alert system. The agent sees notifications at each threshold but has to decide what to do.
+- With auto-breathe **on**: the auto-breathe phases (`triggerAt`, `rotateAt`) handle rotation proactively. Context warnings still fire as a safety net, but auto-breathe should resolve things before they get to `urgentAt`.
+- The `autoExhaleAt` (85%) safety net fires regardless — it's the last resort.
+
+**Why adjust:** If you find the agent panicking too early, push thresholds up. If sessions end abruptly without preloads, you might want them lower — but consider enabling auto-breathe instead, which is more graceful.
+
+**Example: relaxed warnings for longer sessions:**
 ```json
 {
   "context": {
@@ -393,7 +451,7 @@ For longer sessions, push the thresholds up:
 }
 ```
 
-For aggressive context management, pull them down:
+**Example: aggressive (small context models or token-conscious workflows):**
 ```json
 {
   "context": {
@@ -410,7 +468,8 @@ For aggressive context management, pull them down:
 |-----|---------|-------------|
 | `staleAfterHours` | `48` | Hours before a preload file is considered stale. Stale preloads still load but show a ⚠️ warning. |
 
-For projects with weekly cadence:
+**Why adjust:** The stale threshold prevents the agent from acting on outdated context. If you work on a project daily, 48 hours is right — a preload from 2 days ago is probably stale. For side projects you touch weekly, set it higher so your preloads still auto-load after a few days away.
+
 ```json
 {
   "preload": {
