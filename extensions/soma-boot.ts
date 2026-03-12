@@ -828,29 +828,52 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 	// --- breath-cycle: /exhale, /flush, /rest, /breathe, /auto-continue, /inhale, /preload ---
 
+	// --- Auto-commit .soma/ internal state (heat, protocol-state, etc.) ---
+	function autoCommitSomaState(label: string): string | null {
+		const checkpointSettings = settings?.checkpoints;
+		const somaAutoCommit = checkpointSettings?.soma?.autoCommit ?? true;
+		if (!somaAutoCommit || !soma) return null;
+
+		const checkpointPrefix = checkpointSettings?.project?.prefix ?? "checkpoint:";
+		const timestamp = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+
+		try {
+			const somaGit = join(soma.path, ".git");
+			if (!existsSync(somaGit)) return null;
+
+			// Stage and commit internal state changes (heat, protocol-state, etc.)
+			execSync(`git add -A`, { cwd: soma.path, stdio: "pipe" });
+			const status = execSync(`git status --porcelain`, { cwd: soma.path, encoding: "utf-8", stdio: "pipe" }).trim();
+			if (!status) return null; // nothing to commit
+
+			execSync(
+				`git commit -m "${checkpointPrefix} ${label} ${timestamp}"`,
+				{ cwd: soma.path, stdio: "pipe" }
+			);
+			return `Committed .soma/ state: ${checkpointPrefix} ${label}`;
+		} catch {
+			return null; // git failed — not fatal
+		}
+	}
+
 	// --- Shared preload template for /exhale and /breathe ---
 	function buildPreloadInstructions(target: string, logPath: string, today: string): { template: string; steps: string[] } {
 		const checkpointSettings = settings?.checkpoints;
-		const somaAutoCommit = checkpointSettings?.soma?.autoCommit ?? true;
 		const projectAutoCheckpoint = checkpointSettings?.project?.autoCheckpoint ?? false;
 		const checkpointPrefix = checkpointSettings?.project?.prefix ?? "checkpoint:";
 		const timestamp = new Date().toISOString().replace(/\.\d+Z$/, "Z");
 
+		// .soma/ state is auto-committed in the handler before this runs.
+		// Steps here are only for the agent to execute.
 		const steps: string[] = [];
-		if (somaAutoCommit) {
-			steps.push(
-				`**Step 1a:** Commit .soma/ internal state:\n` +
-				`\`\`\`bash\ncd ${soma!.path} && git add -A && git commit -m "${checkpointPrefix} ${timestamp}"\n\`\`\``
-			);
-		}
 		if (projectAutoCheckpoint) {
 			steps.push(
-				`**Step 1b:** Checkpoint project code:\n` +
+				`**Step 1:** Checkpoint project code:\n` +
 				`\`\`\`bash\ngit add -A && git commit -m "${checkpointPrefix} ${timestamp}"\n\`\`\``
 			);
 		} else {
 			steps.push(
-				`**Step 1b:** Review uncommitted project changes — checkpoint if meaningful work exists.`
+				`**Step 1:** Review uncommitted project changes — commit if meaningful work exists.`
 			);
 		}
 
@@ -909,10 +932,16 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const today = new Date().toISOString().split("T")[0];
 		const logPath = join(resolveSomaPath(soma.path, "sessions", settings), `${today}.md`);
 
-		// Save heat
+		// Save heat state to disk
 		const decay = settings?.protocols.decayRate ?? 1;
 		if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma, protocolState); }
 		decayMuscleHeat(soma, musclesReferenced, decay);
+
+		// Auto-commit .soma/ internal state (heat, protocol-state, etc.)
+		const commitResult = autoCommitSomaState("exhale");
+		if (commitResult) {
+			ctx.ui.notify(`✅ ${commitResult}`, "info");
+		}
 
 		const { template, steps } = buildPreloadInstructions(target, logPath, today);
 
@@ -920,7 +949,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			`[EXHALE — save session state]\n\n` +
 			`${steps.join("\n\n")}\n\n` +
 			`${template}\n\n` +
-			`**Step 4:** Say "FLUSH COMPLETE".`,
+			`**Final step:** Say "FLUSH COMPLETE".`,
 			{ deliverAs: "followUp" }
 		);
 
@@ -955,10 +984,16 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const today = new Date().toISOString().split("T")[0];
 			const logPath = join(resolveSomaPath(soma.path, "sessions", settings), `${today}.md`);
 
-			// Save heat
+			// Save heat state to disk
 			const decay = settings?.protocols.decayRate ?? 1;
 			if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma, protocolState); }
 			decayMuscleHeat(soma, musclesReferenced, decay);
+
+			// Auto-commit .soma/ internal state
+			const commitResult = autoCommitSomaState("breathe");
+			if (commitResult) {
+				ctx.ui.notify(`✅ ${commitResult}`, "info");
+			}
 
 			breathePending = true;
 			breatheCommandCtx = ctx;
@@ -969,7 +1004,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				`[BREATHE — save and continue]\n\n` +
 				`${steps.join("\n\n")}\n\n` +
 				`${template}\n\n` +
-				`**Step 4:** Say "BREATHE COMPLETE" when done.`,
+				`**Final step:** Say "BREATHE COMPLETE" when done.`,
 				{ deliverAs: "followUp" }
 			);
 
