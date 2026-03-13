@@ -9,6 +9,7 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import type { SomaDir } from "./discovery.js";
+import { deepMerge } from "./utils.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -443,25 +444,3 @@ export function resolveSomaPath(
 // ---------------------------------------------------------------------------
 // Internal
 // ---------------------------------------------------------------------------
-
-/**
- * Deep merge b into a. b's values override a's.
- * Only merges plain objects — arrays and primitives replace.
- */
-function deepMerge(a: any, b: any): any {
-	const result = { ...a };
-	for (const key of Object.keys(b)) {
-		if (
-			b[key] !== null &&
-			typeof b[key] === "object" &&
-			!Array.isArray(b[key]) &&
-			typeof a[key] === "object" &&
-			!Array.isArray(a[key])
-		) {
-			result[key] = deepMerge(a[key], b[key]);
-		} else if (b[key] !== undefined) {
-			result[key] = b[key];
-		}
-	}
-	return result;
-}

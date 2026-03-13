@@ -8,6 +8,7 @@
 import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, statSync } from "fs";
 import { join, basename } from "path";
 import type { SomaDir } from "./discovery.js";
+import { deepMerge } from "./utils.js";
 
 const REPO = "meetsoma/community";
 const BRANCH = "main";
@@ -263,21 +264,4 @@ export function listLocal(soma: SomaDir, type?: ContentType): LocalItem[] {
 	return items;
 }
 
-// ---------------------------------------------------------------------------
-// Util
-// ---------------------------------------------------------------------------
 
-function deepMerge(base: any, override: any): any {
-	const result = { ...base };
-	for (const key of Object.keys(override)) {
-		if (
-			typeof result[key] === "object" && result[key] !== null && !Array.isArray(result[key]) &&
-			typeof override[key] === "object" && override[key] !== null && !Array.isArray(override[key])
-		) {
-			result[key] = deepMerge(result[key], override[key]);
-		} else {
-			result[key] = override[key];
-		}
-	}
-	return result;
-}

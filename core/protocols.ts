@@ -10,7 +10,7 @@
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { join, basename } from "path";
-import { safeRead } from "./utils.js";
+import { safeRead, extractFrontmatter } from "./utils.js";
 import type { SomaDir } from "./discovery.js";
 import { resolveSomaPath } from "./settings.js";
 import type { SomaSettings } from "./settings.js";
@@ -88,30 +88,6 @@ const DEFAULT_THRESHOLDS = {
 	maxBreadcrumbsInPrompt: 10,
 	maxFullProtocolsInPrompt: 3,
 };
-
-// ---------------------------------------------------------------------------
-// Frontmatter parsing (lightweight, no deps)
-// ---------------------------------------------------------------------------
-
-function extractFrontmatter(content: string): Record<string, string> {
-	const fm: Record<string, string> = {};
-	const match = content.match(/^---\n([\s\S]*?)\n---/);
-	if (!match) return fm;
-
-	for (const line of match[1].split("\n")) {
-		const idx = line.indexOf(":");
-		if (idx > 0) {
-			const key = line.slice(0, idx).trim();
-			let value = line.slice(idx + 1).trim();
-			// Strip quotes
-			if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-				value = value.slice(1, -1);
-			}
-			fm[key] = value;
-		}
-	}
-	return fm;
-}
 
 // ---------------------------------------------------------------------------
 // Project signal detection

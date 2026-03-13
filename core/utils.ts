@@ -89,3 +89,25 @@ export function stripFrontmatter(content: string): string {
 export function estimateTokens(text: string): number {
 	return Math.ceil(text.length / 4);
 }
+
+/**
+ * Deep merge b into a. b's values override a's.
+ * Only merges plain objects — arrays and primitives replace.
+ */
+export function deepMerge(a: any, b: any): any {
+	const result = { ...a };
+	for (const key of Object.keys(b)) {
+		if (
+			b[key] !== null &&
+			typeof b[key] === "object" &&
+			!Array.isArray(b[key]) &&
+			typeof a[key] === "object" &&
+			!Array.isArray(a[key])
+		) {
+			result[key] = deepMerge(a[key], b[key]);
+		} else if (b[key] !== undefined) {
+			result[key] = b[key];
+		}
+	}
+	return result;
+}

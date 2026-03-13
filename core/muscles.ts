@@ -20,7 +20,7 @@
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { join, basename } from "path";
-import { safeRead } from "./utils.js";
+import { safeRead, extractFrontmatter, parseArrayField, extractDigest, stripFrontmatter, estimateTokens } from "./utils.js";
 import type { SomaDir } from "./discovery.js";
 import { resolveSomaPath } from "./settings.js";
 import type { SomaSettings } from "./settings.js";
@@ -89,54 +89,6 @@ const DEFAULT_CONFIG: MuscleLoadConfig = {
 	fullThreshold: 5,
 	digestThreshold: 1,
 };
-
-// ---------------------------------------------------------------------------
-// Frontmatter + digest parsing
-// ---------------------------------------------------------------------------
-
-function extractFrontmatter(content: string): Record<string, string> {
-	const fm: Record<string, string> = {};
-	const match = content.match(/^---\n([\s\S]*?)\n---/);
-	if (!match) return fm;
-
-	for (const line of match[1].split("\n")) {
-		const idx = line.indexOf(":");
-		if (idx > 0) {
-			const key = line.slice(0, idx).trim();
-			let value = line.slice(idx + 1).trim();
-			if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-				value = value.slice(1, -1);
-			}
-			fm[key] = value;
-		}
-	}
-	return fm;
-}
-
-function parseArrayField(value: string | undefined): string[] {
-	if (!value) return [];
-	// Handle YAML array syntax: [a, b, c]
-	const match = value.match(/^\[(.*)\]$/);
-	if (match) {
-		return match[1].split(",").map(s => s.trim()).filter(Boolean);
-	}
-	// Single value
-	return [value.trim()].filter(Boolean);
-}
-
-function extractDigest(content: string): string | null {
-	const match = content.match(/<!-- digest:start -->\n([\s\S]*?)\n<!-- digest:end -->/);
-	return match ? match[1].trim() : null;
-}
-
-function stripFrontmatter(content: string): string {
-	return content.replace(/^---\n[\s\S]*?\n---\n*/, "").trim();
-}
-
-/** Rough token estimate: ~4 chars per token */
-function estimateTokens(text: string): number {
-	return Math.ceil(text.length / 4);
-}
 
 // ---------------------------------------------------------------------------
 // Public API

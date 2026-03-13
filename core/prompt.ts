@@ -16,6 +16,7 @@ import type { Protocol, ProtocolState } from "./protocols.js";
 import { getProtocolHeat } from "./protocols.js";
 import { type Muscle, buildMuscleInjection } from "./muscles.js";
 import type { SomaSettings } from "./settings.js";
+import { estimateTokens } from "./utils.js";
 
 // Known Soma doc files — label + filename pairs
 const SOMA_DOC_FILES: [string, string][] = [
@@ -311,13 +312,6 @@ function loadCoreTemplate(customPath?: string): string {
 // ---------------------------------------------------------------------------
 // Compilation helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Estimate tokens from text (rough: ~4 chars per token).
- */
-function estimateTokens(text: string): number {
-	return Math.ceil(text.length / 4);
-}
 
 /**
  * Extract a one-line summary from a protocol for system prompt inclusion.
