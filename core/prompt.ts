@@ -16,7 +16,7 @@ import type { Protocol, ProtocolState } from "./protocols.js";
 import { getProtocolHeat } from "./protocols.js";
 import { type Muscle, buildMuscleInjection } from "./muscles.js";
 import type { SomaSettings } from "./settings.js";
-import { estimateTokens } from "./utils.js";
+import { estimateTokens, stripFrontmatter } from "./utils.js";
 
 // Known Soma doc files — label + filename pairs
 const SOMA_DOC_FILES: [string, string][] = [
@@ -321,7 +321,7 @@ function protocolSummary(proto: Protocol): string {
 	if (proto.breadcrumb) return proto.breadcrumb;
 
 	// Strip frontmatter, take first meaningful line
-	const body = proto.content.replace(/^---\n[\s\S]*?\n---\n*/, "").trim();
+	const body = stripFrontmatter(proto.content);
 	const lines = body.split("\n").filter(l => l.trim() && !l.startsWith("#"));
 	if (lines.length > 0) {
 		const first = lines[0].trim();

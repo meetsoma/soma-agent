@@ -79,6 +79,7 @@ import {
 	type Protocol,
 	type Muscle,
 	type Automation,
+	stripFrontmatter,
 } from "../core/index.js";
 
 // ---------------------------------------------------------------------------
@@ -168,6 +169,18 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		return `preload-next-${today}-${shortId}.md`;
 	}
 
+	/** Save all heat state to disk — protocols, muscles, automations. */
+	function saveAllHeatState(): void {
+		if (!soma) return;
+		const decay = settings?.protocols.decayRate ?? 1;
+		if (protocolState) {
+			applyDecay(protocolState, protocolsReferenced, decay, knownProtocols);
+			saveProtocolState(soma, protocolState);
+		}
+		decayMuscleHeat(soma, musclesReferenced, decay, settings);
+		decayAutomationHeat(soma, automationsReferenced, decay, settings);
+	}
+
 	// Queued boot message for post-rotation delivery (set in session_switch, sent after newSession returns)
 	let pendingRotationBoot: string | null = null;
 
@@ -219,7 +232,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					const injection = buildProtocolInjection(protocols, protocolState, protoThresholds);
 					if (injection.hot.length > 0) {
 						const hotBlock = injection.hot.map(p => {
-							const body = p.content.replace(/^---\n[\s\S]*?\n---\n*/, "").trim();
+							const body = stripFrontmatter(p.content);
 							return `### Protocol: ${p.name}\n${body}`;
 						}).join("\n\n");
 						parts.push(`\n---\n## Hot Protocols (full reference)\n\n${hotBlock}`);
@@ -236,7 +249,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					const muscleInjection = buildMuscleInjection(muscles, settings.muscles);
 					if (muscleInjection.hot.length > 0) {
 						const hotBlock = muscleInjection.hot.map(m => {
-							const body = m.content.replace(/^---\n[\s\S]*?\n---\n*/, "").trim();
+							const body = stripFrontmatter(m.content);
 							return `### Muscle: ${m.name}\n${body}`;
 						}).join("\n\n");
 						parts.push(`\n---\n## Hot Muscles (full reference)\n\n${hotBlock}`);
@@ -257,7 +270,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					const automationInjection = buildAutomationInjection(automations, settings.automations);
 					if (automationInjection.hot.length > 0) {
 						const hotBlock = automationInjection.hot.map(a => {
-							const body = a.content.replace(/^---\n[\s\S]*?\n---\n*/, "").trim();
+							const body = stripFrontmatter(a.content);
 							return `### Automation: ${a.name}\n${body}`;
 						}).join("\n\n");
 						parts.push(`\n---\n## Hot Automations (full reference)\n\n${hotBlock}`);
@@ -593,11 +606,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		// message and flush it in agent_end, when it's safe to send followUps.
 		const initiateBreathe = (label: string, message: string) => {
 			if (breathePending) return; // already in progress
-			// Save heat state
-			const decay = settings?.protocols.decayRate ?? 1;
-			if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma!, protocolState); }
-			decayMuscleHeat(soma!, musclesReferenced, decay, settings);
-			decayAutomationHeat(soma!, automationsReferenced, decay, settings);
+			saveAllHeatState();
 			const commitResult = autoCommitSomaState(label);
 			if (commitResult) ctx.ui.notify(`✅ ${commitResult}`, "info");
 			breathePending = true;
@@ -860,37 +869,17 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		breatheTurnCount++;
 
 		// Happy path: preload written + completion signal → rotate
+		// NOTE: newSession() is only available on ExtensionCommandContext (from commands),
+		// NOT on ExtensionContext (from event handlers). Route through /auto-continue instead.
 		if (preloadWrittenThisSession && flushCompleteDetected && breathePending) {
 			breathePending = false;
 			breatheTurnCount = 0;
 			breatheCommandCtx = null;
 			ctx.ui.notify("🫁 Preload saved — rotating to fresh session...", "info");
-			// Use turn_end ctx for newSession — before_agent_start ctx may not have it
-			const rotateCtx = ctx;
-			setTimeout(async () => {
-				try {
-					pendingRotationBoot = null; // reset before newSession
-					const result = await rotateCtx.newSession({});
-					if (!result.cancelled) {
-						// session_switch handler queued a boot message with preload included.
-						// Send it now that newSession() has returned and agent is idle.
-						if (pendingRotationBoot) {
-							pi.sendUserMessage(pendingRotationBoot, { deliverAs: "followUp" });
-							pendingRotationBoot = null;
-							rotateCtx.ui.notify("✅ Rotated — boot context + preload injected", "info");
-						} else {
-							// Fallback: no boot message queued — inject preload directly
-							const preload = findPreload(soma!);
-							if (preload) {
-								pi.sendUserMessage(preload.content, { deliverAs: "followUp" });
-								rotateCtx.ui.notify("✅ Rotated — preload injected", "info");
-							}
-						}
-					}
-				} catch (err: any) {
-					rotateCtx.ui.notify(`❌ Rotation failed: ${err.message}`, "error");
-				}
-			}, 1500);
+			// Route through /auto-continue command which has ExtensionCommandContext
+			setTimeout(() => {
+				pi.sendUserMessage("/auto-continue", { deliverAs: "followUp" });
+			}, 500);
 			return;
 		}
 
@@ -973,14 +962,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 	pi.on("session_shutdown", async () => {
 		if (!soma) return;
-		const decay = settings?.protocols.decayRate ?? 1;
-		if (protocolState) {
-			applyDecay(protocolState, protocolsReferenced, decay, knownProtocols);
-			saveProtocolState(soma, protocolState);
-		}
-		decayMuscleHeat(soma, musclesReferenced, decay, settings);
-		// REFACTOR: #8 — this 3-line heat decay pattern is called in 4+ places. Extract saveHeatState().
-		decayAutomationHeat(soma, automationsReferenced, decay, settings);
+		saveAllHeatState();
 	});
 
 	// ═══════════════════════════════════════════════════════════════════
@@ -1336,10 +1318,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const logPath = join(resolveSomaPath(soma.path, "sessions", settings), `${today}.md`);
 
 		// Save heat state to disk
-		const decay = settings?.protocols.decayRate ?? 1;
-		if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma, protocolState); }
-		decayMuscleHeat(soma, musclesReferenced, decay, settings);
-		decayAutomationHeat(soma, automationsReferenced, decay, settings);
+		saveAllHeatState();
 
 		// Auto-commit .soma/ internal state (heat, protocol-state, etc.)
 		const commitResult = autoCommitSomaState("exhale");
@@ -1391,11 +1370,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const logPath = join(resolveSomaPath(soma.path, "sessions", settings), `${today}.md`);
 
 			// Save heat state to disk
-			// REFACTOR: #8 — this 4-line block is copy-pasted 4 times. Extract saveAllHeatState().
-			const decay = settings?.protocols.decayRate ?? 1;
-			if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma, protocolState); }
-			decayMuscleHeat(soma, musclesReferenced, decay, settings);
-			decayAutomationHeat(soma, automationsReferenced, decay, settings);
+			saveAllHeatState();
 
 			// Auto-commit .soma/ internal state
 			const commitResult = autoCommitSomaState("breathe");
@@ -1499,9 +1474,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	// /inhale — orient for fresh session
+	// /inhale — reset session and load preload (full restart with continuation)
 	pi.registerCommand("inhale", {
-		description: "Inhale — load preload from last session into current conversation",
+		description: "Inhale — reset session and load preload from last session",
 		handler: async (_args, ctx) => {
 			if (!soma) { ctx.ui.notify("No .soma/ — nothing to inhale. Run /soma init first.", "info"); return; }
 			const preload = findPreload(soma);
@@ -1509,12 +1484,42 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				ctx.ui.notify("🫁 No preload found — nothing to inhale.", "info");
 				return;
 			}
-			const staleTag = preload.stale ? ` ⚠️ (${Math.floor(preload.ageHours)}h old — may be stale)` : "";
-			pi.sendUserMessage(
-				`[Soma Inhale — Loading Preload${staleTag}]\n\n${preload.content}`,
-				{ deliverAs: "followUp" }
-			);
-			ctx.ui.notify(`🫁 Preload inhaled (${Math.floor(preload.ageHours)}h old)`, "info");
+
+			// Save heat state before rotating
+			saveAllHeatState();
+			const commitResult = autoCommitSomaState("inhale");
+			if (commitResult) ctx.ui.notify(`✅ ${commitResult}`, "info");
+
+			ctx.ui.notify("🫁 Inhaling — resetting session with preload...", "info");
+
+			try {
+				pendingRotationBoot = null;
+				const result = await ctx.newSession({});
+				if (!result.cancelled) {
+					// session_switch handler queued boot context + preload
+					if (pendingRotationBoot) {
+						pi.sendUserMessage(pendingRotationBoot, { deliverAs: "followUp" });
+						pendingRotationBoot = null;
+						ctx.ui.notify("✅ Inhaled — fresh session with preload injected", "info");
+					} else {
+						// Fallback: inject preload directly
+						const staleTag = preload.stale ? ` ⚠️ (${Math.floor(preload.ageHours)}h old — may be stale)` : "";
+						pi.sendUserMessage(
+							`[Soma Inhale — Loading Preload${staleTag}]\n\n${preload.content}`,
+							{ deliverAs: "followUp" }
+						);
+						ctx.ui.notify(`✅ Inhaled — preload injected (${Math.floor(preload.ageHours)}h old)`, "info");
+					}
+				}
+			} catch (err: any) {
+				ctx.ui.notify(`❌ Inhale failed: ${err?.message?.slice(0, 100)}`, "error");
+				// Fallback: inject into current session
+				const staleTag = preload.stale ? ` ⚠️ (${Math.floor(preload.ageHours)}h old — may be stale)` : "";
+				pi.sendUserMessage(
+					`[Soma Inhale — Loading Preload (fallback, session not reset)${staleTag}]\n\n${preload.content}`,
+					{ deliverAs: "followUp" }
+				);
+			}
 		},
 	});
 
