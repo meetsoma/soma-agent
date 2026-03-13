@@ -19,9 +19,9 @@
  *   - description: string — one-line summary
  */
 
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { join, basename } from "path";
-import { safeRead, extractFrontmatter, extractDigest, parseArrayField, estimateTokens, stripFrontmatter } from "./utils.js";
+import { extractFrontmatter, extractDigest, parseArrayField, discoverContent, tierByHeat, updateFrontmatterHeat } from "./utils.js";
 import type { SomaDir } from "./discovery.js";
 import { resolveSomaPath } from "./settings.js";
 import type { SomaSettings } from "./settings.js";
@@ -101,27 +101,13 @@ export function discoverAutomations(soma: SomaDir, settingsOrDir?: SomaSettings 
 	const automationDir = typeof settingsOrDir === "string"
 		? settingsOrDir
 		: resolveSomaPath(soma.path, "automations", settingsOrDir);
-	if (!existsSync(automationDir)) return [];
-
-	const automations: Automation[] = [];
-
-	try {
-		const files = readdirSync(automationDir).filter(
-			f => f.endsWith(".md") && !f.startsWith(".") && !f.startsWith("_")
-		);
-
-		for (const file of files) {
-			const filePath = join(automationDir, file);
-			const content = safeRead(filePath);
-			if (!content) continue;
-
-			const fm = extractFrontmatter(content);
+	return discoverContent<Automation>({
+		dir: automationDir,
+		fileFilter: f => f.endsWith(".md") && !f.startsWith(".") && !f.startsWith("_"),
+		parser: ({ file, filePath, content, fm }) => {
 			const status = fm["status"] as Automation["status"] || "active";
-
-			// Skip retired automations
-			if (status === "retired") continue;
-
-			automations.push({
+			if (status === "retired") return null;
+			return {
 				name: (fm["name"] as string) || basename(file, ".md"),
 				content,
 				digest: extractDigest(content),
@@ -132,13 +118,10 @@ export function discoverAutomations(soma: SomaDir, settingsOrDir?: SomaSettings 
 				tags: parseArrayField(fm["tags"]),
 				description: (fm["description"] as string) || null,
 				created: (fm["created"] as string) || null,
-			});
-		}
-	} catch {
-		/* ignore scan errors */
-	}
-
-	return automations.sort((a, b) => b.heat - a.heat);
+			};
+		},
+		sort: (a, b) => b.heat - a.heat,
+	});
 }
 
 /**
@@ -184,61 +167,7 @@ export function buildAutomationInjection(
 	config: Partial<AutomationLoadConfig> = {}
 ): AutomationInjection {
 	const cfg = { ...DEFAULT_CONFIG, ...config };
-
-	// Cold-start boost for recently created automations
-	const COLD_START_WINDOW_MS = 48 * 3600 * 1000;
-	const COLD_START_BOOST = 3;
-	const now = Date.now();
-
-	const effectiveHeat = (a: Automation): number => {
-		if (a.created) {
-			try {
-				const createdMs = new Date(a.created).getTime();
-				if (now - createdMs < COLD_START_WINDOW_MS) {
-					return Math.max(a.heat, cfg.digestThreshold + COLD_START_BOOST);
-				}
-			} catch { /* invalid date */ }
-		}
-		return a.heat;
-	};
-
-	const sorted = [...automations].sort((a, b) => effectiveHeat(b) - effectiveHeat(a));
-
-	const hot: Automation[] = [];
-	const warm: Automation[] = [];
-	const cold: Automation[] = [];
-	let tokensUsed = 0;
-
-	for (const automation of sorted) {
-		const heat = effectiveHeat(automation);
-
-		if (automation.status === "dormant" && heat < cfg.fullThreshold) {
-			cold.push(automation);
-			continue;
-		}
-
-		if (heat >= cfg.fullThreshold && hot.length < cfg.maxFull) {
-			const body = stripFrontmatter(automation.content);
-			const tokens = estimateTokens(body);
-			if (tokensUsed + tokens <= cfg.tokenBudget) {
-				hot.push(automation);
-				tokensUsed += tokens;
-				continue;
-			}
-		}
-
-		if (heat >= cfg.digestThreshold && warm.length < cfg.maxDigest && automation.digest) {
-			const tokens = estimateTokens(automation.digest);
-			if (tokensUsed + tokens <= cfg.tokenBudget) {
-				warm.push(automation);
-				tokensUsed += tokens;
-				continue;
-			}
-		}
-
-		cold.push(automation);
-	}
-
+	const { hot, warm, cold, tokensUsed } = tierByHeat(automations, cfg);
 	return { hot, warm, cold, estimatedTokens: tokensUsed };
 }
 
@@ -259,24 +188,7 @@ export function bumpAutomationHeat(soma: SomaDir, name: string, bump: number, se
 		const content = readFileSync(filePath, "utf-8");
 		const fm = extractFrontmatter(content);
 		const currentHeat = parseInt(fm["heat"] || "0", 10) || 0;
-		const newHeat = Math.max(0, Math.min(15, currentHeat + bump));
-
-		// Update heat in frontmatter
-		const updated = content.replace(
-			/^(---\n[\s\S]*?)(heat:\s*\d+)([\s\S]*?---)/m,
-			`$1heat: ${newHeat}$3`
-		);
-
-		if (updated !== content) {
-			writeFileSync(filePath, updated);
-		} else if (!content.includes("heat:")) {
-			// No heat field — add it after status
-			const withHeat = content.replace(
-				/^(---\n[\s\S]*?status:\s*\w+)/m,
-				`$1\nheat: ${newHeat}`
-			);
-			writeFileSync(filePath, withHeat);
-		}
+		updateFrontmatterHeat(filePath, currentHeat + bump, true);
 	} catch {
 		/* ignore write errors */
 	}
@@ -291,36 +203,10 @@ export function decayAutomationHeat(
 	decayRate: number,
 	settings?: SomaSettings | null
 ): void {
-	const automationDir = resolveSomaPath(soma.path, "automations", settings);
-	if (!existsSync(automationDir)) return;
-
-	try {
-		const files = readdirSync(automationDir).filter(
-			f => f.endsWith(".md") && !f.startsWith(".") && !f.startsWith("_")
-		);
-
-		for (const file of files) {
-			const name = basename(file, ".md");
-			if (referenced.has(name)) continue; // Used this session — no decay
-
-			const filePath = join(automationDir, file);
-			const content = readFileSync(filePath, "utf-8");
-			const fm = extractFrontmatter(content);
-			const currentHeat = parseInt(fm["heat"] || "0", 10) || 0;
-
-			if (currentHeat <= 0) continue; // Already cold
-
-			const newHeat = Math.max(0, currentHeat - decayRate);
-			const updated = content.replace(
-				/^(---\n[\s\S]*?)(heat:\s*\d+)([\s\S]*?---)/m,
-				`$1heat: ${newHeat}$3`
-			);
-
-			if (updated !== content) {
-				writeFileSync(filePath, updated);
-			}
-		}
-	} catch {
-		/* ignore */
+	const automations = discoverAutomations(soma, settings);
+	for (const automation of automations) {
+		if (referenced.has(automation.name)) continue;
+		if (automation.heat <= 0) continue;
+		updateFrontmatterHeat(automation.path, automation.heat - decayRate);
 	}
 }

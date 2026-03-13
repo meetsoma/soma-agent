@@ -18,9 +18,9 @@
  *   - status: active | dormant | retired
  */
 
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
+import { writeFileSync } from "fs";
 import { join, basename } from "path";
-import { safeRead, extractFrontmatter, parseArrayField, extractDigest, stripFrontmatter, estimateTokens } from "./utils.js";
+import { safeRead, extractFrontmatter, parseArrayField, extractDigest, stripFrontmatter, estimateTokens, discoverContent, tierByHeat, updateFrontmatterHeat } from "./utils.js";
 import type { SomaDir } from "./discovery.js";
 import { resolveSomaPath } from "./settings.js";
 import type { SomaSettings } from "./settings.js";
@@ -105,27 +105,13 @@ export function discoverMuscles(soma: SomaDir, settingsOrDir?: SomaSettings | st
 	const muscleDir = typeof settingsOrDir === "string"
 		? settingsOrDir
 		: resolveSomaPath(soma.path, "muscles", settingsOrDir);
-	if (!existsSync(muscleDir)) return [];
-
-	const muscles: Muscle[] = [];
-
-	try {
-		const files = readdirSync(muscleDir).filter(
-			f => f.endsWith(".md") && !f.startsWith(".") && !f.startsWith("_")
-		);
-
-		for (const file of files) {
-			const filePath = join(muscleDir, file);
-			const content = safeRead(filePath);
-			if (!content) continue;
-
-			const fm = extractFrontmatter(content);
+	return discoverContent<Muscle>({
+		dir: muscleDir,
+		fileFilter: f => f.endsWith(".md") && !f.startsWith(".") && !f.startsWith("_"),
+		parser: ({ file, filePath, content, fm }) => {
 			const status = fm["status"] as Muscle["status"] || "active";
-
-			// Skip retired muscles
-			if (status === "retired") continue;
-
-			muscles.push({
+			if (status === "retired") return null;
+			return {
 				name: basename(file, ".md"),
 				content,
 				digest: extractDigest(content),
@@ -136,14 +122,10 @@ export function discoverMuscles(soma: SomaDir, settingsOrDir?: SomaSettings | st
 				loads: parseInt(fm["loads"] || "0", 10) || 0,
 				status,
 				created: (fm["created"] as string) || null,
-			});
-		}
-	} catch {
-		/* ignore scan errors */
-	}
-
-	// Sort by heat descending
-	return muscles.sort((a, b) => b.heat - a.heat);
+			};
+		},
+		sort: (a, b) => b.heat - a.heat,
+	});
 }
 
 /**
@@ -197,73 +179,7 @@ export function buildMuscleInjection(
 	config: Partial<MuscleLoadConfig> = {}
 ): MuscleInjection {
 	const cfg = { ...DEFAULT_CONFIG, ...config };
-
-	// Cold-start boost: muscles created in the last 48h get a temporary heat bump
-	// so they can compete with established muscles for loading slots.
-	// This doesn't mutate the original — we work with effective heat values.
-	const COLD_START_WINDOW_MS = 48 * 3600 * 1000;
-	const COLD_START_BOOST = 3;
-	const now = Date.now();
-
-	const effectiveHeat = (m: Muscle): number => {
-		if (m.created) {
-			try {
-				const createdMs = new Date(m.created).getTime();
-				if (now - createdMs < COLD_START_WINDOW_MS) {
-					return Math.max(m.heat, cfg.digestThreshold + COLD_START_BOOST);
-				}
-			} catch { /* invalid date, no boost */ }
-		}
-		return m.heat;
-	};
-
-	// Re-sort with effective heat so boosted muscles compete fairly
-	const sorted = [...muscles].sort((a, b) => effectiveHeat(b) - effectiveHeat(a));
-
-	const hot: Muscle[] = [];
-	const warm: Muscle[] = [];
-	const cold: Muscle[] = [];
-	let tokensUsed = 0;
-
-	for (const muscle of sorted) {
-		const heat = effectiveHeat(muscle);
-
-		// Skip dormant muscles unless explicitly hot
-		if (muscle.status === "dormant" && heat < cfg.fullThreshold) {
-			cold.push(muscle);
-			continue;
-		}
-
-		if (
-			heat >= cfg.fullThreshold &&
-			hot.length < cfg.maxFull
-		) {
-			// Full body loading
-			const body = stripFrontmatter(muscle.content);
-			const tokens = estimateTokens(body);
-			if (tokensUsed + tokens <= cfg.tokenBudget) {
-				hot.push(muscle);
-				tokensUsed += tokens;
-				continue;
-			}
-			// Over budget for full — try digest instead
-		}
-
-		if (
-			heat >= cfg.digestThreshold &&
-			warm.length < cfg.maxDigest &&
-			muscle.digest
-		) {
-			const tokens = estimateTokens(muscle.digest);
-			if (tokensUsed + tokens <= cfg.tokenBudget) {
-				warm.push(muscle);
-				tokensUsed += tokens;
-				continue;
-			}
-		}
-
-		cold.push(muscle);
-	}
+	const { hot, warm, cold, tokensUsed } = tierByHeat(muscles, cfg);
 
 	// Build system prompt block
 	const lines: string[] = [];
@@ -358,16 +274,7 @@ export function bumpMuscleHeat(soma: SomaDir, muscleName: string, amount: number
 
 	const fm = extractFrontmatter(content);
 	const currentHeat = parseInt(fm["heat"] || "0", 10) || 0;
-	const newHeat = Math.max(0, Math.min(currentHeat + amount, 15));
-
-	const updated = content.replace(
-		/^(---\n[\s\S]*?)heat:\s*\d+([\s\S]*?\n---)/,
-		`$1heat: ${newHeat}$2`
-	);
-
-	if (updated !== content) {
-		writeFileSync(filePath, updated);
-	}
+	updateFrontmatterHeat(filePath, currentHeat + amount);
 }
 
 /**
@@ -388,18 +295,6 @@ export function decayMuscleHeat(
 	for (const muscle of muscles) {
 		if (referencedThisSession.has(muscle.name)) continue;
 		if (muscle.heat <= 0) continue;
-
-		const content = safeRead(muscle.path);
-		if (!content) continue;
-
-		const newHeat = Math.max(0, muscle.heat - decayRate);
-		const updated = content.replace(
-			/^(---\n[\s\S]*?)heat:\s*\d+([\s\S]*?\n---)/,
-			`$1heat: ${newHeat}$2`
-		);
-
-		if (updated !== content) {
-			writeFileSync(muscle.path, updated);
-		}
+		updateFrontmatterHeat(muscle.path, muscle.heat - decayRate);
 	}
 }

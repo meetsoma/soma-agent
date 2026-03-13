@@ -10,7 +10,7 @@
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { join, basename } from "path";
-import { safeRead, extractFrontmatter } from "./utils.js";
+import { safeRead, extractFrontmatter, discoverContent } from "./utils.js";
 import type { SomaDir } from "./discovery.js";
 import { resolveSomaPath } from "./settings.js";
 import type { SomaSettings } from "./settings.js";
@@ -182,38 +182,19 @@ export function protocolMatchesSignals(
  */
 export function discoverProtocols(soma: SomaDir, settings?: SomaSettings | null): Protocol[] {
 	const protocolDir = resolveSomaPath(soma.path, "protocols", settings);
-	if (!existsSync(protocolDir)) return [];
-
-	const protocols: Protocol[] = [];
-
-	try {
-		const files = readdirSync(protocolDir).filter(
-			f => f.endsWith(".md") && !f.startsWith(".") && !f.startsWith("_") && f !== "README.md"
-		);
-
-		for (const file of files) {
-			const filePath = join(protocolDir, file);
-			const content = safeRead(filePath);
-			if (!content) continue;
-
-			const fm = extractFrontmatter(content);
-
-			protocols.push({
-				name: fm["name"] || basename(file, ".md"),
-				content,
-				breadcrumb: fm["breadcrumb"] || null,
-				path: filePath,
-				heatDefault: parseHeatDefault(fm["heat-default"]),
-				scope: fm["scope"] === "shared" ? "shared" : "local",
-				tier: fm["tier"] === "enterprise" ? "enterprise" : "free",
-				appliesTo: parseAppliesTo(fm["applies-to"]),
-			});
-		}
-	} catch {
-		/* ignore scan errors */
-	}
-
-	return protocols;
+	return discoverContent<Protocol>({
+		dir: protocolDir,
+		parser: ({ file, filePath, content, fm }) => ({
+			name: fm["name"] || basename(file, ".md"),
+			content,
+			breadcrumb: fm["breadcrumb"] || null,
+			path: filePath,
+			heatDefault: parseHeatDefault(fm["heat-default"]),
+			scope: fm["scope"] === "shared" ? "shared" : "local",
+			tier: fm["tier"] === "enterprise" ? "enterprise" : "free",
+			appliesTo: parseAppliesTo(fm["applies-to"]),
+		}),
+	});
 }
 
 /**
