@@ -664,11 +664,22 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 				// Phase 1 is a gentle nudge — NOT a shutdown order.
 				// The agent should keep working. Just be aware context is accumulating.
+				// Includes session log path + template so the agent can log observations mid-session.
 				const preloadHint = preloadTarget ? `\n- Preload target: \`${preloadTarget}\`` : "";
+				const sessionLogPath = soma ? join(resolveSomaPath(soma.path, "sessions", settings), `${new Date().toISOString().slice(0, 10)}.md`) : null;
+				const sessionLogHint = sessionLogPath
+					? `\n\nReflect and log any observations. Template:\n` +
+					  `\`\`\`\n` +
+					  `## HH:MM\n\n` +
+					  `- what shipped (commits with hashes)\n` +
+					  `- **Observations:** patterns noticed, tagged by domain: [bash], [testing], [api-design], [architecture], [workflow], [meta]\n` +
+					  `\`\`\`\n` +
+					  `→ \`${sessionLogPath}\``
+					: "";
 				additions.push(
 					`\n## 🫧 Auto-Breathe: Notice (${Math.round(pct)}%)\n` +
 					`Context is at ${Math.round(pct)}%. Keep working — just be aware. ` +
-					`Consider updating session logs as you go. Rotation at ~${breatheSettings.rotateAt}%.${preloadHint}`
+					`Rotation at ~${breatheSettings.rotateAt}%.${preloadHint}${sessionLogHint}`
 				);
 
 				// Soft notice — agent keeps working, just knows rotation is ahead
@@ -677,7 +688,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					`Just a heads up — context is at ${Math.round(pct)}%. No need to stop. ` +
 					`Keep working on your current task. As you finish things, consider:\n` +
 					`- Committing completed work\n` +
-					`- Updating session log with what you've done so far${preloadHint}\n\n` +
+					`- Logging observations to session log${sessionLogPath ? `: \`${sessionLogPath}\`` : ""}${preloadHint}\n\n` +
 					`Rotation happens at ~${breatheSettings.rotateAt}% — you've got room.`
 				);
 
