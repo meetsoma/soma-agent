@@ -1277,7 +1277,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const template =
 			`**Step 2:** Append to \`${logPath}\` — daily session log. ` +
 			`Read first if it exists — append a new \`## HH:MM\` section, never overwrite previous entries. ` +
-			`Only record what actually happened — never claim a preload was written before you write it.\n\n` +
+			`Include: what shipped (commits), **Gaps & Recoveries** (tool errors, workarounds, false starts), ` +
+			`**Observations** (patterns noticed, tagged by domain: [bash], [testing], [api-design], [architecture], [workflow], [meta]). ` +
+			`Observations are seeds for future muscles/protocols — they're the unique value session logs provide.\n\n` +
 			`**Step 3:** Write \`${target}\` — this is the LAST file you write.\n\n` +
 			`This IS the continuation prompt for the next session. The next agent sees ONLY this file — ` +
 			`not the conversation history. Write it like a briefing for someone taking over your shift.\n\n` +
