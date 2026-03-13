@@ -1298,29 +1298,25 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			`## Resume Point\n` +
 			`<!-- 2-3 sentences: what was this session about, what state are things in. -->\n\n` +
 			`## What Shipped\n` +
-			`<!-- For each item: what changed, which file(s), commit hash if available.\n` +
-			`     Example:\n` +
-			`     1. **fix(guard): false positive warnings** (\`abc123\`)\n` +
-			`        - \`extensions/soma-guard.ts\` — regex matched 2>/dev/null as dangerous\n` +
-			`        - Fixed: negative lookbehind for stderr redirects -->\n\n` +
-			`## In-Flight (unfinished work)\n` +
-			`<!-- What was started but not completed. Be specific:\n` +
-			`     - What's the bug/feature\n` +
-			`     - Root cause theory (if debugging)\n` +
-			`     - Exact file + line where investigation stopped\n` +
-			`     - What to try next -->\n\n` +
+			`<!-- Numbered list. Each: description (\`commit\`), key files changed. Dense. -->\n\n` +
+			`## Next Session: [Task Name]\n` +
+			`<!-- THE AMNESIA-PROOF SECTION. Write as if next agent has zero context.\n` +
+			`     Include:\n` +
+			`     - Quick Start: exact bash commands to run first (no reading required)\n` +
+			`     - Steps: numbered, with exact file:line refs (e.g. muscles.ts [97-138])\n` +
+			`     - After each step: test + verify commands\n` +
+			`     - After all steps: commit + sync commands\n` +
+			`     This section should be executable top-to-bottom without reading Orient From. -->\n\n` +
+			`## In-Flight (not started)\n` +
+			`<!-- Unfinished work NOT covered by Next Session. Brief. -->\n\n` +
 			`## Key Decisions\n` +
-			`<!-- Decisions with rationale: "Did X because Y, alternative was Z."\n` +
-			`     Architecture choices, naming decisions, why something was rejected. -->\n\n` +
-			`## Next Session Priorities\n` +
-			`<!-- Ordered list. First item = what to do immediately. -->\n\n` +
+			`<!-- Decisions with rationale. Only include if next session needs them. -->\n\n` +
 			`## Orient From\n` +
-			`<!-- Files the next session should READ before starting work.\n` +
-			`     These are orientation targets — the next agent reads these first.\n` +
-			`     Only list what matters for the NEXT session's work. -->\n\n` +
+			`<!-- Files to read ONLY IF the Next Session section isn't enough.\n` +
+			`     Always include [line-ranges] for code files.\n` +
+			`     Example: \`core/utils.ts\` [39-91] — canonical shared helpers -->\n\n` +
 			`## Do NOT Re-Read\n` +
-			`<!-- Files already fully understood. Include WHY — not just the path.\n` +
-			`     Example: "src/config.ts — fully traced, settings bug at line 89 identified" -->\n` +
+			`<!-- Files fully understood. Brief reason why. -->\n` +
 			`\`\`\`\n\n` +
 			`⚠️ **Order matters:** session log (Step 2) FIRST, then preload (Step 3) LAST. ` +
 			`The preload write triggers the rotation watcher.`;
