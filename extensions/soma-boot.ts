@@ -161,6 +161,13 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let autoBreatheRotateSent = false;
 	let currentSessionId = "";
 
+	/** Build preload filename: preload-next-YYYY-MM-DD-XXXXXX.md (6 chars of session ID) */
+	function preloadFilename(): string {
+		const today = new Date().toISOString().split("T")[0];
+		const shortId = currentSessionId ? currentSessionId.slice(-6) : "000000";
+		return `preload-next-${today}-${shortId}.md`;
+	}
+
 	// Queued boot message for post-rotation delivery (set in session_switch, sent after newSession returns)
 	let pendingRotationBoot: string | null = null;
 
@@ -578,7 +585,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const breatheSettings = settings?.breathe ?? { auto: false, triggerAt: 50, rotateAt: 70 };
 		const additions: string[] = [];
 		const memDir = soma ? resolveSomaPath(soma.path, "preloads", settings) : null;
-		const preloadTarget = memDir ? join(memDir, `preload-${currentSessionId || "next"}.md`) : null;
+		const preloadTarget = memDir ? join(memDir, preloadFilename()) : null;
 
 		// Helper: initiate breathe rotation (shared by auto-breathe and auto-flush safety net)
 		// NOTE: This runs inside before_agent_start. Calling pi.sendUserMessage here races
@@ -1282,6 +1289,11 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			`type: preload\n` +
 			`created: ${today}\n` +
 			`session: ${currentSessionId || "unknown"}\n` +
+			`commits: []        # list commit hashes from this session\n` +
+			`projects: []       # project names touched (e.g. [soma-agent, website])\n` +
+			`tags: []           # topics/themes (e.g. [refactor, amps, paths])\n` +
+			`files-changed: 0   # total files modified\n` +
+			`tests: ""          # test results summary (e.g. "333/333")\n` +
 			`---\n\n` +
 			`## Resume Point\n` +
 			`<!-- 2-3 sentences: what was this session about, what state are things in. -->\n\n` +
@@ -1300,20 +1312,11 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			`## Key Decisions\n` +
 			`<!-- Decisions with rationale: "Did X because Y, alternative was Z."\n` +
 			`     Architecture choices, naming decisions, why something was rejected. -->\n\n` +
-			`## Architecture Learned\n` +
-			`<!-- Insights about how the codebase works that would be lost.\n` +
-			`     Example: "Pi resets system prompt to base each turn — extensions must\n` +
-			`     return { systemPrompt } every time or it reverts." -->\n\n` +
 			`## Next Session Priorities\n` +
 			`<!-- Ordered list. First item = what to do immediately. -->\n\n` +
 			`## Orient From\n` +
 			`<!-- Files the next session should READ before starting work.\n` +
 			`     These are orientation targets — the next agent reads these first.\n` +
-			`     Plans, task boards, design docs, key source files for the next task.\n` +
-			`     Example:\n` +
-			`     - \`.soma/_kanban.md\` — check what's in progress\n` +
-			`     - \`docs/architecture.md\` — context for the refactor\n` +
-			`     - \`src/auth.ts:200-250\` — where the bug investigation stopped\n` +
 			`     Only list what matters for the NEXT session's work. -->\n\n` +
 			`## Do NOT Re-Read\n` +
 			`<!-- Files already fully understood. Include WHY — not just the path.\n` +
@@ -1330,7 +1333,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
 
 		const memDir = resolveSomaPath(soma.path, "preloads", settings);
-		const target = join(memDir, `preload-${currentSessionId || "next"}.md`);
+		const target = join(memDir, preloadFilename());
 		const today = new Date().toISOString().split("T")[0];
 		const logPath = join(resolveSomaPath(soma.path, "sessions", settings), `${today}.md`);
 
@@ -1385,7 +1388,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const pct = usage?.percent ?? 0;
 
 			const memDir = resolveSomaPath(soma.path, "preloads", settings);
-			const target = join(memDir, `preload-${currentSessionId || "next"}.md`);
+			const target = join(memDir, preloadFilename());
 			const today = new Date().toISOString().split("T")[0];
 			const logPath = join(resolveSomaPath(soma.path, "sessions", settings), `${today}.md`);
 
