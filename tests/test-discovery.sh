@@ -87,7 +87,7 @@ section "Integration — This Repo"
 if [[ -d "$PROJECT_DIR/.soma" ]]; then
   pass ".soma/ exists in agent repo"
   [[ -f "$PROJECT_DIR/.soma/STATE.md" ]] && pass "STATE.md present" || fail "STATE.md missing"
-  [[ -d "$PROJECT_DIR/.soma/protocols" ]] && pass "protocols/ present" || fail "protocols/ missing"
+  [[ -d "$PROJECT_DIR/.soma/protocols" || -d "$PROJECT_DIR/.soma/amps/protocols" ]] && pass "protocols/ present" || fail "protocols/ missing"
 else
   fail "no .soma/ in agent repo"
 fi

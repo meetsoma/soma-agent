@@ -1,5 +1,8 @@
 ---
+type: protocol
 name: pre-flight
+status: active
+updated: 2026-03-13
 breadcrumb: "Before building anything: check if it exists. Before accepting a request: verify it's needed. Read ATLAS, grep for prior art. Catch user mistakes before executing them."
 heat-default: 8
 scope: shared
@@ -7,6 +10,10 @@ tier: free
 ---
 
 # Pre-Flight Protocol
+
+## TL;DR
+
+Before building anything new, check if it exists. Read ATLAS, grep codebase, verify need. Catch duplication before executing.
 
 ## Rule
 

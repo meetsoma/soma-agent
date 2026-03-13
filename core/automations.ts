@@ -22,8 +22,9 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { join, basename } from "path";
 import { safeRead, extractFrontmatter, extractDigest, parseArrayField, estimateTokens, stripFrontmatter } from "./utils.js";
-// NOTE: These parsing functions are now shared in utils.ts (previously duplicated in muscles.ts and protocols.ts)
 import type { SomaDir } from "./discovery.js";
+import { resolveSomaPath } from "./settings.js";
+import type { SomaSettings } from "./settings.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -96,8 +97,10 @@ const DEFAULT_CONFIG: AutomationLoadConfig = {
  * Discover automations in a single .soma/ directory.
  * Returns sorted by heat descending.
  */
-export function discoverAutomations(soma: SomaDir, overrideDir?: string): Automation[] {
-	const automationDir = overrideDir || join(soma.path, "automations");
+export function discoverAutomations(soma: SomaDir, settingsOrDir?: SomaSettings | string | null): Automation[] {
+	const automationDir = typeof settingsOrDir === "string"
+		? settingsOrDir
+		: resolveSomaPath(soma.path, "automations", settingsOrDir);
 	if (!existsSync(automationDir)) return [];
 
 	const automations: Automation[] = [];
@@ -156,7 +159,7 @@ export function discoverAutomationChain(
 	const all: Automation[] = [];
 
 	for (const soma of effectiveChain) {
-		const automations = discoverAutomations(soma);
+		const automations = discoverAutomations(soma, settings);
 		for (const a of automations) {
 			if (!seen.has(a.name)) {
 				seen.add(a.name);
@@ -247,8 +250,8 @@ export function buildAutomationInjection(
  * Bump heat for an automation by name.
  * Reads the file, updates frontmatter heat, writes back.
  */
-export function bumpAutomationHeat(soma: SomaDir, name: string, bump: number): void {
-	const automationDir = join(soma.path, "automations");
+export function bumpAutomationHeat(soma: SomaDir, name: string, bump: number, settings?: SomaSettings | null): void {
+	const automationDir = resolveSomaPath(soma.path, "automations", settings);
 	const filePath = join(automationDir, `${name}.md`);
 	if (!existsSync(filePath)) return;
 
@@ -285,9 +288,10 @@ export function bumpAutomationHeat(soma: SomaDir, name: string, bump: number): v
 export function decayAutomationHeat(
 	soma: SomaDir,
 	referenced: Set<string>,
-	decayRate: number
+	decayRate: number,
+	settings?: SomaSettings | null
 ): void {
-	const automationDir = join(soma.path, "automations");
+	const automationDir = resolveSomaPath(soma.path, "automations", settings);
 	if (!existsSync(automationDir)) return;
 
 	try {

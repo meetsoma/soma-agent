@@ -312,12 +312,13 @@ const BUILTIN_SETTINGS = {
 		flowUp: false,
 	},
 	paths: {
-		muscles: "memory/muscles",
-		protocols: "protocols",
-		scripts: "scripts",
+		muscles: "amps/muscles",
+		protocols: "amps/protocols",
+		scripts: "amps/scripts",
+		automations: "amps/automations",
 		skills: "skills",
 		extensions: "extensions",
-		preloads: "memory",
+		preloads: "memory/preloads",
 		identity: "identity.md",
 		plans: "plans",
 		ideas: "memory/ideas",
@@ -348,8 +349,9 @@ const BUILTIN_SETTINGS = {
 };
 
 const BUILTIN_GITIGNORE = `# Session data (personal, not shared)
-memory/preload-*.md
+memory/preloads/
 memory/sessions/
+state.json
 .protocol-state.json
 
 # Debug logs
@@ -475,17 +477,19 @@ export function initSoma(cwd: string, options: InitOptions = {}): string {
 		"ROOT": rootName,
 	};
 
-	// Create directory structure
+	// Create directory structure (AMPS layout)
 	const dirs = [
 		somaDir,
+		join(somaDir, "amps"),
+		join(somaDir, "amps", "muscles"),
+		join(somaDir, "amps", "protocols"),
+		join(somaDir, "amps", "scripts"),
+		join(somaDir, "amps", "automations"),
 		join(somaDir, "memory"),
-		join(somaDir, "memory", "muscles"),
+		join(somaDir, "memory", "preloads"),
 		join(somaDir, "memory", "sessions"),
 		join(somaDir, "memory", "ideas"),
 		join(somaDir, "memory", "logs"),
-		join(somaDir, "protocols"),
-		join(somaDir, "automations"),
-		join(somaDir, "scripts"),
 		join(somaDir, "skills"),
 		join(somaDir, "extensions"),
 	];
@@ -695,7 +699,7 @@ function scaffoldProtocols(
 	templateDir: string | null,
 	vars: Record<string, string>
 ): void {
-	const protoDir = join(somaDir, "protocols");
+	const protoDir = join(somaDir, "amps", "protocols");
 
 	writeIfMissing(
 		join(protoDir, "breath-cycle.md"),

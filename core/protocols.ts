@@ -12,6 +12,8 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { join, basename } from "path";
 import { safeRead } from "./utils.js";
 import type { SomaDir } from "./discovery.js";
+import { resolveSomaPath } from "./settings.js";
+import type { SomaSettings } from "./settings.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -199,10 +201,11 @@ export function protocolMatchesSignals(
  * Discover all protocol .md files in a soma directory.
  *
  * @param soma - The SomaDir to scan
+ * @param settings - Optional settings for path resolution
  * @returns Array of Protocol objects
  */
-export function discoverProtocols(soma: SomaDir): Protocol[] {
-	const protocolDir = join(soma.path, "protocols");
+export function discoverProtocols(soma: SomaDir, settings?: SomaSettings | null): Protocol[] {
+	const protocolDir = resolveSomaPath(soma.path, "protocols", settings);
 	if (!existsSync(protocolDir)) return [];
 
 	const protocols: Protocol[] = [];
@@ -270,7 +273,7 @@ export function discoverProtocolChain(
 	const all: Protocol[] = [];
 
 	for (const soma of effectiveChain) {
-		const protocols = discoverProtocols(soma);
+		const protocols = discoverProtocols(soma, settings);
 		for (const proto of protocols) {
 			if (seen.has(proto.name)) continue;
 			seen.add(proto.name);
@@ -284,13 +287,17 @@ export function discoverProtocolChain(
 }
 
 /**
- * Load protocol heat state from .protocol-state.json.
+ * Load protocol heat state from state.json (or legacy .protocol-state.json).
  *
  * @param soma - The SomaDir to read state from
  * @returns ProtocolState or null if not found
  */
 export function loadProtocolState(soma: SomaDir): ProtocolState | null {
-	const statePath = join(soma.path, ".protocol-state.json");
+	// Try new name first, fall back to legacy
+	let statePath = join(soma.path, "state.json");
+	if (!existsSync(statePath)) {
+		statePath = join(soma.path, ".protocol-state.json");
+	}
 	const raw = safeRead(statePath);
 	if (!raw) return null;
 
@@ -302,10 +309,10 @@ export function loadProtocolState(soma: SomaDir): ProtocolState | null {
 }
 
 /**
- * Save protocol heat state.
+ * Save protocol heat state to state.json.
  */
 export function saveProtocolState(soma: SomaDir, state: ProtocolState): void {
-	const statePath = join(soma.path, ".protocol-state.json");
+	const statePath = join(soma.path, "state.json");
 	state.updated = new Date().toISOString();
 	writeFileSync(statePath, JSON.stringify(state, null, 2) + "\n");
 }

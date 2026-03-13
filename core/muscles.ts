@@ -22,6 +22,8 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { join, basename } from "path";
 import { safeRead } from "./utils.js";
 import type { SomaDir } from "./discovery.js";
+import { resolveSomaPath } from "./settings.js";
+import type { SomaSettings } from "./settings.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -144,11 +146,13 @@ function estimateTokens(text: string): number {
  * Discover all muscle files in a soma directory.
  *
  * @param soma - The SomaDir to scan
- * @param overrideDir - Optional override for muscle directory path (from settings.paths)
+ * @param settingsOrDir - Settings for path resolution, or an explicit directory path override
  * @returns Array of Muscle objects sorted by heat (descending)
  */
-export function discoverMuscles(soma: SomaDir, overrideDir?: string): Muscle[] {
-	const muscleDir = overrideDir || join(soma.path, "memory", "muscles");
+export function discoverMuscles(soma: SomaDir, settingsOrDir?: SomaSettings | string | null): Muscle[] {
+	const muscleDir = typeof settingsOrDir === "string"
+		? settingsOrDir
+		: resolveSomaPath(soma.path, "muscles", settingsOrDir);
 	if (!existsSync(muscleDir)) return [];
 
 	const muscles: Muscle[] = [];
@@ -216,7 +220,7 @@ export function discoverMuscleChain(
 	const all: Muscle[] = [];
 
 	for (const soma of effectiveChain) {
-		const muscles = discoverMuscles(soma);
+		const muscles = discoverMuscles(soma, settings);
 		for (const m of muscles) {
 			if (!seen.has(m.name)) {
 				seen.add(m.name);
@@ -393,10 +397,10 @@ export function trackMuscleLoads(muscles: Muscle[]): void {
  * @param soma - The SomaDir containing the muscle
  * @param muscleName - Muscle filename (without .md)
  * @param amount - Heat to add (default: 1)
- * @param overrideDir - Optional override for muscle directory path (from settings.paths)
+ * @param settings - Optional settings for path resolution
  */
-export function bumpMuscleHeat(soma: SomaDir, muscleName: string, amount: number = 1, overrideDir?: string): void {
-	const filePath = join(overrideDir || join(soma.path, "memory", "muscles"), `${muscleName}.md`);
+export function bumpMuscleHeat(soma: SomaDir, muscleName: string, amount: number = 1, settings?: SomaSettings | null): void {
+	const filePath = join(resolveSomaPath(soma.path, "muscles", settings), `${muscleName}.md`);
 	const content = safeRead(filePath);
 	if (!content) return;
 
@@ -420,13 +424,15 @@ export function bumpMuscleHeat(soma: SomaDir, muscleName: string, amount: number
  * @param soma - The SomaDir to scan
  * @param referencedThisSession - Set of muscle names used this session
  * @param decayRate - How much heat to remove (default: 1)
+ * @param settings - Optional settings for path resolution
  */
 export function decayMuscleHeat(
 	soma: SomaDir,
 	referencedThisSession: Set<string>,
-	decayRate: number = 1
+	decayRate: number = 1,
+	settings?: SomaSettings | null
 ): void {
-	const muscles = discoverMuscles(soma);
+	const muscles = discoverMuscles(soma, settings);
 	for (const muscle of muscles) {
 		if (referencedThisSession.has(muscle.name)) continue;
 		if (muscle.heat <= 0) continue;

@@ -9,6 +9,8 @@ import { existsSync, readdirSync, statSync } from "fs";
 import { join, basename } from "path";
 import { safeRead } from "./utils.js";
 import type { SomaDir } from "./discovery.js";
+import { resolveSomaPath } from "./settings.js";
+import type { SomaSettings } from "./settings.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,17 +35,24 @@ export interface PreloadInfo {
 
 /**
  * Find the best preload file in a soma directory.
- * Checks root and memory/ subdirectory. Prefers preload-next.md,
- * falls back to most recent preload-*.md.
+ * Checks configured preloads dir, root, and legacy memory/ subdirectory.
+ * Falls back to most recent preload-*.md.
  *
  * @param soma - The SomaDir to search in
  * @param maxAgeHours - Maximum age before marking stale (default: 48)
+ * @param settings - Optional settings for path resolution
  * @returns PreloadInfo if found, null otherwise
  */
-export function findPreload(soma: SomaDir, maxAgeHours: number = 48): PreloadInfo | null {
-	const searchDirs = [soma.path];
-	const memoryDir = join(soma.path, "memory");
-	if (existsSync(memoryDir)) searchDirs.push(memoryDir);
+export function findPreload(soma: SomaDir, maxAgeHours: number = 48, settings?: SomaSettings | null): PreloadInfo | null {
+	const preloadDir = resolveSomaPath(soma.path, "preloads", settings);
+	const searchDirs: string[] = [];
+	// Configured preloads dir first
+	if (existsSync(preloadDir)) searchDirs.push(preloadDir);
+	// Then soma root (legacy location)
+	if (!searchDirs.includes(soma.path)) searchDirs.push(soma.path);
+	// Legacy: memory/ subdirectory
+	const legacyMemoryDir = join(soma.path, "memory");
+	if (existsSync(legacyMemoryDir) && !searchDirs.includes(legacyMemoryDir)) searchDirs.push(legacyMemoryDir);
 
 	// Find most recent preload-*.md (session-scoped or legacy preload-next.md)
 	for (const dir of searchDirs) {
@@ -70,9 +79,12 @@ export function findPreload(soma: SomaDir, maxAgeHours: number = 48): PreloadInf
 /**
  * Check if any preload exists (lightweight, no content read).
  */
-export function hasPreload(soma: SomaDir): boolean {
-	const dirs = [soma.path, join(soma.path, "memory")];
-	for (const dir of dirs) {
+export function hasPreload(soma: SomaDir, settings?: SomaSettings | null): boolean {
+	const preloadDir = resolveSomaPath(soma.path, "preloads", settings);
+	const dirs = [preloadDir, soma.path, join(soma.path, "memory")];
+	// Deduplicate
+	const unique = [...new Set(dirs)];
+	for (const dir of unique) {
 		try {
 			const files = readdirSync(dir).filter(f => f.startsWith("preload-") && f.endsWith(".md"));
 			if (files.length > 0) return true;

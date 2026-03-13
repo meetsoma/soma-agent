@@ -41,7 +41,7 @@ export default function somaHeaderExtension(pi: ExtensionAPI) {
 					if (soma) {
 						if (hasIdentity(soma)) dots.push(`${BRAND}●${RESET} ${MUTED}identity${RESET}`);
 						if (hasPreload(soma)) dots.push(`${BRAND}●${RESET} ${MUTED}preload${RESET}`);
-						if (existsSync(join(soma.path, "memory"))) dots.push(`${BRAND}●${RESET} ${MUTED}memory${RESET}`);
+						if (existsSync(join(soma.path, "amps")) || existsSync(join(soma.path, "memory"))) dots.push(`${BRAND}●${RESET} ${MUTED}memory${RESET}`);
 
 						const protocols = discoverProtocols(soma);
 						if (protocols.length > 0) dots.push(`${BRAND}●${RESET} ${MUTED}${protocols.length} protocols${RESET}`);

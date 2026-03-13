@@ -61,15 +61,15 @@ async function fetchJson(url: string): Promise<any> {
 
 /**
  * Resolve target directory for a content type.
- * Uses settings.paths when available, falls back to hardcoded defaults.
+ * Uses settings.paths when available, falls back to AMPS defaults.
  */
 function targetDir(soma: SomaDir, type: ContentType, pathOverrides?: Partial<Record<string, string>>): string {
 	const map: Record<ContentType, string> = {
-		protocol: pathOverrides?.protocols || "protocols",
-		muscle: pathOverrides?.muscles || "memory/muscles",
+		protocol: pathOverrides?.protocols || "amps/protocols",
+		muscle: pathOverrides?.muscles || "amps/muscles",
 		skill: pathOverrides?.skills || "skills",
 		template: "templates",
-		automation: "automations",
+		automation: pathOverrides?.automations || "amps/automations",
 	};
 	return join(soma.path, map[type]);
 }

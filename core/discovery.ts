@@ -28,8 +28,9 @@ const SCAN_ORDER = [DEFAULT_ROOT, ".claude", ".cursor"];
 /**
  * Marker files/dirs that identify a valid soma root directory.
  * At least one must exist for a directory to be recognized.
+ * Includes both AMPS layout ("amps") and legacy layout ("memory", "protocols").
  */
-const MARKERS = ["STATE.md", "identity.md", "memory", "protocols", "settings.json"];
+const MARKERS = ["STATE.md", "identity.md", "amps", "memory", "protocols", "settings.json"];
 
 // ---------------------------------------------------------------------------
 // Public API

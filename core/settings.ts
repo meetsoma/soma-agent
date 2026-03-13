@@ -182,17 +182,19 @@ export interface SomaSettings {
 
 	/** Customizable directory paths (relative to .soma/ root) */
 	paths: {
-		/** Muscles directory (default: "memory/muscles") */
+		/** Muscles directory (default: "amps/muscles") */
 		muscles: string;
-		/** Protocols directory (default: "protocols") */
+		/** Protocols directory (default: "amps/protocols") */
 		protocols: string;
-		/** Scripts directory (default: "scripts") */
+		/** Scripts directory (default: "amps/scripts") */
 		scripts: string;
+		/** Automations directory (default: "amps/automations") */
+		automations: string;
 		/** Skills directory (default: "skills") */
 		skills: string;
 		/** Extensions directory (default: "extensions") */
 		extensions: string;
-		/** Preloads directory — where preload-*.md files live (default: "memory") */
+		/** Preloads directory — where preload-*.md files live (default: "memory/preloads") */
 		preloads: string;
 		/** Identity file path (default: "identity.md") */
 		identity: string;
@@ -303,12 +305,13 @@ const DEFAULTS: SomaSettings = {
 	},
 	debug: false,
 	paths: {
-		muscles: "memory/muscles",
-		protocols: "protocols",
-		scripts: "scripts",
+		muscles: "amps/muscles",
+		protocols: "amps/protocols",
+		scripts: "amps/scripts",
+		automations: "amps/automations",
 		skills: "skills",
 		extensions: "extensions",
-		preloads: "memory",
+		preloads: "memory/preloads",
 		identity: "identity.md",
 		plans: "plans",
 		ideas: "memory/ideas",

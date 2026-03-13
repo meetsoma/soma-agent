@@ -199,7 +199,7 @@ echo ""
 echo "═══ Settings Paths ═══"
 
 # Check that BUILTIN_SETTINGS includes paths
-if grep -q 'paths:' "$INIT_TS" && grep -q 'muscles: "memory/muscles"' "$INIT_TS"; then
+if grep -q 'paths:' "$INIT_TS" && grep -q 'muscles: "amps/muscles"' "$INIT_TS"; then
     pass "BUILTIN_SETTINGS includes paths config"
 else
     fail "BUILTIN_SETTINGS missing paths"

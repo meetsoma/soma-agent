@@ -349,7 +349,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					if (gc.maxCommits > 0) {
 						let sinceArg = "";
 						if (gc.since === "last-session") {
-							const preload = findPreload(soma, settings.preload.staleAfterHours);
+							const preload = findPreload(soma, settings.preload.staleAfterHours, settings);
 							if (preload) {
 								const since = new Date(Date.now() - preload.ageHours * 3600000);
 								sinceArg = `--since="${since.toISOString()}"`;
@@ -483,7 +483,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 		// Auto-inject preload on fresh boot (not resumed sessions — those have full history)
 		if (!isResumed && soma) {
-			const preload = findPreload(soma, settings.preload.staleAfterHours);
+			const preload = findPreload(soma, settings.preload.staleAfterHours, settings);
 			if (preload && !preload.stale) {
 				const staleTag = preload.stale ? " ⚠️stale" : "";
 				parts.unshift(
@@ -588,8 +588,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			// Save heat state
 			const decay = settings?.protocols.decayRate ?? 1;
 			if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma!, protocolState); }
-			decayMuscleHeat(soma!, musclesReferenced, decay);
-			decayAutomationHeat(soma!, automationsReferenced, decay);
+			decayMuscleHeat(soma!, musclesReferenced, decay, settings);
+			decayAutomationHeat(soma!, automationsReferenced, decay, settings);
 			const commitResult = autoCommitSomaState(label);
 			if (commitResult) ctx.ui.notify(`✅ ${commitResult}`, "info");
 			breathePending = true;
@@ -938,7 +938,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				const parts = runBootDiscovery(chain, { skipGitContext: true });
 
 				// Inject preload into the boot message (not separately — avoids race with newSession)
-				const preload = findPreload(soma, settings.preload?.staleAfterHours);
+				const preload = findPreload(soma, settings.preload?.staleAfterHours, settings);
 				if (preload && !preload.stale) {
 					parts.unshift(
 						`\n---\n## Preload (from last session)\n\n${preload.content}\n`
@@ -968,9 +968,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			applyDecay(protocolState, protocolsReferenced, decay, knownProtocols);
 			saveProtocolState(soma, protocolState);
 		}
-		decayMuscleHeat(soma, musclesReferenced, decay);
+		decayMuscleHeat(soma, musclesReferenced, decay, settings);
 		// REFACTOR: #8 — this 3-line heat decay pattern is called in 4+ places. Extract saveHeatState().
-		decayAutomationHeat(soma, automationsReferenced, decay);
+		decayAutomationHeat(soma, automationsReferenced, decay, settings);
 	});
 
 	// ═══════════════════════════════════════════════════════════════════
@@ -1035,7 +1035,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			} else if (rule.type === "muscle" && knownMuscleNames.includes(rule.target)) {
 				if (!musclesReferenced.has(rule.target)) {
 					musclesReferenced.add(rule.target);
-					bumpMuscleHeat(soma, rule.target, bump);
+					bumpMuscleHeat(soma, rule.target, bump, settings);
 					debug.heat(`muscle detected: ${rule.target} +${bump} (auto-detect from tool_result)`);
 				}
 			}
@@ -1069,12 +1069,12 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				invalidateCompiledPrompt();
 				ctx.ui.notify(`📌 ${name} pinned (heat locked hot) — prompt will recompile`, "info");
 			} else if (knownMuscleNames.includes(name)) {
-				bumpMuscleHeat(soma, name, settings?.heat.pinBump ?? 5);
+				bumpMuscleHeat(soma, name, settings?.heat.pinBump ?? 5, settings);
 				musclesReferenced.add(name);
 				invalidateCompiledPrompt();
 				ctx.ui.notify(`📌 ${name} pinned (heat bumped to hot) — prompt will recompile`, "info");
 			} else if (knownAutomationNames.includes(name)) {
-				bumpAutomationHeat(soma, name, settings?.heat.pinBump ?? 5);
+				bumpAutomationHeat(soma, name, settings?.heat.pinBump ?? 5, settings);
 				automationsReferenced.add(name);
 				invalidateCompiledPrompt();
 				ctx.ui.notify(`📌 ${name} automation pinned (heat bumped to hot) — prompt will recompile`, "info");
@@ -1098,11 +1098,11 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				invalidateCompiledPrompt();
 				ctx.ui.notify(`💀 ${name} killed (heat → 0) — prompt will recompile`, "info");
 			} else if (knownMuscleNames.includes(name)) {
-				bumpMuscleHeat(soma, name, -15);
+				bumpMuscleHeat(soma, name, -15, settings);
 				invalidateCompiledPrompt();
 				ctx.ui.notify(`💀 ${name} killed (heat → 0) — prompt will recompile`, "info");
 			} else if (knownAutomationNames.includes(name)) {
-				bumpAutomationHeat(soma, name, -15);
+				bumpAutomationHeat(soma, name, -15, settings);
 				invalidateCompiledPrompt();
 				ctx.ui.notify(`💀 ${name} automation killed (heat → 0) — prompt will recompile`, "info");
 			} else {
@@ -1334,8 +1334,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		// Save heat state to disk
 		const decay = settings?.protocols.decayRate ?? 1;
 		if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma, protocolState); }
-		decayMuscleHeat(soma, musclesReferenced, decay);
-		decayAutomationHeat(soma, automationsReferenced, decay);
+		decayMuscleHeat(soma, musclesReferenced, decay, settings);
+		decayAutomationHeat(soma, automationsReferenced, decay, settings);
 
 		// Auto-commit .soma/ internal state (heat, protocol-state, etc.)
 		const commitResult = autoCommitSomaState("exhale");
@@ -1390,8 +1390,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			// REFACTOR: #8 — this 4-line block is copy-pasted 4 times. Extract saveAllHeatState().
 			const decay = settings?.protocols.decayRate ?? 1;
 			if (protocolState) { applyDecay(protocolState, protocolsReferenced, decay, knownProtocols); saveProtocolState(soma, protocolState); }
-			decayMuscleHeat(soma, musclesReferenced, decay);
-			decayAutomationHeat(soma, automationsReferenced, decay);
+			decayMuscleHeat(soma, musclesReferenced, decay, settings);
+			decayAutomationHeat(soma, automationsReferenced, decay, settings);
 
 			// Auto-commit .soma/ internal state
 			const commitResult = autoCommitSomaState("breathe");
