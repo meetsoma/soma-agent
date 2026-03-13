@@ -497,9 +497,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			booted = true;
 			pi.appendEntry("soma-boot", { timestamp: Date.now(), resumed: isResumed });
 
-			const greetStyle = isResumed
-				? `You've resumed a Soma session. Your preload and hot protocols are above. Identity and behavioral rules are in your system prompt. If the preload has an "Orient From" section, read those files before doing anything else. Then greet the user briefly and await instructions.`
-				: `You've booted into a fresh Soma session. Identity and behavioral rules are in your system prompt. Hot protocols are above if any. Greet the user briefly and await instructions.`;
+			const sessionTag = currentSessionId ? `\nSession ID: \`${currentSessionId}\`` : "";
+		const greetStyle = isResumed
+				? `You've resumed a Soma session. Your preload and hot protocols are above. Identity and behavioral rules are in your system prompt. If the preload has an "Orient From" section, read those files before doing anything else. Then greet the user briefly and await instructions.${sessionTag}`
+				: `You've booted into a fresh Soma session. Identity and behavioral rules are in your system prompt. Hot protocols are above if any. Greet the user briefly and await instructions.${sessionTag}`;
 
 			if (ctx.hasUI) {
 				pi.sendUserMessage(
@@ -645,10 +646,11 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 				// Phase 1 is a gentle nudge — NOT a shutdown order.
 				// The agent should keep working. Just be aware context is accumulating.
+				const preloadHint = preloadTarget ? `\n- Preload target: \`${preloadTarget}\`` : "";
 				additions.push(
 					`\n## 🫁 Auto-Breathe: Notice (${Math.round(pct)}%)\n` +
 					`Context is at ${Math.round(pct)}%. Keep working — just be aware. ` +
-					`Consider updating session logs as you go. Rotation at ~${breatheSettings.rotateAt}%.`
+					`Consider updating session logs as you go. Rotation at ~${breatheSettings.rotateAt}%.${preloadHint}`
 				);
 
 				// Soft notice — agent keeps working, just knows rotation is ahead
@@ -657,7 +659,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					`Just a heads up — context is at ${Math.round(pct)}%. No need to stop. ` +
 					`Keep working on your current task. As you finish things, consider:\n` +
 					`- Committing completed work\n` +
-					`- Updating session log with what you've done so far\n\n` +
+					`- Updating session log with what you've done so far${preloadHint}\n\n` +
 					`Rotation happens at ~${breatheSettings.rotateAt}% — you've got room.`
 				);
 
@@ -706,9 +708,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				pi.events.emit("soma:recall", { reason: "context-notify", pct });
 			}
 			if (pct >= thresholds.urgentAt && lastContextWarningPct < thresholds.urgentAt) {
+				const preloadNote = preloadTarget ? ` Write preload to \`${preloadTarget}\`.` : "";
 				additions.push(
 					`\n## ⚠️ Context High (${Math.round(pct)}%)\n` +
-					`Wrap up current task. Use /breathe to rotate or /exhale to end.`
+					`Wrap up current task.${preloadNote} Use /breathe to rotate or /exhale to end.`
 				);
 				ctx.ui.notify(`⚠️ Context ${Math.round(pct)}% — use /breathe or /exhale`, "warning");
 				lastContextWarningPct = pct;
