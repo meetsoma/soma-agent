@@ -10,7 +10,7 @@
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { join, basename } from "path";
-import { safeRead, extractFrontmatter, discoverContent } from "./utils.js";
+import { safeRead, extractFrontmatter, discoverContent, stripFrontmatter } from "./utils.js";
 import type { SomaDir } from "./discovery.js";
 import { resolveSomaPath } from "./settings.js";
 import type { SomaSettings } from "./settings.js";
@@ -198,22 +198,13 @@ export function discoverProtocols(soma: SomaDir, settings?: SomaSettings | null)
 }
 
 /**
- * Discover protocols from a soma chain (project + parent @children/ + global).
- * Project protocols shadow same-named parent/global ones.
- * Optionally filters by project signals (G6: applies-to).
- *
- * @param chain - Array of SomaDir from getSomaChain()
- * @param signals - Project signals to filter against (optional — no filtering if omitted)
- * @returns Deduplicated array of protocols (project wins on name collision)
- */
-/**
  * Discover protocols from the full soma chain.
  * Child protocols win on name collision (first found).
  *
  * When `settings.inherit.protocols` is false, only scans chain[0].
  *
  * @param chain - SomaDir array from getSomaChain()
- * @param signals - Project signals for filtering
+ * @param signals - Project signals for filtering (optional)
  * @param settings - Optional settings (for inherit.protocols control)
  */
 export function discoverProtocolChain(
@@ -330,7 +321,7 @@ export function buildProtocolInjection(
 		lines.push("## Active Protocols\n");
 		for (const p of hot) {
 			// Strip frontmatter from content for injection
-			const body = p.content.replace(/^---\n[\s\S]*?\n---\n*/, "").trim();
+			const body = stripFrontmatter(p.content);
 			lines.push(`### ${p.name}\n${body}\n`);
 		}
 	}

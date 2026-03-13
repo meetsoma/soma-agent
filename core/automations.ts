@@ -19,9 +19,8 @@
  *   - description: string — one-line summary
  */
 
-import { existsSync, readFileSync } from "fs";
 import { join, basename } from "path";
-import { extractFrontmatter, extractDigest, parseArrayField, discoverContent, tierByHeat, updateFrontmatterHeat } from "./utils.js";
+import { safeRead, extractFrontmatter, extractDigest, parseArrayField, discoverContent, tierByHeat, updateFrontmatterHeat } from "./utils.js";
 import type { SomaDir } from "./discovery.js";
 import { resolveSomaPath } from "./settings.js";
 import type { SomaSettings } from "./settings.js";
@@ -182,16 +181,12 @@ export function buildAutomationInjection(
 export function bumpAutomationHeat(soma: SomaDir, name: string, bump: number, settings?: SomaSettings | null): void {
 	const automationDir = resolveSomaPath(soma.path, "automations", settings);
 	const filePath = join(automationDir, `${name}.md`);
-	if (!existsSync(filePath)) return;
+	const content = safeRead(filePath);
+	if (!content) return;
 
-	try {
-		const content = readFileSync(filePath, "utf-8");
-		const fm = extractFrontmatter(content);
-		const currentHeat = parseInt(fm["heat"] || "0", 10) || 0;
-		updateFrontmatterHeat(filePath, currentHeat + bump, true);
-	} catch {
-		/* ignore write errors */
-	}
+	const fm = extractFrontmatter(content);
+	const currentHeat = parseInt(fm["heat"] || "0", 10) || 0;
+	updateFrontmatterHeat(filePath, currentHeat + bump, true);
 }
 
 /**

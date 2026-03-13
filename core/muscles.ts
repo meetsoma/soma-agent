@@ -20,7 +20,7 @@
 
 import { writeFileSync } from "fs";
 import { join, basename } from "path";
-import { safeRead, extractFrontmatter, parseArrayField, extractDigest, stripFrontmatter, estimateTokens, discoverContent, tierByHeat, updateFrontmatterHeat } from "./utils.js";
+import { safeRead, extractFrontmatter, parseArrayField, extractDigest, stripFrontmatter, discoverContent, tierByHeat, updateFrontmatterHeat } from "./utils.js";
 import type { SomaDir } from "./discovery.js";
 import { resolveSomaPath } from "./settings.js";
 import type { SomaSettings } from "./settings.js";
@@ -128,10 +128,6 @@ export function discoverMuscles(soma: SomaDir, settingsOrDir?: SomaSettings | st
 	});
 }
 
-/**
- * Discover muscles from a soma chain (project → parent → global).
- * Project muscles shadow same-named parent/global ones.
- */
 /**
  * Discover muscles from the full soma chain.
  * Child muscles win on name collision (first found).
