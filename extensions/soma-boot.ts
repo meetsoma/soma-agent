@@ -6,7 +6,7 @@
  *   - Context warnings (50% → 70% → 80% → 85% auto-flush)
  *   - FLUSH COMPLETE detection + auto-rotation
  *   - Preload watcher (tool_result) + auto-inject on fresh boot
- *   - /exhale, /breathe, /inhale, /pin, /kill, /soma, /preload, /auto-continue
+ *   - /exhale, /breathe, /inhale, /pin, /kill, /soma, /preload
  *   - Heat tracking (auto-detect + decay)
  *
  * Statusline extension ONLY handles: footer rendering, cache keepalive, /status, /keepalive
@@ -21,7 +21,7 @@
  * breath-cycle          │ session_start (preload auto-inject),
  *                       │   session_switch (re-discovery + preload),
  *                       │   context warnings, /exhale, /breathe, /rest,
- *                       │   /auto-continue, /inhale, /preload,
+ *                       │   /inhale, /preload,
  *                       │   FLUSH COMPLETE detection, preload watcher
  * heat-tracking         │ HEAT_RULES, tool_result auto-detect,
  *                       │   session_shutdown decay, /pin, /kill
@@ -160,6 +160,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let breatheTurnCount = 0;
 	let autoBreatheTriggerSent = false;
 	let autoBreatheRotateSent = false;
+	let heatSavedThisSession = false;
 	let currentSessionId = "";
 
 	/** Build preload filename: preload-next-YYYY-MM-DD-XXXXXX.md (6 chars of session ID) */
@@ -171,7 +172,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 	/** Save all heat state to disk — protocols, muscles, automations. */
 	function saveAllHeatState(): void {
-		if (!soma) return;
+		if (!soma || heatSavedThisSession) return;
 		const decay = settings?.protocols.decayRate ?? 1;
 		if (protocolState) {
 			applyDecay(protocolState, protocolsReferenced, decay, knownProtocols);
@@ -179,6 +180,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 		decayMuscleHeat(soma, musclesReferenced, decay, settings);
 		decayAutomationHeat(soma, automationsReferenced, decay, settings);
+		heatSavedThisSession = true;
 	}
 
 	// Queued boot message for post-rotation delivery (set in session_switch, sent after newSession returns)
@@ -629,7 +631,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				autoBreatheRotateSent = true;
 
 				additions.push(
-					`\n## 🫁 Auto-Breathe: Rotate (${Math.round(pct)}%)\n` +
+					`\n## 🫧 Auto-Breathe: Rotate (${Math.round(pct)}%)\n` +
 					`Wrap up and write preload. Session will auto-rotate.`
 				);
 
@@ -650,7 +652,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					);
 				}
 
-				ctx.ui.notify(`🫁 Auto-breathe: rotating at ${Math.round(pct)}%`, "info");
+				ctx.ui.notify(`🫧 Auto-breathe: rotating at ${Math.round(pct)}%`, "info");
 				lastContextWarningPct = pct;
 
 			// Phase 1: TRIGGER — finish current task, start wrapping up
@@ -675,7 +677,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					  `→ \`${sessionLogPath}\``
 					: "";
 				additions.push(
-					`\n## 🫁 Auto-Breathe: Notice (${Math.round(pct)}%)\n` +
+					`\n## 🫧 Auto-Breathe: Notice (${Math.round(pct)}%)\n` +
 					`Context is at ${Math.round(pct)}%. Keep working — just be aware. ` +
 					`Rotation at ~${breatheSettings.rotateAt}%.${preloadHint}${sessionLogHint}`
 				);
@@ -690,7 +692,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					`Rotation happens at ~${breatheSettings.rotateAt}% — you've got room.`
 				);
 
-				ctx.ui.notify(`🫁 Context ${Math.round(pct)}% — rotation at ~${breatheSettings.rotateAt}%`, "info");
+				ctx.ui.notify(`🫧 Context ${Math.round(pct)}% — rotation at ~${breatheSettings.rotateAt}%`, "info");
 				lastContextWarningPct = pct;
 			}
 		}
@@ -824,7 +826,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	});
 
 	// ═══════════════════════════════════════════════════════════════════
-	// PROTOCOL: breath-cycle — agent_end (auto-continue offer, post-preload warning)
+	// PROTOCOL: breath-cycle — agent_end (rotation trigger, post-preload warning)
 	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("agent_end", async (_event, ctx) => {
@@ -881,15 +883,15 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 		// Happy path: preload written + completion signal → rotate
 		// NOTE: newSession() is only available on ExtensionCommandContext (from commands),
-		// NOT on ExtensionContext (from event handlers). Route through /auto-continue instead.
+		// NOT on ExtensionContext (from event handlers). Route through /inhale instead.
 		if (preloadWrittenThisSession && flushCompleteDetected && breathePending) {
 			breathePending = false;
 			breatheTurnCount = 0;
 			breatheCommandCtx = null;
-			ctx.ui.notify("🫁 Preload saved — rotating to fresh session...", "info");
-			// Route through /auto-continue command which has ExtensionCommandContext
+			ctx.ui.notify("🫧 Inhaling — rotating to fresh session...", "info");
+			// Route through /inhale command which has ExtensionCommandContext
 			setTimeout(() => {
-				pi.sendUserMessage("/auto-continue", { deliverAs: "followUp" });
+				pi.sendUserMessage("/inhale --heat-saved", { deliverAs: "followUp" });
 			}, 500);
 			return;
 		}
@@ -931,6 +933,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			breatheTurnCount = 0;
 			autoBreatheTriggerSent = false;
 			autoBreatheRotateSent = false;
+			heatSavedThisSession = false;
 			toolCallsAfterPreload = 0;
 			pendingFollowUps = [];
 			// REFACTOR: #1 — these 15+ resets should be `sessionState = createFreshState()`
@@ -1205,7 +1208,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					if (!raw.breathe) raw.breathe = {};
 					raw.breathe.auto = value;
 					writeFileSync(settingsPath, JSON.stringify(raw, null, 2) + "\n");
-					ctx.ui.notify(`${value ? "🫁 Auto-breathe ON" : "❌ Auto-breathe OFF"} — ${value ? `wrap-up at ${breatheSettings.triggerAt}%, rotate at ${breatheSettings.rotateAt}%` : "using passive warnings only"}`, "info");
+					ctx.ui.notify(`${value ? "🫧 Auto-breathe ON" : "❌ Auto-breathe OFF"} — ${value ? `wrap-up at ${breatheSettings.triggerAt}%, rotate at ${breatheSettings.rotateAt}%` : "using passive warnings only"}`, "info");
 				} catch (err: any) {
 					ctx.ui.notify(`⚠️ Updated in-memory but failed to persist: ${err?.message?.slice(0, 80)}`, "warning");
 				}
@@ -1216,7 +1219,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	// --- breath-cycle: /exhale, /rest, /breathe, /auto-continue, /inhale ---
+	// --- breath-cycle: /exhale, /rest, /breathe, /inhale ---
 
 	// --- Auto-commit .soma/ internal state (heat, protocol-state, etc.) ---
 	function autoCommitSomaState(label: string): string | null {
@@ -1366,7 +1369,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	// /breathe — exhale + auto-continue
+	// /breathe — exhale + inhale rotation
 	pi.registerCommand("breathe", {
 		description: "Breathe — save state and continue in a fresh session",
 		handler: async (_args, ctx) => {
@@ -1401,7 +1404,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					`If significant work happened since then, update it. Otherwise, say "BREATHE COMPLETE" to rotate.`,
 					{ deliverAs: "followUp" }
 				);
-				ctx.ui.notify("🫁 Preload exists — update or confirm to rotate", "info");
+				ctx.ui.notify("🫧 Preload exists — update or confirm to rotate", "info");
 				return;
 			}
 
@@ -1413,7 +1416,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					`The session will auto-rotate to a fresh context with your preload injected.`,
 					{ deliverAs: "followUp" }
 				);
-				ctx.ui.notify("🫁 Upgrading auto-flush → breathe (will auto-rotate)", "info");
+				ctx.ui.notify("🫧 Upgrading auto-flush → breathe (will auto-rotate)", "info");
 				return;
 			}
 
@@ -1446,42 +1449,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				{ deliverAs: "followUp" }
 			);
 
-			ctx.ui.notify("🫁 Breathing — write preload, then BREATHE COMPLETE to rotate", "info");
-		},
-	});
-
-	// /auto-continue — manual trigger for new session + preload + boot context
-	// (same as what /breathe's rotation does, but manually triggered)
-	pi.registerCommand("auto-continue", {
-		description: "Rotate to fresh session with preload + full boot context",
-		handler: async (_args, ctx) => {
-			if (!soma) { ctx.ui.notify("No .soma/ found", "error"); return; }
-
-			const preload = findPreload(soma);
-			if (!preload) {
-				ctx.ui.notify("⚠️ No preload found — nothing to continue from. Use /inhale after writing one.", "warning");
-				return;
-			}
-
-			ctx.ui.notify("🔄 Rotating to fresh session...", "info");
-			try {
-				pendingRotationBoot = null;
-				const result = await ctx.newSession({});
-				if (!result.cancelled) {
-					// session_switch handler queued boot context + preload
-					if (pendingRotationBoot) {
-						pi.sendUserMessage(pendingRotationBoot, { deliverAs: "followUp" });
-						pendingRotationBoot = null;
-						ctx.ui.notify("✅ Rotated — boot context + preload injected", "info");
-					} else {
-						// Fallback
-						pi.sendUserMessage(preload.content, { deliverAs: "followUp" });
-						ctx.ui.notify("✅ Rotated — preload injected", "info");
-					}
-				}
-			} catch (err: any) {
-				ctx.ui.notify(`⚠️ Rotation failed: ${err?.message?.slice(0, 100)}`, "error");
-			}
+			ctx.ui.notify("🫧 Breathing — write preload, then BREATHE COMPLETE to rotate", "info");
 		},
 	});
 
@@ -1492,16 +1460,17 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			if (!soma) { ctx.ui.notify("No .soma/ — nothing to inhale. Run /soma init first.", "info"); return; }
 			const preload = findPreload(soma);
 			if (!preload) {
-				ctx.ui.notify("🫁 No preload found — nothing to inhale.", "info");
+				ctx.ui.notify("🫧 No preload found — nothing to inhale.", "info");
 				return;
 			}
 
-			// Save heat state before rotating
-			saveAllHeatState();
+			// Save heat state before rotating (skip if already saved — e.g. auto-breathe rotation)
+			const heatAlreadySaved = _args.includes("--heat-saved");
+			if (!heatAlreadySaved) saveAllHeatState();
 			const commitResult = autoCommitSomaState("inhale");
 			if (commitResult) ctx.ui.notify(`✅ ${commitResult}`, "info");
 
-			ctx.ui.notify("🫁 Inhaling — resetting session with preload...", "info");
+			ctx.ui.notify("🫧 Inhaling — resetting session with preload...", "info");
 
 			try {
 				pendingRotationBoot = null;
