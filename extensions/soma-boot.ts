@@ -92,20 +92,35 @@ const SCRIPT_DESCRIPTION_OVERRIDES: Record<string, string> = {
 	"soma-audit.sh": "Ecosystem health check — 11 audits: PII, drift, stale content/terms, docs sync, commands, roadmap, overlap, settings, tests, frontmatter. `--list`, `--quiet`, or name specific audits",
 };
 
+/** Supported script extensions — order matters for display grouping */
+const SCRIPT_EXTENSIONS = [".sh", ".py", ".ts", ".js", ".mjs"];
+
 function getScriptDescription(scriptPath: string, scriptName: string): string {
 	// Check overrides first
 	if (SCRIPT_DESCRIPTION_OVERRIDES[scriptName]) return SCRIPT_DESCRIPTION_OVERRIDES[scriptName];
 
-	// Auto-extract: read first 5 lines, find first comment (not shebang)
+	// Auto-extract: read first 8 lines, find first descriptive comment (skip shebangs, docstring markers)
 	try {
 		const content = readFileSync(scriptPath, "utf-8");
-		const lines = content.split("\n").slice(0, 5);
+		const lines = content.split("\n").slice(0, 8);
 		for (const line of lines) {
 			if (line.startsWith("#!")) continue; // skip shebang
+			// Bash/Python/Ruby comments: # description
 			if (line.startsWith("# ")) {
-				// Strip "scriptname.sh — " prefix if present
 				let desc = line.replace(/^#\s*/, "");
-				desc = desc.replace(/^\S+\.sh\s*[—–-]\s*/, "");
+				// Strip "scriptname.ext — " prefix if present
+				desc = desc.replace(/^\S+\.\w+\s*[—–-]\s*/, "");
+				if (desc.length > 0) return desc;
+			}
+			// TypeScript/JavaScript: // description or /** description */
+			if (line.startsWith("// ") && !line.startsWith("// @")) {
+				let desc = line.replace(/^\/\/\s*/, "");
+				desc = desc.replace(/^\S+\.\w+\s*[—–-]\s*/, "");
+				if (desc.length > 0) return desc;
+			}
+			// Docstring-style: """ or ''' (Python)
+			if (line.startsWith('"""') || line.startsWith("'''")) {
+				let desc = line.replace(/^["']{3}\s*/, "").replace(/["']{3}\s*$/, "");
 				if (desc.length > 0) return desc;
 			}
 		}
@@ -310,7 +325,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				for (const dir of scriptDirs) {
 					if (!existsSync(dir)) continue;
 					try {
-						const scripts = readdirSync(dir).filter(f => f.endsWith(".sh"));
+						const scripts = readdirSync(dir).filter(f => SCRIPT_EXTENSIONS.some(ext => f.endsWith(ext)));
 						for (const s of scripts) {
 							if (!seenScripts.has(s)) {
 								seenScripts.add(s);
