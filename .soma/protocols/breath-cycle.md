@@ -71,6 +71,18 @@ Triggered by `/exhale`, `/breathe`, `/rest`, or auto at 85%. The agent writes a 
 | `/rest` | Disable keepalive + exhale |
 | `/inhale` | Load preload into current session |
 
+## Preload Quality
+
+A good preload is the difference between a productive next session and a wasted one. Key elements:
+
+- **Resume point** — one sentence: what were you doing, where did you stop?
+- **What shipped** — commits, features, fixes. Concrete, not vague.
+- **Orient From** — exact file paths the next session should read before starting work.
+- **Do NOT Re-Read** — files already in context that the next session shouldn't waste tokens on.
+- **Actionable next steps** — numbered, with blockers noted. Not a wish list — a plan.
+
+A preload that says "continued working on the feature" is useless. A preload that says "shipped `abc123`, blocked on API auth, next: read `src/auth.ts` lines 40-80" is gold.
+
 ## Source
 
 - Boot extension: `extensions/soma-boot.ts` (context monitoring, rotation logic)
