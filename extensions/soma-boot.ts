@@ -92,8 +92,8 @@ const SCRIPT_DESCRIPTION_OVERRIDES: Record<string, string> = {
 	"soma-audit.sh": "Ecosystem health check — 11 audits: PII, drift, stale content/terms, docs sync, commands, roadmap, overlap, settings, tests, frontmatter. `--list`, `--quiet`, or name specific audits",
 };
 
-/** Supported script extensions — order matters for display grouping */
-const SCRIPT_EXTENSIONS = [".sh", ".py", ".ts", ".js", ".mjs"];
+/** Default script extensions — overridable via settings.scripts.extensions */
+const DEFAULT_SCRIPT_EXTENSIONS = [".sh", ".py", ".ts", ".js", ".mjs"];
 
 function getScriptDescription(scriptPath: string, scriptName: string): string {
 	// Check overrides first
@@ -325,7 +325,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				for (const dir of scriptDirs) {
 					if (!existsSync(dir)) continue;
 					try {
-						const scripts = readdirSync(dir).filter(f => SCRIPT_EXTENSIONS.some(ext => f.endsWith(ext)));
+						const scriptExts = settings?.scripts?.extensions ?? DEFAULT_SCRIPT_EXTENSIONS;
+						const scripts = readdirSync(dir).filter(f => scriptExts.some(ext => f.endsWith(ext)));
 						for (const s of scripts) {
 							if (!seenScripts.has(s)) {
 								seenScripts.add(s);
