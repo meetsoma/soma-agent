@@ -215,6 +215,21 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		return `preload-next-${today}-${shortId}.md`;
 	}
 
+	/** Build session log filename: YYYY-MM-DD-sNN.md (iterating per session, prevents overwrites) */
+	function sessionLogFilename(): string {
+		const today = new Date().toISOString().split("T")[0];
+		const sessDir = soma ? resolveSomaPath(soma.path, "sessions", settings) : null;
+		let next = 1;
+		if (sessDir && existsSync(sessDir)) {
+			const existing = readdirSync(sessDir).filter(f => f.startsWith(today) && /^.+-s\d+\.md$/.test(f));
+			for (const f of existing) {
+				const m = f.match(/-s(\d+)\.md$/);
+				if (m) next = Math.max(next, parseInt(m[1], 10) + 1);
+			}
+		}
+		return `${today}-s${String(next).padStart(2, "0")}.md`;
+	}
+
 	/** Save all heat state to disk — protocols, muscles, automations. */
 	function saveAllHeatState(): void {
 		if (!soma || heatSavedThisSession) return;
@@ -800,10 +815,15 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					// Preload already exists — rotate will happen in turn_end. Zero token cost.
 					ctx.ui.notify(`🫧 Rotating — preload already written`, "info");
 				} else {
-					// Need the agent to write the preload — ONE message
+					// Need the agent to write session log + preload — ONE message
+					const sessionLogTarget = soma ? join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename()) : null;
+					const sessionLogNote = sessionLogTarget
+						? `**First:** Write session log to \`${sessionLogTarget}\` — what shipped (commits), observations.\n\n`
+						: "";
 					pendingFollowUps.push(
 						`[Auto-breathe — ${Math.round(pct)}% context]\n\n` +
-						`Write preload to \`${preloadTarget}\` now. Session auto-rotates when detected.\n` +
+						`${sessionLogNote}` +
+						`**Then:** Write preload to \`${preloadTarget}\` — session auto-rotates when detected.\n` +
 						`Include: Resume Point, What Shipped, Next Priorities, Orient From.`
 					);
 					ctx.ui.notify(`🫧 Auto-breathe: rotating at ${Math.round(pct)}%`, "info");
@@ -819,7 +839,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				pi.events.emit("soma:recall", { reason: "auto-breathe-trigger", pct });
 
 				const preloadHint = preloadTarget ? `\n- Preload target: \`${preloadTarget}\`` : "";
-				const sessionLogPath = soma ? join(resolveSomaPath(soma.path, "sessions", settings), `${new Date().toISOString().slice(0, 10)}.md`) : null;
+				const sessionLogPath = soma ? join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename()) : null;
 				const sessionLogHint = sessionLogPath
 					? `\n- Session log: \`${sessionLogPath}\`` : "";
 
@@ -1712,8 +1732,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 
 		const template =
-			`**Step 2:** Append to \`${logPath}\` — daily session log. ` +
-			`Read first if it exists — append a new \`## HH:MM\` section, never overwrite previous entries. ` +
+			`**Step 2:** Write session log to \`${logPath}\` — one file per session (unique filename). ` +
 			`Include: what shipped (commits), **Gaps & Recoveries** (tool errors, workarounds, false starts), ` +
 			`**Observations** (patterns noticed, tagged by domain: [bash], [testing], [api-design], [architecture], [workflow], [meta]). ` +
 			`Observations are seeds for future muscles/protocols — they're the unique value session logs provide.\n\n` +
@@ -1770,7 +1789,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const memDir = resolveSomaPath(soma.path, "preloads", settings);
 		const target = join(memDir, preloadFilename());
 		const today = new Date().toISOString().split("T")[0];
-		const logPath = join(resolveSomaPath(soma.path, "sessions", settings), `${today}.md`);
+		const logPath = join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename());
 
 		// Save heat state to disk
 		saveAllHeatState();
@@ -1832,7 +1851,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const memDir = resolveSomaPath(soma.path, "preloads", settings);
 			const target = join(memDir, preloadFilename());
 			const today = new Date().toISOString().split("T")[0];
-			const logPath = join(resolveSomaPath(soma.path, "sessions", settings), `${today}.md`);
+			const logPath = join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename());
 
 			// Save heat state to disk
 			saveAllHeatState();
@@ -1875,7 +1894,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			let urgency: string;
 			let preloadGuidance: string;
 			if (pct >= 75) {
-				urgency = `Context is at ${Math.round(pct)}% — be fast. Minimal preload, skip the session log.`;
+				urgency = `Context is at ${Math.round(pct)}% — be fast. Brief session log, then minimal preload.`;
 				preloadGuidance =
 					`Write \`${target}\` NOW. Focus on: Resume Point (2 sentences), What Shipped (bullet list), ` +
 					`In-Flight (what's unfinished + where you stopped), Next Priorities. Skip other sections.`;

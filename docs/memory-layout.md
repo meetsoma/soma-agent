@@ -30,7 +30,7 @@ Lives in your project root. Contains everything specific to this project.
 │   ├── preloads/            ← session continuations
 │   │   └── preload-next-*.md ← one per session exhale
 │   └── sessions/
-│       └── 2026-03-08.md    ← daily work log
+│       └── 2026-03-08-s01.md ← per-session work log (auto-increments)
 ├── skills/                  ← project-specific skills (optional)
 └── extensions/              ← project-specific extensions (optional)
 ```
@@ -102,6 +102,10 @@ Breathe (/breathe or auto at configurable threshold):
 Exhale (/exhale):
   → same save as breathe, but session ends
 ```
+
+## Session Logs
+
+Session log files are named `YYYY-MM-DD-sNN.md` — the date plus an auto-incrementing session number (`s01`, `s02`, etc.). Each session gets its own file. The number increments by scanning the directory for existing files, so sessions never overwrite each other — even across restarts.
 
 ## Session-Scoped Preloads
 
