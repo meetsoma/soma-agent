@@ -544,8 +544,94 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			(e: any) => e.type === "message"
 		);
 
-		// Run all boot discovery steps
+		// Run all boot discovery steps (always needed for internal state like knownProtocols)
 		const parts = runBootDiscovery(chain);
+
+		// Build boot fingerprint — what was injected this boot.
+		// Used by resume diffing to detect what changed between sessions.
+		const hotProtoThreshold = settings.protocols?.hotThreshold ?? 3;
+		const hotMuscleThreshold = settings.muscles?.hotThreshold ?? 3;
+		const bootFingerprint = {
+			hotProtocols: knownProtocols
+				.filter(p => (protocolState?.protocols?.[p.name]?.heat ?? 0) >= hotProtoThreshold)
+				.map(p => p.name).sort(),
+			hotMuscles: knownMuscles
+				.filter(m => (m as any).heat >= hotMuscleThreshold)
+				.map(m => m.name).sort(),
+			scriptNames: parts.some(p => p.includes("Available Scripts"))
+				? [...new Set(knownMuscleNames)].sort() // placeholder — scripts don't have names tracked yet
+				: [],
+		};
+
+		// ── Resume boot diffing ───────────────────────────────────────
+		// On resume (soma -c), the full boot message is already in history.
+		// System prompt carries identity + protocol TL;DRs via before_agent_start.
+		// We only inject what CHANGED since last boot — saves ~4-6k tokens.
+		if (isResumed) {
+			const previousBoot = ctx.sessionManager.getEntries().find(
+				(e: any) => e.customType === "soma-boot" && e.content?.fingerprint
+			);
+
+			if (previousBoot) {
+				const prev = (previousBoot as any).content.fingerprint;
+				const changes: string[] = [];
+
+				// Diff hot protocols
+				const newHotProtos = bootFingerprint.hotProtocols.filter((p: string) => !prev.hotProtocols?.includes(p));
+				const removedHotProtos = (prev.hotProtocols || []).filter((p: string) => !bootFingerprint.hotProtocols.includes(p));
+				if (newHotProtos.length > 0) changes.push(`**Newly hot protocols:** ${newHotProtos.join(", ")}`);
+				if (removedHotProtos.length > 0) changes.push(`**Cooled protocols:** ${removedHotProtos.join(", ")}`);
+
+				// Diff hot muscles
+				const newHotMuscles = bootFingerprint.hotMuscles.filter((m: string) => !prev.hotMuscles?.includes(m));
+				const removedHotMuscles = (prev.hotMuscles || []).filter((m: string) => !bootFingerprint.hotMuscles.includes(m));
+				if (newHotMuscles.length > 0) changes.push(`**Newly hot muscles:** ${newHotMuscles.join(", ")}`);
+				if (removedHotMuscles.length > 0) changes.push(`**Cooled muscles:** ${removedHotMuscles.join(", ")}`);
+
+				// .soma changes are always novel (time-dependent) — keep them
+				const somaChanges = parts.filter(p => p.includes(".soma Changes") || p.includes("Recent Changes"));
+				if (somaChanges.length > 0) changes.push(...somaChanges);
+
+				// Update fingerprint for next resume
+				pi.appendEntry("soma-boot", {
+					timestamp: Date.now(),
+					resumed: true,
+					fingerprint: bootFingerprint,
+					diffed: true,
+				});
+
+				if (changes.length === 0) {
+					// Nothing changed — ultra-minimal boot
+					booted = true;
+					const sessionTag = currentSessionId ? `\nSession ID: \`${currentSessionId}\`` : "";
+					debug.boot("resume: no changes since last boot — minimal injection");
+					if (ctx.hasUI) {
+						pi.sendUserMessage(
+							`[Soma Boot — resumed, no changes]\n\n` +
+							`Identity, protocols, and muscles unchanged since last boot. ` +
+							`System prompt is current. Continue where you left off.${sessionTag}`,
+							{ deliverAs: "followUp" }
+						);
+					}
+				} else {
+					// Only inject the delta
+					booted = true;
+					const sessionTag = currentSessionId ? `\nSession ID: \`${currentSessionId}\`` : "";
+					debug.boot(`resume: ${changes.length} changes since last boot`);
+					if (ctx.hasUI) {
+						pi.sendUserMessage(
+							`[Soma Boot — resumed, delta only]\n\n` +
+							`**Changes since last boot:**\n${changes.join("\n")}\n\n` +
+							`Everything else unchanged. System prompt is current.${sessionTag}`,
+							{ deliverAs: "followUp" }
+						);
+					}
+				}
+				return; // Skip full boot message
+			}
+			// No previous fingerprint found — fall through to full boot
+			debug.boot("resume: no fingerprint in history — full boot");
+		}
 
 		// Auto-inject preload on fresh boot (not resumed sessions — those have full history)
 		if (!isResumed && soma) {
@@ -561,7 +647,11 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 		if (parts.length > 0) {
 			booted = true;
-			pi.appendEntry("soma-boot", { timestamp: Date.now(), resumed: isResumed });
+			pi.appendEntry("soma-boot", {
+				timestamp: Date.now(),
+				resumed: isResumed,
+				fingerprint: bootFingerprint,
+			});
 
 			const sessionTag = currentSessionId ? `\nSession ID: \`${currentSessionId}\`` : "";
 		const greetStyle = isResumed
