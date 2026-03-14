@@ -203,6 +203,11 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let heatSavedThisSession = false;
 	let currentSessionId = "";
 
+	// Countdown state — grace period between preload-written and rotation
+	let breatheCountdown = 0;          // turns remaining before rotation (0 = not counting)
+	let selfTriggeredTurn = false;     // true when this turn was started by our followUp
+	let userSpokeThisTurn = false;     // true when user (not followUp) initiated this turn
+
 	/** Build preload filename: preload-next-YYYY-MM-DD-XXXXXX.md (6 chars of session ID) */
 	function preloadFilename(): string {
 		const today = new Date().toISOString().split("T")[0];
@@ -677,6 +682,18 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (!soma || !booted) return;
 
+		// ── Detect user vs followUp turns for countdown logic ──────────
+		userSpokeThisTurn = !selfTriggeredTurn;
+		selfTriggeredTurn = false; // consume the flag
+
+		// If user spoke during active countdown → pause and reset
+		if (userSpokeThisTurn && breatheCountdown > 0 && breathePending) {
+			const graceTurns = settings?.breathe?.graceTurns ?? 2;
+			breatheCountdown = graceTurns; // reset countdown
+			ctx.ui.notify("⏸ Rotation paused — addressing your message", "info");
+			debug.boot(`breathe countdown paused by user message, reset to ${graceTurns}`);
+		}
+
 		// ═══════════════════════════════════════════════════════════════════
 		// PROTOCOL: frontal-cortex — compiled system prompt
 		// Phase 3: Full replacement when Pi's default detected.
@@ -951,6 +968,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (pendingFollowUps.length > 0) {
 			const messages = [...pendingFollowUps];
 			pendingFollowUps = [];
+			selfTriggeredTurn = true; // next turn is from our followUp, not user
 			for (const msg of messages) {
 				try {
 					pi.sendUserMessage(msg, { deliverAs: "followUp" });
@@ -1102,11 +1120,45 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			);
 		};
 
-		// ── Happy path: preload written → rotate ───────────────────────
-		// Preload file IS the signal — no "BREATHE COMPLETE" magic words needed.
+		// ── Happy path: preload written → countdown → rotate ──────────
+		// Preload file IS the signal to START the countdown.
+		// Countdown gives the user a grace period to send messages.
+		// User messages pause/reset the countdown. Agent addresses them,
+		// then countdown restarts. Rotation only happens when countdown
+		// reaches 0 with no user interruption.
+		const graceTurns = settings?.breathe?.graceTurns ?? 2;
+
 		if (preloadWrittenThisSession && breathePending) {
-			await performRotation("preload-detected");
-			return;
+			if (breatheCountdown <= 0) {
+				// Start the countdown — first detection of preload
+				breatheCountdown = graceTurns;
+				ctx.ui.notify(
+					`🫧 Preload saved. Rotating in ~${graceTurns} turn${graceTurns > 1 ? "s" : ""}. Send a message to pause.`,
+					"info"
+				);
+				debug.boot(`breathe countdown started: ${graceTurns} turns`);
+				return;
+			}
+
+			// Countdown is active — decrement (user messages reset it in before_agent_start)
+			if (!userSpokeThisTurn) {
+				breatheCountdown--;
+				debug.boot(`breathe countdown: ${breatheCountdown} turns remaining`);
+			}
+
+			if (breatheCountdown <= 0) {
+				// Countdown complete — rotate
+				ctx.ui.notify("🫧 Rotating to fresh session...", "info");
+				await performRotation("preload-detected");
+				return;
+			} else {
+				// Still counting down
+				ctx.ui.notify(
+					`🫧 Rotating in ~${breatheCountdown} turn${breatheCountdown > 1 ? "s" : ""}. Send a message to pause.`,
+					"info"
+				);
+				return;
+			}
 		}
 
 		// ── Manual trigger: "BREATHE COMPLETE" (backward compat) ───────
@@ -1119,6 +1171,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (breatheTurnCount >= 6 && !preloadWrittenThisSession) {
 			breathePending = false;
 			breatheTurnCount = 0;
+			breatheCountdown = 0;
 			breatheCommandCtx = null;
 
 			const route = getRoute();
@@ -1148,6 +1201,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			preloadWrittenThisSession = false;
 			breathePending = false;
 			breatheTurnCount = 0;
+			breatheCountdown = 0;
+			selfTriggeredTurn = false;
+			userSpokeThisTurn = false;
 			autoBreatheTriggerSent = false;
 			autoBreatheRotateSent = false;
 			heatSavedThisSession = false;

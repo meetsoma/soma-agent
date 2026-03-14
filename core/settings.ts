@@ -140,6 +140,8 @@ export interface SomaSettings {
 		triggerAt: number;
 		/** Context % to write preload and rotate (default: 70) */
 		rotateAt: number;
+		/** Turns to wait after preload before rotating — user messages reset the countdown (default: 2) */
+		graceTurns: number;
 	};
 
 	/** Preload settings */
@@ -349,6 +351,7 @@ const DEFAULTS: SomaSettings = {
 		auto: false,
 		triggerAt: 50,
 		rotateAt: 70,
+		graceTurns: 2,
 	},
 	preload: {
 		staleAfterHours: 48,

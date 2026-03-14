@@ -46,6 +46,12 @@ else
   fail "SomaSettings missing breathe.rotateAt type"
 fi
 
+if grep -A10 "breathe:" "$SETTINGS_TS" | grep -q "graceTurns: number"; then
+  pass "SomaSettings has breathe.graceTurns: number"
+else
+  fail "SomaSettings missing breathe.graceTurns type"
+fi
+
 section "Settings: Defaults"
 
 # Check defaults are sensible
@@ -65,6 +71,12 @@ if grep -A4 "breathe:" "$SETTINGS_TS" | grep -q "rotateAt: 70"; then
   pass "Default: breathe.rotateAt = 70"
 else
   fail "Default breathe.rotateAt should be 70"
+fi
+
+if grep -A5 "breathe:" "$SETTINGS_TS" | grep -q "graceTurns: 2"; then
+  pass "Default: breathe.graceTurns = 2"
+else
+  fail "Default breathe.graceTurns should be 2"
 fi
 
 # triggerAt < rotateAt < autoExhaleAt (85)
@@ -270,9 +282,55 @@ fi
 # ---------------------------------------------------------------------------
 # 7. State Reset — Session Switch & Init
 # ---------------------------------------------------------------------------
+section "Extension: Countdown Grace Period"
+
+# Countdown state variables exist
+for var in breatheCountdown selfTriggeredTurn userSpokeThisTurn; do
+  if grep -q "let $var" "$BOOT_TS"; then
+    pass "countdown state: $var declared"
+  else
+    fail "countdown state: $var missing"
+  fi
+done
+
+# before_agent_start detects user vs followUp turns
+if grep -A10 "before_agent_start" "$BOOT_TS" | grep -q "userSpokeThisTurn"; then
+  pass "before_agent_start tracks user messages for countdown"
+else
+  fail "before_agent_start should detect user vs followUp turns"
+fi
+
+# turn_end uses countdown instead of instant rotation
+if grep -A5 "preloadWrittenThisSession && breathePending" "$BOOT_TS" | grep -q "breatheCountdown"; then
+  pass "turn_end uses countdown before rotation"
+else
+  fail "turn_end should use countdown, not instant rotation"
+fi
+
+# agent_end marks followUp turns
+if grep -A15 'agent_end' "$BOOT_TS" | grep -q "selfTriggeredTurn = true"; then
+  pass "agent_end marks self-triggered turns"
+else
+  fail "agent_end should set selfTriggeredTurn when sending followUps"
+fi
+
+# graceTurns setting read from config
+if grep -q "graceTurns" "$BOOT_TS"; then
+  pass "boot extension reads graceTurns setting"
+else
+  fail "boot extension should use graceTurns setting"
+fi
+
+# Documentation mentions grace period
+if grep -q "graceTurns" "$PROJECT_DIR/docs/configuration.md" 2>/dev/null; then
+  pass "configuration.md documents graceTurns"
+else
+  fail "configuration.md should document graceTurns"
+fi
+
 section "Extension: State Reset"
 
-for var in autoBreatheTriggerSent autoBreatheRotateSent breathePending breatheTurnCount; do
+for var in autoBreatheTriggerSent autoBreatheRotateSent breathePending breatheTurnCount breatheCountdown selfTriggeredTurn userSpokeThisTurn; do
   if grep -A40 '"session_switch"' "$BOOT_TS" | grep -q "$var"; then
     pass "session_switch resets $var"
   else
