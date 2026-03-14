@@ -178,6 +178,14 @@ export interface SomaSettings {
 		extensions: string[];
 	};
 
+	/** Session settings — ID format, overwrite protection */
+	sessions: {
+		/** Session ID format: "hex" (6-char random hash) or "sequential" (s01, s02...) */
+		idFormat: "hex" | "sequential";
+		/** Prevent overwriting existing session logs and preloads (default: true) */
+		overwriteGuard: boolean;
+	};
+
 	/** Steno — background session observer. Ghost setting: does nothing without soma-steno extension. */
 	steno: {
 		/** Enable steno extraction (default: false) */
@@ -309,6 +317,10 @@ const DEFAULTS: SomaSettings = {
 	},
 	scripts: {
 		extensions: [".sh", ".py", ".ts", ".js", ".mjs"],
+	},
+	sessions: {
+		idFormat: "hex" as const,
+		overwriteGuard: true,
 	},
 	steno: {
 		enabled: false,

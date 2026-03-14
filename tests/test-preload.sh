@@ -106,18 +106,18 @@ fi
 section "Preload Filename Pattern"
 # ---------------------------------------------------------------------------
 
-# preloadFilename() should use sNN pattern (iterating, prevents overwrites)
-if grep -q 'preload-next-.*-s\${' "$BOOT_TS" 2>/dev/null; then
-  pass "preloadFilename uses sNN iterating pattern"
+# preloadFilename() should use session ID in name (unique per session, prevents overwrites)
+if grep -A5 "function preloadFilename" "$BOOT_TS" | grep -q "somaSessionId\|generateSessionId"; then
+  pass "preloadFilename uses unique session ID"
 else
-  fail "preloadFilename should use sNN pattern (not session ID)"
+  fail "preloadFilename should use somaSessionId for unique filenames"
 fi
 
-# preloadFilename() should scan directory for existing files
-if grep -A15 "function preloadFilename" "$BOOT_TS" | grep -q "readdirSync"; then
-  pass "preloadFilename scans directory to increment"
+# preloadFilename() should have overwrite guard
+if grep -A20 "function preloadFilename" "$BOOT_TS" | grep -q "existsSync"; then
+  pass "preloadFilename has overwrite guard"
 else
-  fail "preloadFilename should scan directory like sessionLogFilename"
+  fail "preloadFilename should check for existing files (overwrite guard)"
 fi
 
 # ---------------------------------------------------------------------------

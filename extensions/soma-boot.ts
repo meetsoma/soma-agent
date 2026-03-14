@@ -202,35 +202,65 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let autoBreatheRotateSent = false;
 	let heatSavedThisSession = false;
 	let currentSessionId = "";
+	let somaSessionId = ""; // Short hex ID generated per Soma session (distinct from Pi's session file)
 
-	/** Build preload filename: preload-next-YYYY-MM-DD-sNN.md (iterating per session, prevents overwrites) */
-	function preloadFilename(): string {
-		const today = new Date().toISOString().split("T")[0];
-		const preloadDir = soma ? resolveSomaPath(soma.path, "preloads", settings) : null;
-		let next = 1;
-		if (preloadDir && existsSync(preloadDir)) {
-			const existing = readdirSync(preloadDir).filter(f => f.startsWith(`preload-next-${today}`) && f.endsWith(".md"));
-			for (const f of existing) {
-				const m = f.match(/-s(\d+)\.md$/);
-				if (m) next = Math.max(next, parseInt(m[1], 10) + 1);
+	/** Generate a session ID based on settings.sessions.idFormat */
+	function generateSessionId(): string {
+		const format = settings?.sessions?.idFormat ?? "hex";
+		if (format === "sequential") {
+			// Sequential: find next sNN in the sessions dir
+			const today = new Date().toISOString().split("T")[0];
+			const sessDir = soma ? resolveSomaPath(soma.path, "sessions", settings) : null;
+			let next = 1;
+			if (sessDir && existsSync(sessDir)) {
+				const existing = readdirSync(sessDir).filter(f => f.startsWith(today) && f.endsWith(".md"));
+				for (const f of existing) {
+					const m = f.match(/-s(\d+)/);
+					if (m) next = Math.max(next, parseInt(m[1], 10) + 1);
+				}
 			}
+			return `s${String(next).padStart(2, "0")}`;
 		}
-		return `preload-next-${today}-s${String(next).padStart(2, "0")}.md`;
+		// Default: hex (6-char random)
+		try {
+			const { randomBytes } = require("crypto");
+			return randomBytes(3).toString("hex");
+		} catch {
+			return Date.now().toString(16).slice(-6);
+		}
 	}
 
-	/** Build session log filename: YYYY-MM-DD-sNN.md (iterating per session, prevents overwrites) */
+	/** Build preload filename: preload-next-YYYY-MM-DD-<id>.md (unique per session, prevents overwrites) */
+	function preloadFilename(): string {
+		const today = new Date().toISOString().split("T")[0];
+		const id = somaSessionId || generateSessionId();
+		const name = `preload-next-${today}-${id}.md`;
+
+		// Overwrite guard: if file exists (shouldn't with unique ID, but safety check)
+		const preloadDir = soma ? resolveSomaPath(soma.path, "preloads", settings) : null;
+		if (preloadDir && existsSync(join(preloadDir, name))) {
+			// Append counter to avoid collision
+			let counter = 2;
+			while (existsSync(join(preloadDir, `preload-next-${today}-${id}-${counter}.md`))) counter++;
+			return `preload-next-${today}-${id}-${counter}.md`;
+		}
+		return name;
+	}
+
+	/** Build session log filename: YYYY-MM-DD-<id>.md (unique per session, prevents overwrites) */
 	function sessionLogFilename(): string {
 		const today = new Date().toISOString().split("T")[0];
+		const id = somaSessionId || generateSessionId();
+		const name = `${today}-${id}.md`;
+
+		// Overwrite guard: if file exists, append counter
 		const sessDir = soma ? resolveSomaPath(soma.path, "sessions", settings) : null;
-		let next = 1;
-		if (sessDir && existsSync(sessDir)) {
-			const existing = readdirSync(sessDir).filter(f => f.startsWith(today) && /^.+-s\d+\.md$/.test(f));
-			for (const f of existing) {
-				const m = f.match(/-s(\d+)\.md$/);
-				if (m) next = Math.max(next, parseInt(m[1], 10) + 1);
-			}
+		if (sessDir && existsSync(join(sessDir, name))) {
+			let counter = 2;
+			while (existsSync(join(sessDir, `${today}-${id}-${counter}.md`))) counter++;
+			return `${today}-${id}-${counter}.md`;
 		}
-		return `${today}-s${String(next).padStart(2, "0")}.md`;
+		return name;
 	}
 
 	/** Save all heat state to disk — protocols, muscles, automations. */
@@ -510,6 +540,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			currentSessionId = sessionFile ? sessionFile.split("/").pop()?.replace(/\.[^.]+$/, "") || "" : "";
 		} catch { currentSessionId = ""; }
 
+		// Generate unique Soma session ID (short hex, used in filenames and frontmatter)
+		somaSessionId = generateSessionId();
+
 		soma = findSomaDir();
 
 		if (!soma) {
@@ -626,7 +659,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				if (changes.length === 0) {
 					// Nothing changed — ultra-minimal boot
 					booted = true;
-					const sessionTag = currentSessionId ? `\nSession ID: \`${currentSessionId}\`` : "";
+					const sessionTag = somaSessionId ? `\nSession ID: \`${somaSessionId}\`` : "";
 					debug.boot("resume: no changes since last boot — minimal injection");
 					if (ctx.hasUI) {
 						pi.sendUserMessage(
@@ -639,7 +672,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				} else {
 					// Only inject the delta
 					booted = true;
-					const sessionTag = currentSessionId ? `\nSession ID: \`${currentSessionId}\`` : "";
+					const sessionTag = somaSessionId ? `\nSession ID: \`${somaSessionId}\`` : "";
 					debug.boot(`resume: ${changes.length} changes since last boot`);
 					if (ctx.hasUI) {
 						pi.sendUserMessage(
@@ -676,7 +709,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				fingerprint: bootFingerprint,
 			});
 
-			const sessionTag = currentSessionId ? `\nSession ID: \`${currentSessionId}\`` : "";
+			const sessionTag = somaSessionId ? `\nSession ID: \`${somaSessionId}\`` : "";
 			const sessionLogTarget = soma ? join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename()) : null;
 			const preloadTarget = soma ? join(resolveSomaPath(soma.path, "preloads", settings), preloadFilename()) : null;
 			const fileHints = (sessionLogTarget || preloadTarget) ? `\n\nSession files:\n${sessionLogTarget ? `- Session log: \`${sessionLogTarget}\`\n` : ""}${preloadTarget ? `- Preload: \`${preloadTarget}\`\n` : ""}` : "";
@@ -1710,6 +1743,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 		const template =
 			`**Step 2:** Write session log to \`${logPath}\` — one file per session (unique filename). ` +
+			`⚠️ **Never overwrite existing session logs or preloads** — the filename contains a unique session ID (\`${somaSessionId}\`). ` +
+			`Include frontmatter with \`session-id: ${somaSessionId}\`. ` +
 			`Include: what shipped (commits), **Gaps & Recoveries** (tool errors, workarounds, false starts), ` +
 			`**Observations** (patterns noticed, tagged by domain: [bash], [testing], [api-design], [architecture], [workflow], [meta]). ` +
 			`Observations are seeds for future muscles/protocols — they're the unique value session logs provide.\n\n` +
@@ -1723,7 +1758,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			`---\n` +
 			`type: preload\n` +
 			`created: ${today}\n` +
-			`session: ${currentSessionId || "unknown"}\n` +
+			`session: ${somaSessionId || "unknown"}\n` +
 			`commits: []        # list commit hashes from this session\n` +
 			`projects: []       # project names touched (e.g. [soma-agent, website])\n` +
 			`tags: []           # topics/themes (e.g. [refactor, amps, paths])\n` +

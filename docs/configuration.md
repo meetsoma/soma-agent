@@ -478,6 +478,24 @@ Controls when context usage warnings fire during a session. These are the **pass
 }
 ```
 
+### Sessions
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `sessions.idFormat` | `"hex"` | Session ID format: `"hex"` (6-char hex hash) or `"sequential"` (sNN counter) |
+| `sessions.overwriteGuard` | `true` | Prevent overwriting existing session logs and preloads. Files use unique session IDs in filenames. |
+
+**Session IDs** are generated at boot and used in both session log and preload filenames. They appear in frontmatter as `session-id:` for cross-referencing. The hex format (`a3f2c1`) produces globally unique names; sequential (`s01`, `s02`) is human-friendlier but can collide across terminals.
+
+```json
+{
+  "sessions": {
+    "idFormat": "hex",
+    "overwriteGuard": true
+  }
+}
+```
+
 ### Checkpoints
 
 Two-track version control: Soma's own `.soma/` state and your project code are checkpointed separately.
