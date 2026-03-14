@@ -38,7 +38,7 @@ When Soma boots, she runs a configurable sequence of **boot steps**:
 | `preload` | Last session's state (on `--continue` only) | ✅ On |
 | `protocols` | Behavioral rules, sorted by heat tier | ✅ On |
 | `muscles` | Learned patterns, within token budget | ✅ On |
-| `scripts` | Available `.soma/scripts/` with descriptions | ✅ On |
+| `scripts` | Available `.soma/amps/scripts/` with descriptions | ✅ On |
 | `git-context` | Recent commits and changed files from git | ✅ On |
 
 The boot sequence is configurable in `settings.json` — remove steps you don't want, reorder to change priority. See [Configuration](/docs/configuration#boot-sequence).
@@ -97,7 +97,7 @@ Muscles live in `.soma/amps/muscles/` and grow organically. Like protocols, they
 
 ## Protocols
 
-Protocols are behavioral rules that guide Soma's actions: how to format files, how to attribute git commits, when to exhale. They live in `.soma/protocols/` as markdown files with frontmatter.
+Protocols are behavioral rules that guide Soma's actions: how to format files, how to attribute git commits, when to exhale. They live in `.soma/amps/protocols/` as markdown files with frontmatter.
 
 ### Heat System
 
@@ -150,6 +150,8 @@ For proactive sessions, enable **auto-breathe** (`/auto-breathe on` or `settings
 2. **Rotate** at `rotateAt` (default 70%) — write preload, countdown starts
 3. **Grace period** — countdown of `graceTurns` turns (default 2). If you send a message, the countdown **pauses** and the agent addresses your concern. Then the countdown restarts. You're never cut off mid-thought.
 4. **Rotation** — when the countdown reaches 0, session rotates seamlessly
+
+Rotation uses the **capability router** (`soma-route.ts`) when a slash command has run in the session — this calls `newSession()` directly for a seamless transition. If no command has run, the CLI handles rotation via process restart (transparent to the user).
 
 Rotation uses the **capability router** (`soma-route.ts`) when a slash command has run in the session — this calls `newSession()` directly for a seamless transition. If no command has run, the CLI handles rotation via process restart (transparent to the user).
 

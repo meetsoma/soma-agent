@@ -140,6 +140,8 @@ export interface SomaSettings {
 		triggerAt: number;
 		/** Context % to write preload and rotate (default: 70) */
 		rotateAt: number;
+		/** Non-tool turns before grace expires and breathe times out (default: 6) */
+		graceTurns: number;
 	};
 
 	/** Preload settings */
@@ -170,6 +172,24 @@ export interface SomaSettings {
 			email: string;
 			name?: string;
 		} | null;
+		/**
+		 * Tool→muscle gating — require reading a muscle before using certain commands.
+		 * Keys are bash command patterns (matched via substring or regex).
+		 * Values specify which muscle must be read and what to do if it hasn't been.
+		 *
+		 * Example:
+		 * ```json
+		 * { "git push": { "muscle": "ship-cycle", "mode": "warn" } }
+		 * ```
+		 *
+		 * Modes:
+		 * - "warn" — notify but allow (default)
+		 * - "block" — block execution until muscle is read
+		 */
+		toolGates: Record<string, {
+			muscle: string;
+			mode: "warn" | "block";
+		}>;
 	};
 
 	/** Script discovery settings */
@@ -358,6 +378,7 @@ const DEFAULTS: SomaSettings = {
 		auto: false,
 		triggerAt: 50,
 		rotateAt: 70,
+		graceTurns: 2,
 	},
 	preload: {
 		staleAfterHours: 48,
@@ -366,6 +387,7 @@ const DEFAULTS: SomaSettings = {
 		coreFiles: "warn",
 		bashCommands: "warn",
 		gitIdentity: null,
+		toolGates: {},
 	},
 	systemPrompt: {
 		maxTokens: 4000,

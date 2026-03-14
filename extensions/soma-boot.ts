@@ -545,6 +545,15 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		// Generate unique Soma session ID (short hex, used in filenames and frontmatter)
 		somaSessionId = generateSessionId();
 
+		// Expose session ID on router so statusline can display it
+		const route = getRoute();
+		if (route) {
+			route.provide("session:id", () => somaSessionId, {
+				provider: "soma-boot",
+				description: "Get current Soma session ID (e.g. s01-abc123)",
+			});
+		}
+
 		soma = findSomaDir();
 
 		if (!soma) {
@@ -1095,6 +1104,22 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	});
 
 	// ═══════════════════════════════════════════════════════════════════
+	// Periodic auto-commit — crash resilience for .soma/ state
+	// Commits every N turns to prevent data loss on unexpected exit.
+	// ═══════════════════════════════════════════════════════════════════
+
+	let turnsSinceCommit = 0;
+	const AUTO_COMMIT_INTERVAL = 5; // commit every 5th turn_end
+
+	pi.on("turn_end", async () => {
+		turnsSinceCommit++;
+		if (turnsSinceCommit >= AUTO_COMMIT_INTERVAL) {
+			turnsSinceCommit = 0;
+			autoCommitSomaState("periodic");
+		}
+	});
+
+	// ═══════════════════════════════════════════════════════════════════
 	// PROTOCOL: breath-cycle — /breathe auto-rotate (turn_end watcher)
 	// ═══════════════════════════════════════════════════════════════════
 
@@ -1236,8 +1261,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			return;
 		}
 
-		// ── Timeout: 6+ turns with no preload → cancel ────────────────
-		if (breatheTurnCount >= 6 && !preloadWrittenThisSession) {
+		// ── Timeout: graceTurns non-tool turns with no preload → cancel ──
+		const graceLimit = settings?.breathe?.graceTurns ?? 6;
+		if (breatheTurnCount >= graceLimit && !preloadWrittenThisSession) {
 			breathePending = false;
 			breatheTurnCount = 0;
 			breatheCommandCtx = null;
@@ -1249,7 +1275,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 
 			ctx.ui.notify(
-				"⚠️ Breathe timed out — no preload after 6 turns. Use /breathe to retry.",
+				`⚠️ Breathe timed out — no preload after ${graceLimit} turns. Use /breathe to retry.`,
 				"warning"
 			);
 		}

@@ -176,6 +176,21 @@ Protects core Soma files and git identity from accidental modification.
 | `coreFiles` | `"warn"` | Protection for identity.md, STATE.md, protocols/, settings.json. Options: `"allow"` (no guard), `"warn"` (notify on write), `"block"` (require confirmation) |
 | `bashCommands` | `"warn"` | Dangerous bash command guard (rm -rf, git push --force, etc.). `"allow"` = no prompts (power user), `"warn"` = confirm first, `"block"` = prevent entirely |
 | `gitIdentity` | `null` | Expected git identity. `null` = hook checks email is set. Object = validates specific email/name. |
+| `toolGates` | `{}` | Tool→muscle gating. Require reading a muscle before using certain bash commands. Keys are command substrings, values are `{ muscle, mode }`. |
+
+**Example: tool→muscle gating:**
+```json
+{
+  "guard": {
+    "toolGates": {
+      "git push": { "muscle": "ship-cycle", "mode": "warn" },
+      "npm publish": { "muscle": "release-pipeline", "mode": "block" }
+    }
+  }
+}
+```
+
+When the agent runs `git push` without having read the `ship-cycle` muscle this session, it gets a notification (warn) or is blocked (block). Once the muscle file is read, the gate opens silently.
 
 **Example: strict guard with enforced git identity:**
 ```json
@@ -270,7 +285,7 @@ See [Muscles](muscles.md) for writing muscles and the digest system.
 | `fullThreshold` | `5` | Heat needed to load an automation in full |
 | `digestThreshold` | `1` | Heat needed to load an automation as digest |
 
-Automations are procedural step-by-step flows — like protocols but action-oriented. "Do this sequence" rather than "behave like this." They live in `.soma/automations/` and support heat, `/pin`, `/kill`, and cold-start boost just like muscles.
+Automations are procedural step-by-step flows — like protocols but action-oriented. "Do this sequence" rather than "behave like this." They live in `.soma/amps/automations/` and support heat, `/pin`, `/kill`, and cold-start boost just like muscles.
 
 **Why adjust:** If you have many automations competing for prompt space, increase `tokenBudget`. If you want multiple automations loaded in full (e.g. a deploy automation AND a review automation), increase `maxFull`.
 
@@ -299,7 +314,7 @@ The boot sequence controls what loads into the agent's context on session start.
 | `protocols` | Discover and inject protocols by heat tier |
 | `muscles` | Discover and inject muscles by heat within token budget |
 | `automations` | Discover and inject automations by heat (procedural step-by-step flows) |
-| `scripts` | List available `.soma/scripts/` with descriptions |
+| `scripts` | List available `.soma/amps/scripts/` with descriptions |
 | `git-context` | Inject recent git commits and changed files |
 
 **Why adjust:** Order matters — items earlier in the list get priority in the system prompt. If your automations are more important than scripts, they're already ordered that way by default. If you're on a model with a smaller context window, remove steps to save tokens (e.g. drop `git-context` and `scripts`).
