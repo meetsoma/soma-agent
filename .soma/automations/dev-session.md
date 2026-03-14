@@ -4,16 +4,18 @@ name: dev-session
 status: active
 heat: 5
 created: 2026-03-12
-updated: 2026-03-12
+updated: 2026-03-14
 tags: [dev, workflow, autonomous]
 trigger: session-start
-description: Autonomous dev session — check kanban, pre-flight, implement, ship, wrap up.
+description: Autonomous dev session — orient, plan, implement, ship, wrap up.
+author: meetsoma
+license: MIT
 ---
 
 # Dev Session Automation
 
 <!-- digest:start -->
-> **Dev Session** — autonomous work loop: (1) Orient from kanban + preload, (2) Pre-flight: read related code/docs, (3) Plan: break into small tasks, (4) Implement: edit → test → commit per task, (5) Ship: push → cherry-pick → sync CLI, (6) Doc refresh: audit → update docs → sync website → deploy, (7) Wrap up: update kanban → session log → preload. Follow each step. Note gaps.
+> **Dev Session** — autonomous work loop: (1) Orient from kanban + preload, (2) Pre-flight: read related code/docs, (3) Plan: break into small tasks, (4) Implement: edit → test → commit per task, (5) Ship: push changes, (6) Wrap up: update kanban → session log → preload. Follow each step. Note gaps.
 <!-- digest:end -->
 
 ## When to Run
@@ -55,7 +57,7 @@ description: Autonomous dev session — check kanban, pre-flight, implement, shi
 
 ```
 □ Make the edit
-□ Run tests: for t in tests/test-*.sh; do bash "$t" 2>&1 | grep Results; done
+□ Run tests (if the project has them)
 □ If tests fail: fix before moving on. Never commit broken tests.
 □ Commit: type(scope): description
 □ Move to next sub-task
@@ -64,33 +66,16 @@ description: Autonomous dev session — check kanban, pre-flight, implement, shi
 ### 5. SHIP (after all sub-tasks done)
 
 ```
-□ Push agent-stable: git push meetsoma main
-□ Cherry-pick to dev: cd ../agent && git cherry-pick <hash> && git push meetsoma dev
-□ Sync CLI: bash scripts/sync-to-cli.sh → commit + push CLI
-□ If extension/runtime changed: note that self-switch is needed
+□ Push to remote
+□ If docs were affected, verify they're updated
+□ If the project has CI, check it passes
 ```
 
-### 6. DOC REFRESH (after shipping — don't skip this)
-
-```
-□ Run audit: bash scripts/soma-audit.sh
-□ Check: any new settings? → update configuration.md
-□ Check: any new commands? → update commands.md
-□ Check: any new scripts? → update scripts.md
-□ Check: any new concepts? → update how-it-works.md
-□ Update CHANGELOG.md unreleased section
-□ Update website roadmap if feature status changed
-□ Sync: bash scripts/sync-to-cli.sh (includes docs now)
-□ Sync: bash scripts/sync-to-website.sh
-□ Deploy: website merge dev→main
-□ Verify: bash scripts/soma-audit.sh → 10+/11
-```
-
-### 7. WRAP UP
+### 6. WRAP UP
 
 ```
 □ Update kanban: move completed items to Done, add new items found
-□ Append to session log: .soma/memory/sessions/YYYY-MM-DD.md
+□ Append to session log: .soma/memory/sessions/YYYY-MM-DD-sNN.md
 □ If context > 50%: start wrapping, auto-breathe will handle rotation
 □ If switching tasks: update preload Orient From for next task
 ```
@@ -99,5 +84,3 @@ description: Autonomous dev session — check kanban, pre-flight, implement, shi
 
 > After each session using this automation, note what was missing or wrong.
 > These get folded into the steps on next revision.
-
-- (none yet — first version)

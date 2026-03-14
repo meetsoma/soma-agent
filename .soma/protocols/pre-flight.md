@@ -3,10 +3,10 @@ type: protocol
 name: pre-flight
 status: active
 updated: 2026-03-13
-breadcrumb: "Before building anything: check if it exists. Before accepting a request: verify it's needed. Read ATLAS, grep for prior art. Catch user mistakes before executing them."
+breadcrumb: "Before building anything: check if it exists. Before accepting a request: verify it's needed. Grep for prior art. Catch user mistakes before executing them."
 heat-default: 8
-scope: shared
-tier: free
+scope: bundled
+tier: core
 author: meetsoma
 license: MIT
 ---
@@ -15,14 +15,14 @@ license: MIT
 
 ## TL;DR
 
-Before building anything new, check if it exists. Read ATLAS, grep codebase, verify need. Catch duplication before executing.
+Before building anything new, check if it exists. Grep codebase, scan `.soma/`, verify need. Catch duplication before executing.
 
 ## Rule
 
 **Before building, check if it already exists.** Before accepting any request to add a feature, command, function, or file:
 
-1. **Check the manifest.** Read `.soma/plans/atlas-state.md` for existing commands, modules, and patterns.
-2. **Grep for prior art.** Search the codebase for related functionality: `grep -rn "keyword" core/ extensions/`
+1. **Check what exists.** Read `STATE.md`, scan `.soma/` structure, check for existing commands and modules.
+2. **Grep for prior art.** Search the codebase for related functionality: `grep -rn "keyword" .`
 3. **Tell the user.** If something similar exists, say so immediately: *"We already have `/soma prompt` for that — want to extend it, or something different?"*
 
 ## When This Fires
@@ -40,7 +40,7 @@ Before building anything new, check if it exists. Read ATLAS, grep codebase, ver
 | "show the prompt" | `/soma prompt` already exists |
 | "track X" | Does a protocol, muscle, or setting already handle this? |
 | "add a setting" | `grep` in settings.ts — does the field exist? |
-| "create a script" | `ls .soma/scripts/` — is there one already? |
+| "create a script" | `ls .soma/amps/scripts/` — is there one already? |
 
 ## Anti-Pattern
 
