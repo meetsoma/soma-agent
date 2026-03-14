@@ -116,5 +116,5 @@ Templates ship. Instances don't.
 
 - **Let identity grow** — don't pre-write it. Let Soma discover who she becomes through your work.
 - **Trust the breath** — don't worry about context limits. Soma flushes and continues automatically.
-- **Read muscles** — check `.soma/memory/muscles/` to see what patterns Soma has learned.
+- **Read muscles** — check `.soma/amps/muscles/` to see what patterns Soma has learned.
 - **Tune settings** — everything is configurable: boot steps, heat thresholds, context warnings. See [Configuration](/docs/configuration).

@@ -1,14 +1,14 @@
 # Muscles
 
 <!-- tldr -->
-Learned patterns in `.soma/memory/muscles/` as markdown with frontmatter (type, status, topic, keywords, heat, loads). Loaded by heat within token budget (default: 2000). Hot (≥5) = full body, warm (≥1) = digest only, cold = name listed. Digest blocks between `<!-- digest:start -->` / `<!-- digest:end -->` markers. Write digests — they're what loads 90% of the time. `/pin` to keep hot, `/kill` to drop cold.
+Learned patterns in `.soma/amps/muscles/` as markdown with frontmatter (type, status, topic, keywords, heat, loads). Loaded by heat within token budget (default: 2000). Hot (≥5) = full body, warm (≥1) = digest only, cold = name listed. Digest blocks between `<!-- digest:start -->` / `<!-- digest:end -->` markers. Write digests — they're what loads 90% of the time. `/pin` to keep hot, `/kill` to drop cold.
 <!-- /tldr -->
 
 Muscles are **learned patterns** — reusable knowledge that Soma builds from experience. Unlike protocols (which are behavioral rules you write), muscles emerge organically from work. They're Soma's playbook.
 
 ## How Muscles Form
 
-Muscles start as observations. When Soma notices a pattern across sessions — a deployment process, a code style, an API workflow — she writes it down as a muscle file in `.soma/memory/muscles/`.
+Muscles start as observations. When Soma notices a pattern across sessions — a deployment process, a code style, an API workflow — she writes it down as a muscle file in `.soma/amps/muscles/`.
 
 A muscle is a markdown file with frontmatter:
 
@@ -92,7 +92,7 @@ All thresholds are configurable in [settings.json](/docs/configuration#muscles).
 You don't have to wait for Soma to discover patterns. Create a muscle directly:
 
 ```bash
-touch .soma/memory/muscles/my-workflow.md
+touch .soma/amps/muscles/my-workflow.md
 ```
 
 ```markdown
@@ -122,7 +122,7 @@ Set `heat: 3` or higher so it loads on next boot. Heat will decay naturally if t
 ## Where Muscles Live
 
 ```
-.soma/memory/muscles/
+.soma/amps/muscles/
 ├── svg-logo-design.md      ← learned from logo sessions
 ├── deployment.md           ← learned from deploy workflows
 ├── github-app-auth.md      ← learned from auth patterns
