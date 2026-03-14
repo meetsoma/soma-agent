@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Auto-append conventional commits to CHANGELOG.md [Unreleased]
+# Only appends feat() and fix() — refactor/docs/chore are skipped
+set -euo pipefail
+
+CHANGELOG="CHANGELOG.md"
+[[ -f "$CHANGELOG" ]] || exit 0
+
+# Get the commit that just happened
+MSG=$(git log --format="%s" -1 HEAD)
+HASH=$(git log --format="%h" -1 HEAD)
+
+# Only process feat() and fix() commits
+if ! echo "$MSG" | grep -qE "^(feat|fix)\("; then
+  exit 0
+fi
+
+# Don't process changelog commits themselves
+if echo "$MSG" | grep -qiE "^docs\(changelog\)"; then
+  exit 0
+fi
+
+# Extract type and description
+TYPE=$(echo "$MSG" | sed 's/^\([a-z]*\)(.*/\1/')
+DESC=$(echo "$MSG" | sed 's/^[a-z]*([^)]*): //')
+
+# Determine section
+if [[ "$TYPE" == "feat" ]]; then
+  SECTION="### Added"
+else
+  SECTION="### Fixed"
+fi
+
+# Check if already in changelog (by first 3 words)
+KEY=$(echo "$DESC" | sed 's/[—–]//g' | awk '{for(i=1;i<=3&&i<=NF;i++) printf "%s ", $i}' | sed 's/ $//')
+if grep -qiF "$KEY" "$CHANGELOG" 2>/dev/null; then
+  exit 0  # already there
+fi
+
+# Format the entry
+ENTRY="- **${DESC}**"
+
+# Find the [Unreleased] section and the right subsection
+if grep -q "^$SECTION" "$CHANGELOG"; then
+  # Section exists — append after it
+  sed -i '' "/^$SECTION$/a\\
+$ENTRY
+" "$CHANGELOG"
+else
+  # Section doesn't exist — add it after [Unreleased] header
+  sed -i '' "/^## \[Unreleased\]$/a\\
+\\
+$SECTION\\
+$ENTRY
+" "$CHANGELOG"
+fi
+
+echo "📝 Changelog: auto-appended $TYPE entry"
