@@ -292,12 +292,18 @@ export default function somaStatuslineExtension(pi: ExtensionAPI) {
 					line2Items.push(brand("🌿soma"));
 					line2Items.push(dim(`¶${state.turnCount}`));
 
-					// Session ID from soma-boot via router
+					// Session ID + scratch count from router
 					const somaRoute = (globalThis as any).__somaRoute;
 					const getSessionId = somaRoute?.get("session:id");
 					const sessionId = getSessionId?.();
 					if (sessionId) {
 						line2Items.push(dim(`📋${sessionId}`));
+					}
+
+					const getScratchCount = somaRoute?.get("scratch:count");
+					const scratchCount = getScratchCount?.();
+					if (scratchCount > 0) {
+						line2Items.push(dim(`📝${scratchCount}`));
 					}
 
 					if (restartRequired) {
