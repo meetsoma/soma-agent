@@ -276,10 +276,12 @@ export default function somaScratch(pi: ExtensionAPI) {
 
 	pi.registerCommand("scratch", {
 		description: "Quick notes — append to scratchpad with session tracking",
-		getArgumentCompletions: (prefix) =>
-			["read", "clear", "done", "park", "activate", "notes"]
+		getArgumentCompletions: (prefix) => {
+			const completions = ["read", "clear", "done", "park", "activate", "notes"];
+			return completions
 				.filter(o => o.startsWith(prefix))
-				.map(o => ({ value: o, label: o })),
+				.map(o => ({ value: o, label: o }));
+		},
 
 		handler: async (args, ctx) => {
 			const scratchPath = getScratchPath();
