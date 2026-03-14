@@ -1,118 +1,21 @@
 ---
-title: "Scripts & Audits"
-description: "Standalone tools for auditing, verifying, and maintaining your .soma/ ecosystem."
+title: "Scripts"
+description: "Standalone tools that ship with Soma for auditing, snapshotting, and content validation."
 section: "Reference"
 order: 9
 ---
 
-# Scripts & Audits
+# Scripts
 
 <!-- tldr -->
-Standalone bash tools that run outside agent sessions — no API key, no context window. `soma-audit.sh` runs ecosystem health checks. `soma-verify.sh` handles truth-checking, search, doc sync, and cross-repo state. `soma-snapshot.sh` creates project snapshots. All run from the command line.
+Standalone bash tools that ship with Soma — run from the command line, no agent session needed. `soma-compat.sh` checks for content conflicts. `soma-update-check.sh` finds outdated protocols/muscles. `soma-snapshot.sh` creates project snapshots. `validate-content.sh` validates content before PRs.
 <!-- /tldr -->
 
 ## Why Scripts?
 
-Not everything needs an agent session. Checking for PII leaks, verifying doc consistency, or searching past sessions are tasks that work better as standalone CLI tools. Soma's scripts run from bash — no API key needed, no context window consumed.
+Not everything needs an agent session. Checking for content conflicts, verifying your setup, or snapshotting before a big change are tasks that work better as standalone CLI tools. These run from bash — no API key needed, no context window consumed.
 
-## Core Scripts
-
-Ship with the agent package in `scripts/`.
-
-### soma-verify.sh
-
-Unified tool for truth-checking and ecosystem awareness. Absorbs the functionality of several older scripts (soma-search, soma-scan, soma-context, soma-stale).
-
-```bash
-# Verify claims in a doc against code
-scripts/soma-verify.sh doc docs/configuration.md
-
-# Search across all sources for a topic
-scripts/soma-verify.sh topic "heat system"
-
-# Check protocol versions across all sources
-scripts/soma-verify.sh protocols
-
-# Verify website docs are in sync with agent
-scripts/soma-verify.sh website
-
-# Multi-repo state check (branches, dirty, unpushed)
-scripts/soma-verify.sh repos
-
-# Frontmatter-based search
-scripts/soma-verify.sh search --type protocol --status active
-scripts/soma-verify.sh search --stale
-
-# Search session logs and preloads
-scripts/soma-verify.sh sessions "auto-breathe"
-
-# Cross-ecosystem consistency (protocol drift, agent↔CLI sync)
-scripts/soma-verify.sh sync
-
-# Pro vs public stream protection
-scripts/soma-verify.sh streams
-
-# Verify changelog claims against commits
-scripts/soma-verify.sh changelog
-
-# Find what references a file
-scripts/soma-verify.sh impact core/settings.ts
-
-# Trace a value across git history
-scripts/soma-verify.sh history "warmThreshold"
-
-# Find related files via frontmatter
-scripts/soma-verify.sh related protocols/workflow.md
-
-# Minimal output (errors only — good for CI)
-scripts/soma-verify.sh website --compact
-```
-
-### soma-audit.sh
-
-Ecosystem health checker. Runs focused audit scripts — each concern is independent.
-
-```bash
-# Run all audits
-scripts/soma-audit.sh
-
-# Run specific audits
-scripts/soma-audit.sh drift pii doc-freshness
-
-# List available audits
-scripts/soma-audit.sh --list
-
-# Summary only
-scripts/soma-audit.sh --quiet
-```
-
-**Available audits:**
-
-| Audit | What It Checks |
-|-------|---------------|
-| `pii` | Personal information in tracked files (emails, API keys, paths) |
-| `drift` | Code sync between agent and CLI repos |
-| `commands` | Registered commands vs documented commands |
-| `stale-terms` | Deprecated terminology across all content |
-| `stale-content` | Old protocols/muscles, orphan memories, dead drafts |
-| `doc-freshness` | Features in code but not in docs |
-| `docs-sync` | Agent docs ↔ website docs drift |
-| `overlap` | Duplicate logic across extensions |
-| `tests` | Test coverage gaps |
-| `settings` | Settings types with no implementation |
-| `roadmap` | Shipped vs planned claims |
-
-### soma-snapshot.sh
-
-Rolling zip snapshots of project directories.
-
-```bash
-# Snapshot current directory
-scripts/soma-snapshot.sh . "pre-refactor"
-
-# Snapshot with timestamp
-scripts/soma-snapshot.sh ./src "before-migration"
-```
+## Available Scripts
 
 ### soma-compat.sh
 
@@ -133,21 +36,36 @@ scripts/soma-update-check.sh --update   # auto-pull updates
 scripts/soma-update-check.sh --json     # machine-readable output
 ```
 
-### frontmatter-date-hook.sh
+### soma-snapshot.sh
 
-Git pre-commit hook — auto-updates `updated:` field in modified `.md` files.
+Rolling zip snapshots of project directories. Respects `.zipignore`.
+
+```bash
+scripts/soma-snapshot.sh . "pre-refactor"
+scripts/soma-snapshot.sh ./src "before-migration"
+```
+
+### validate-content.sh
+
+Validate AMPS content files (protocols, muscles, etc.) before submitting a PR to the community hub.
+
+```bash
+scripts/validate-content.sh protocols/my-protocol.md
+```
+
+### git-identity-hook.sh
+
+Git pre-commit hook that validates your git identity matches `guard.gitIdentity` settings.
 
 ```bash
 # Install as pre-commit hook
-ln -s scripts/frontmatter-date-hook.sh .git/hooks/pre-commit
+ln -s scripts/git-identity-hook.sh .git/hooks/pre-commit
 ```
 
-## Using in Workflow
+### prompt-preview.ts
 
-The recommended post-ship workflow:
+Preview the compiled system prompt without starting a session. Shows what Soma would inject.
 
-1. Ship code changes
-2. Run `soma-verify.sh website --compact` — check doc sync
-3. Run `soma-audit.sh doc-freshness stale-terms` — get the exact update list
-4. Fix docs, then re-sync
-5. Run `soma-verify.sh repos` — verify all repos clean
+```bash
+npx jiti scripts/prompt-preview.ts
+```
