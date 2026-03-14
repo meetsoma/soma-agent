@@ -74,7 +74,7 @@ When context fills up, Soma automatically breathes — saving state and continui
 - **`/rest`** — disable keepalive + exhale (for when you're done for the night)
 
 Either way, Soma:
-1. Writes a session-scoped **preload** (`preload-<sessionId>.md`)
+1. Writes a session-scoped **preload** (`preload-next-<date>-<id>.md` in `memory/preloads/`)
 2. Saves protocol and muscle heat state
 3. Commits all work
 

@@ -11,7 +11,7 @@ Every session follows three phases:
 
 Your memory lives in `.soma/`:
 - **`identity.md`** — who you are in this project. You write and maintain it. Update when you learn something fundamental about the project, stack, or conventions.
-- **`memory/preload-<sessionId>.md`** — continuation state. Written at exhale, loaded at next inhale. This is how you carry context across sessions.
+- **`memory/preloads/preload-next-<date>-<id>.md`** — continuation state. Written at exhale, loaded at next inhale. This is how you carry context across sessions.
 - **`memory/muscles/`** — learned patterns. When you notice yourself doing the same thing across sessions, crystallize it as a muscle.
 - **`protocols/`** — behavioral rules. Follow them without being asked. Heat rises on use, decays when idle.
 
