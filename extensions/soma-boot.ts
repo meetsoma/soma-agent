@@ -751,9 +751,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const toggleKeepalive = route?.get("keepalive:toggle");
 			if (toggleKeepalive) {
 				toggleKeepalive(false);
-			} else {
-				// Fallback until soma-statusline migrates to router
-				(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = false);
 			}
 			// Signal other extensions that breathe is starting
 			route?.emit("breathe:start", { label, pct: pct });
@@ -1018,9 +1015,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const toggleKeepalive = route?.get("keepalive:toggle");
 			if (toggleKeepalive) {
 				toggleKeepalive(true);
-			} else {
-				// Fallback: direct globalThis (will be removed once soma-statusline uses router)
-				(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
 			}
 
 			ctx.ui.notify(`🫧 Rotating to fresh session (${reason})...`, "info");
@@ -1131,8 +1125,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const toggleKeepalive = route?.get("keepalive:toggle");
 			if (toggleKeepalive) {
 				toggleKeepalive(true);
-			} else {
-				(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
 			}
 
 			ctx.ui.notify(
@@ -1166,8 +1158,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const toggleKeepalive = route?.get("keepalive:toggle");
 			if (toggleKeepalive) {
 				toggleKeepalive(true);
-			} else {
-				(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
 			}
 			// REFACTOR: #1 — these 15+ resets should be `sessionState = createFreshState()`
 			protocolsReferenced = new Set();
@@ -1760,9 +1750,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const toggleKeepalive = route?.get("keepalive:toggle");
 			if (toggleKeepalive) {
 				toggleKeepalive(false);
-			} else {
-				const ka = (globalThis as any).__somaKeepalive;
-				if (ka) { ka.enabled = false; }
 			}
 			ctx.ui.notify("💤 Keepalive disabled — entering rest mode", "info");
 
