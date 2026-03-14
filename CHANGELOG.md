@@ -9,6 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [Unreleased]
 
 ### Added
+- **surface session log + preload paths in boot message**
 - **countdown grace period before rotation**
 - **resume boot diffing — skip redundant injection on soma -c**
 - **CLI-based rotation fallback via .rotate-signal**
@@ -54,6 +55,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.5.0] — 2026-03-12
 
 ### Added
+- **surface session log + preload paths in boot message**
 - **countdown grace period before rotation**
 - **resume boot diffing — skip redundant injection on soma -c**
 - **CLI-based rotation fallback via .rotate-signal**
@@ -95,6 +97,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.4.0] — 2026-03-11
 
 ### Added
+- **surface session log + preload paths in boot message**
 - **countdown grace period before rotation**
 - **resume boot diffing — skip redundant injection on soma -c**
 - **CLI-based rotation fallback via .rotate-signal**
@@ -137,6 +140,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.3.0] — 2026-03-10
 
 ### Added
+- **surface session log + preload paths in boot message**
 - **countdown grace period before rotation**
 - **resume boot diffing — skip redundant injection on soma -c**
 - **CLI-based rotation fallback via .rotate-signal**
@@ -178,6 +182,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.2.0] — 2026-03-09
 
 ### Added
+- **surface session log + preload paths in boot message**
 - **countdown grace period before rotation**
 - **resume boot diffing — skip redundant injection on soma -c**
 - **CLI-based rotation fallback via .rotate-signal**
