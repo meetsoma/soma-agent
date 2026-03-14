@@ -135,6 +135,40 @@ Soma ships with these extensions:
 
 These install to `~/.soma/agent/extensions/` and can be customized or replaced.
 
+### soma-route.ts
+
+Capability router for inter-extension communication. Extensions can't import from each other — the router provides a clean API for sharing functions and broadcasting events.
+
+**Two patterns:**
+
+```typescript
+// Capabilities — one provider, many consumers (service registry)
+const route = (globalThis as any).__somaRoute;
+route.provide("my:capability", myFunction, { provider: "my-ext" });
+// In another extension:
+const fn = route?.get("my:capability");
+if (fn) await fn();
+
+// Signals — many emitters, many listeners (pub/sub)
+route.on("my:event", (data) => { /* react */ });
+route.emit("my:event", { key: "value" });
+```
+
+**Built-in capabilities** (provided by soma-boot and soma-statusline):
+
+| Capability | Provider | Description |
+|-----------|----------|-------------|
+| `session:new` | soma-boot | Start fresh session |
+| `session:compact` | soma-boot | Trigger compaction |
+| `session:reload` | soma-boot | Reload extensions |
+| `keepalive:toggle` | soma-statusline | Enable/disable cache keepalive |
+| `keepalive:status` | soma-statusline | Get keepalive state |
+| `context:usage` | soma-boot | Get token usage |
+
+**Commands:** `/route` shows all registered capabilities and signal listeners.
+
+**Why it exists:** Pi's `sendUserMessage()` can't trigger slash commands (by design). The router bridges the gap — command handlers capture capabilities (like `newSession`) and share them with event handlers (like `turn_end`) that need them for features like auto-breathe rotation.
+
 ### soma-guard.ts
 
 Graduated from the `safe-file-ops` muscle — the muscle teaches the pattern, this extension enforces it.
