@@ -83,6 +83,17 @@ import {
 } from "../core/index.js";
 
 // ---------------------------------------------------------------------------
+// Router Access (soma-route.ts)
+// ---------------------------------------------------------------------------
+// The router lives on globalThis.__somaRoute. Access it via getRoute().
+// NEVER cache the result — always call getRoute() fresh.
+// See soma-route.ts header for capability catalog and usage patterns.
+
+function getRoute(): any {
+	return (globalThis as any).__somaRoute ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Extension
 // ---------------------------------------------------------------------------
 
@@ -465,6 +476,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	// ═══════════════════════════════════════════════════════════════════
 
 	pi.on("session_start", async (_event, ctx) => {
+		// Provide event-context capabilities to router (context:usage, ui:notify, etc.)
+		provideEventCapabilities(ctx);
+
 		// Capture session ID for preload metadata
 		try {
 			const sessionFile = ctx.sessionManager.getSessionFile?.() || "";
@@ -641,7 +655,16 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			breatheTurnCount = 0;
 			breatheCommandCtx = ctx;
 			// Pause keepalive during rotation to avoid wasted turns
-			(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = false);
+			const route = getRoute();
+			const toggleKeepalive = route?.get("keepalive:toggle");
+			if (toggleKeepalive) {
+				toggleKeepalive(false);
+			} else {
+				// Fallback until soma-statusline migrates to router
+				(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = false);
+			}
+			// Signal other extensions that breathe is starting
+			route?.emit("breathe:start", { label, pct: pct });
 		};
 
 		// ── AUTO-BREATHE MODE (proactive) ──────────────────────────────
@@ -879,43 +902,126 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (!breathePending) return;
 		breatheTurnCount++;
 
-		// Happy path: preload written + completion signal → rotate
+		// ── Rotation helper ────────────────────────────────────────────
+		// Extracted so both happy-path (preload detected) and manual trigger
+		// ("BREATHE COMPLETE") use the same rotation logic.
+		//
+		// CRITICAL FIX (2026-03-14):
+		// Previously this used `sendUserMessage("/inhale --heat-saved")` to
+		// trigger rotation. But Pi's sendUserMessage passes expandPromptTemplates:false,
+		// so "/inhale" was sent as LITERAL TEXT to the LLM — the command never executed.
+		// newSession() was never called. Sessions bloated to 80%+ and died.
+		//
+		// Now we use the router to get session:new (captured from /breathe or /inhale
+		// command context) and call newSession() directly. If the router doesn't have
+		// session:new yet (no command has run), we fall back to the old sendUserMessage
+		// path — which won't work for rotation but at least surfaces the intent.
+		const performRotation = async (reason: string) => {
+			breathePending = false;
+			breatheTurnCount = 0;
+			breatheCommandCtx = null;
+
+			// Re-enable keepalive via router (or globalThis fallback)
+			const route = getRoute();
+			const toggleKeepalive = route?.get("keepalive:toggle");
+			if (toggleKeepalive) {
+				toggleKeepalive(true);
+			} else {
+				// Fallback: direct globalThis (will be removed once soma-statusline uses router)
+				(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
+			}
+
+			ctx.ui.notify(`🫧 Rotating to fresh session (${reason})...`, "info");
+
+			// Save heat state before rotation
+			saveAllHeatState();
+			const commitResult = autoCommitSomaState("auto-breathe-rotate");
+			if (commitResult) ctx.ui.notify(`✅ ${commitResult}`, "info");
+
+			// Try router: call newSession() directly (the proper fix)
+			const newSession = route?.get("session:new");
+			if (newSession) {
+				try {
+					pendingRotationBoot = null;
+					const result = await newSession({});
+					if (!result.cancelled) {
+						// session_switch handler ran: rebuilt boot, queued pendingRotationBoot
+						if (pendingRotationBoot) {
+							pi.sendUserMessage(pendingRotationBoot, { deliverAs: "followUp" });
+							pendingRotationBoot = null;
+							ctx.ui.notify("✅ Rotated — fresh session with preload", "info");
+
+							// Signal other extensions
+							route?.emit("breathe:complete", { reason });
+						} else {
+							// Fallback: inject preload directly
+							const preload = soma ? findPreload(soma) : null;
+							if (preload) {
+								const staleTag = preload.stale ? ` ⚠️ (${Math.floor(preload.ageHours)}h old)` : "";
+								pi.sendUserMessage(
+									`[Soma Boot — rotated session${staleTag}]\n\n${preload.content}`,
+									{ deliverAs: "followUp" }
+								);
+							}
+							ctx.ui.notify("✅ Rotated — preload injected (fallback path)", "info");
+						}
+					}
+				} catch (err: any) {
+					ctx.ui.notify(`❌ Rotation failed: ${err?.message?.slice(0, 100)}`, "error");
+					// Last resort: tell user to manually rotate
+					pi.sendUserMessage(
+						`[Auto-breathe rotation failed]\n\nThe session could not auto-rotate. ` +
+						`Use /inhale manually, or exit and run \`soma\` for a fresh session.`,
+						{ deliverAs: "followUp" }
+					);
+				}
+				return;
+			}
+
+			// No session:new on router — no command has run yet to provide it.
+			// This happens if auto-breathe triggers before the user runs any slash command.
+			// Fallback: tell the agent to use /inhale (which WILL work when typed by user,
+			// just not via sendUserMessage).
+			ctx.ui.notify(
+				"⚠️ session:new not available on router — no command context captured yet. " +
+				"Use /inhale or /breathe manually.",
+				"warning"
+			);
+			pi.sendUserMessage(
+				`[Auto-breathe — manual rotation needed]\n\n` +
+				`Preload is written. Type /inhale to rotate to a fresh session.\n` +
+				`(Auto-rotation requires a prior /breathe or /inhale command to capture session control.)`,
+				{ deliverAs: "followUp" }
+			);
+		};
+
+		// ── Happy path: preload written → rotate ───────────────────────
 		// Preload file IS the signal — no "BREATHE COMPLETE" magic words needed.
-		// NOTE: newSession() is only available on ExtensionCommandContext (from commands),
-		// NOT on ExtensionContext (from event handlers). Route through /inhale instead.
 		if (preloadWrittenThisSession && breathePending) {
-			breathePending = false;
-			breatheTurnCount = 0;
-			breatheCommandCtx = null;
-			// Re-enable keepalive for next session
-			(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
-			ctx.ui.notify("🫧 Preload detected — rotating to fresh session...", "info");
-			// Route through /inhale command which has ExtensionCommandContext
-			setTimeout(() => {
-				pi.sendUserMessage("/inhale --heat-saved", { deliverAs: "followUp" });
-			}, 500);
+			await performRotation("preload-detected");
 			return;
 		}
 
-		// Still accept "BREATHE COMPLETE" as a manual trigger (backward compat + /breathe flow)
+		// ── Manual trigger: "BREATHE COMPLETE" (backward compat) ───────
 		if (flushCompleteDetected && breathePending) {
-			breathePending = false;
-			breatheTurnCount = 0;
-			breatheCommandCtx = null;
-			(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
-			ctx.ui.notify("🫧 Rotating to fresh session...", "info");
-			setTimeout(() => {
-				pi.sendUserMessage("/inhale --heat-saved", { deliverAs: "followUp" });
-			}, 500);
+			await performRotation("breathe-complete");
 			return;
 		}
 
-		// Timeout: 6+ turns with no preload written → cancel breathe, notify
+		// ── Timeout: 6+ turns with no preload → cancel ────────────────
 		if (breatheTurnCount >= 6 && !preloadWrittenThisSession) {
 			breathePending = false;
 			breatheTurnCount = 0;
 			breatheCommandCtx = null;
-			(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
+
+			const route = getRoute();
+			const toggleKeepalive = route?.get("keepalive:toggle");
+			if (toggleKeepalive) {
+				toggleKeepalive(true);
+			} else {
+				(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
+			}
+
 			ctx.ui.notify(
 				"⚠️ Breathe timed out — no preload after 6 turns. Use /breathe to retry.",
 				"warning"
@@ -943,7 +1049,13 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			toolCallsAfterPreload = 0;
 			pendingFollowUps = [];
 			// Re-enable keepalive for fresh session
-			(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
+			const route = getRoute();
+			const toggleKeepalive = route?.get("keepalive:toggle");
+			if (toggleKeepalive) {
+				toggleKeepalive(true);
+			} else {
+				(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
+			}
 			// REFACTOR: #1 — these 15+ resets should be `sessionState = createFreshState()`
 			protocolsReferenced = new Set();
 			musclesReferenced = new Set();
@@ -1068,10 +1180,128 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		compiledSystemPrompt = null;
 	}
 
+	// ═══════════════════════════════════════════════════════════════════
+	// ROUTER: Capability provisioning from command contexts
+	// ═══════════════════════════════════════════════════════════════════
+	// Command handlers get ExtensionCommandContext which has newSession(),
+	// fork(), reload(), etc. Event handlers (turn_end, tool_result) only
+	// get ExtensionContext — no session control.
+	//
+	// This helper captures command-context capabilities onto the router
+	// so event handlers can use them. Called from /breathe and /inhale
+	// (the most likely commands to run before rotation is needed), but
+	// ANY command handler can call it.
+	//
+	// Why not capture once? Command contexts may have different lifetimes
+	// or bound state. Re-providing on each command call ensures freshness.
+
+	function provideCommandCapabilities(ctx: any) {
+		const route = getRoute();
+		if (!route) return;
+
+		// session:new — the critical capability for auto-breathe rotation.
+		// Without this, turn_end can't call newSession() and rotation fails.
+		// See soma-route.ts header: "SENDUSERMESSAGE GOTCHA" for why we
+		// can't use sendUserMessage("/inhale") instead.
+		if (ctx.newSession) {
+			route.provide("session:new", ctx.newSession.bind(ctx), {
+				provider: "soma-boot",
+				description: "Start fresh session (clears messages, fires session_switch)",
+			});
+		}
+
+		// session:compact — available from ExtensionContext too, but providing
+		// it here from command context for consistency.
+		if (ctx.compact) {
+			route.provide("session:compact", ctx.compact.bind(ctx), {
+				provider: "soma-boot",
+				description: "Trigger context compaction",
+			});
+		}
+
+		// session:reload — reload all extensions (hot-swap trigger)
+		if (ctx.reload) {
+			route.provide("session:reload", ctx.reload.bind(ctx), {
+				provider: "soma-boot",
+				description: "Reload all extensions without restarting process",
+			});
+		}
+
+		// session:waitForIdle — wait for agent to finish streaming
+		if (ctx.waitForIdle) {
+			route.provide("session:waitForIdle", ctx.waitForIdle.bind(ctx), {
+				provider: "soma-boot",
+				description: "Wait for agent to stop streaming before acting",
+			});
+		}
+
+		// session:fork — fork from an entry
+		if (ctx.fork) {
+			route.provide("session:fork", ctx.fork.bind(ctx), {
+				provider: "soma-boot",
+				description: "Fork session from a specific entry",
+			});
+		}
+
+		// session:navigate — navigate session tree
+		if (ctx.navigateTree) {
+			route.provide("session:navigate", ctx.navigateTree.bind(ctx), {
+				provider: "soma-boot",
+				description: "Navigate to different point in session tree",
+			});
+		}
+
+		// session:switch — switch to different session file
+		if (ctx.switchSession) {
+			route.provide("session:switch", ctx.switchSession.bind(ctx), {
+				provider: "soma-boot",
+				description: "Switch to a different session file",
+			});
+		}
+	}
+
+	// Also provide capabilities available from regular ExtensionContext.
+	// Called from event handlers (session_start, before_agent_start, etc.)
+	function provideEventCapabilities(ctx: any) {
+		const route = getRoute();
+		if (!route) return;
+
+		if (ctx.getContextUsage) {
+			route.provide("context:usage", ctx.getContextUsage.bind(ctx), {
+				provider: "soma-boot",
+				description: "Get context token usage ({ percent, tokensUsed, tokenLimit })",
+			});
+		}
+
+		if (ctx.getSystemPrompt) {
+			route.provide("context:systemPrompt", ctx.getSystemPrompt.bind(ctx), {
+				provider: "soma-boot",
+				description: "Get current compiled system prompt",
+			});
+		}
+
+		if (ctx.ui?.notify) {
+			route.provide("ui:notify", ctx.ui.notify.bind(ctx.ui), {
+				provider: "soma-boot",
+				description: "Show UI notification (message, level)",
+			});
+		}
+
+		// message:send — pi.sendUserMessage wrapper.
+		// NOTE: This does NOT execute commands. See soma-route.ts "SENDUSERMESSAGE GOTCHA".
+		route.provide("message:send", (content: string, options?: any) => {
+			pi.sendUserMessage(content, options);
+		}, {
+			provider: "soma-boot",
+			description: "Send user message to agent (does NOT trigger /commands)",
+		});
+	}
+
 	// /pin — bump heat to hot
 	pi.registerCommand("pin", {
 		description: "Pin a protocol or muscle to hot — keeps it loaded across sessions",
 		handler: async (args, ctx) => {
+			provideCommandCapabilities(ctx); // Capture command capabilities early
 			const name = args.trim();
 			if (!name) { ctx.ui.notify("Usage: /pin <protocol-or-muscle-name>", "info"); return; }
 			if (!soma || !protocolState) { ctx.ui.notify("No soma booted", "error"); return; }
@@ -1376,9 +1606,16 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.registerCommand("rest", {
 		description: "Rest — disable keepalive, save state, end session",
 		handler: async (args, ctx) => {
-			// Disable keepalive via cross-extension signal
-			const ka = (globalThis as any).__somaKeepalive;
-			if (ka) { ka.enabled = false; }
+			provideCommandCapabilities(ctx);
+			// Disable keepalive via router (or globalThis fallback)
+			const route = getRoute();
+			const toggleKeepalive = route?.get("keepalive:toggle");
+			if (toggleKeepalive) {
+				toggleKeepalive(false);
+			} else {
+				const ka = (globalThis as any).__somaKeepalive;
+				if (ka) { ka.enabled = false; }
+			}
 			ctx.ui.notify("💤 Keepalive disabled — entering rest mode", "info");
 
 			// Trigger exhale
@@ -1390,6 +1627,12 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.registerCommand("breathe", {
 		description: "Breathe — save state and continue in a fresh session",
 		handler: async (_args, ctx) => {
+			// Capture command-context capabilities for router (session:new, etc.)
+			// This is critical: turn_end handler needs session:new to rotate,
+			// and it only has ExtensionContext. /breathe is the natural trigger
+			// for rotation, so capture here.
+			provideCommandCapabilities(ctx);
+
 			if (!soma) { ctx.ui.notify("No .soma/ found. Run /soma init first.", "error"); return; }
 
 			const usage = ctx.getContextUsage?.();
@@ -1474,6 +1717,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.registerCommand("inhale", {
 		description: "Inhale — reset session and load preload from last session",
 		handler: async (_args, ctx) => {
+			// Capture command capabilities for router (session:new, reload, etc.)
+			provideCommandCapabilities(ctx);
+
 			if (!soma) { ctx.ui.notify("No .soma/ — nothing to inhale. Run /soma init first.", "info"); return; }
 			const preload = findPreload(soma);
 			if (!preload) {
@@ -1529,6 +1775,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		getArgumentCompletions: (prefix) =>
 			["status", "init", "prompt", "prompt full", "prompt identity", "preload", "debug", "debug on", "debug off"].filter(o => o.startsWith(prefix)).map(o => ({ value: o, label: o })),
 		handler: async (args, ctx) => {
+			provideCommandCapabilities(ctx); // Capture early — /soma status is often the first command
 			const cmd = args.trim().toLowerCase() || "status";
 
 			if (cmd === "init") {
