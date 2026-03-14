@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-AGENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+AGENT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CLI_DIR="$(cd "$AGENT_DIR/../cli" 2>/dev/null && pwd || echo "$(dirname "$AGENT_DIR")/cli")"
 
 if [ ! -d "$CLI_DIR" ]; then
