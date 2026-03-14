@@ -13,7 +13,7 @@ scope: bundled
 tags: [learning, patterns, growth]
 spec-ref: curtismercier/protocols/amp (v0.2, §3.2)
 created: 2026-03-09
-updated: 2026-03-12
+updated: 2026-03-14
 ---
 
 # Pattern Evolution Protocol
@@ -92,3 +92,10 @@ Always. This protocol governs how the agent's knowledge base grows.
 ## When NOT to Apply
 
 Don't force evolution. If a pattern hasn't naturally emerged, don't manufacture it. The hierarchy is descriptive (what happens) not prescriptive (what must happen on schedule).
+
+---
+
+<!--
+Licensed under CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
+Author: Curtis Mercier
+-->

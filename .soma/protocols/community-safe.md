@@ -11,8 +11,9 @@ scope: bundled
 tags: [privacy, safety, self-awareness]
 created: 2026-03-10
 updated: 2026-03-14
+author: Curtis Mercier
+license: CC BY 4.0
 ---
-
 # Community Safe
 
 > How Soma keeps private data out of public content. The channel-guard script catches leaks mechanically — this protocol covers the judgment that prevents creating them.
@@ -52,3 +53,10 @@ The script catches obvious leaks. These need your awareness:
 - Channel guard: `scripts/soma-channel-guard.sh`
 - Guard extension: `extensions/soma-guard.ts`
 - PII audit: `scripts/soma-audit.sh` → PII check
+
+---
+
+<!--
+Licensed under CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
+Author: Curtis Mercier
+-->

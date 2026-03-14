@@ -12,7 +12,7 @@ tier: core
 scope: bundled
 tags: [workflow, planning, continuity, kanban]
 created: 2026-03-12
-updated: 2026-03-12
+updated: 2026-03-14
 ---
 
 # Task Tracking Protocol
@@ -136,3 +136,10 @@ Group Done cards by session date so you can see velocity:
   }
 }
 ```
+
+---
+
+<!--
+Licensed under CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
+Author: Curtis Mercier
+-->
