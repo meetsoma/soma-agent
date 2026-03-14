@@ -1,7 +1,7 @@
 # Memory Layout
 
 <!-- tldr -->
-Two levels: project (`.soma/` in repo) and user (`~/.soma/agent/`). Project has: identity.md, STATE.md, protocols/, memory/ (muscles, preloads, sessions), settings.json, scripts/. User has: global settings, extensions (soma-boot, soma-header, soma-statusline), global skills. Identity + memory are gitignored (personal). STATE.md + skills are tracked (shareable).
+Two levels: project (`.soma/` in repo) and user (`~/.soma/agent/`). Project has: identity.md, STATE.md, protocols/, muscles/, automations/, scripts/, memory/ (preloads, sessions), settings.json. User has: global settings, extensions (soma-boot, soma-header, soma-statusline), global skills. Identity + memory are gitignored (personal). STATE.md + skills are tracked (shareable).
 <!-- /tldr -->
 
 Soma uses two levels of storage: **project-level** (`.soma/` in your repo) and **user-level** (`~/.soma/agent/`).
@@ -15,21 +15,27 @@ Lives in your project root. Contains everything specific to this project.
 ├── identity.md              ← who Soma is in this project
 ├── STATE.md                 ← project architecture truth (ATLAS)
 ├── settings.json            ← configurable thresholds (optional)
-├── .protocol-state.json     ← heat state for protocols (auto-managed)
+├── state.json               ← heat state for all AMPS content (auto-managed)
 ├── protocols/               ← behavioral rules (heat-tracked)
-│   ├── breath-cycle.md      ← hot: always loaded
+│   ├── workflow.md          ← hot: always loaded
 │   ├── git-identity.md      ← warm: breadcrumb in prompt
 │   └── _template.md         ← template for new protocols
+├── muscles/                 ← learned patterns (heat-tracked)
+│   └── deployment.md        ← example: learned deployment process
+├── automations/             ← executable triggers (heat-tracked)
+│   └── dev-session.md       ← example: runs on session start
+├── scripts/                 ← standalone bash tools
+│   └── soma-audit.sh        ← example: ecosystem health check
 ├── memory/
-│   ├── muscles/             ← learned patterns (auto-discovered)
-│   │   └── deployment.md    ← example: learned deployment process
-│   ├── preloads/             ← session continuations
+│   ├── preloads/            ← session continuations
 │   │   └── preload-next-*.md ← one per session exhale
 │   └── sessions/
 │       └── 2026-03-08.md    ← daily work log
 ├── skills/                  ← project-specific skills (optional)
 └── extensions/              ← project-specific extensions (optional)
 ```
+
+The four **AMPS layers** (Automations, Muscles, Protocols, Scripts) are all heat-tracked and discovered at boot. See [How It Works](/docs/how-it-works) for the boot sequence.
 
 ### Marker Files
 
@@ -47,8 +53,9 @@ Soma identifies a valid `.soma/` directory by looking for at least one of:
 | `STATE.md` | Tracked | Architecture truth, useful to collaborators |
 | `skills/` | Tracked | Project-specific skills, shareable |
 | `identity.md` | **Gitignored** | Personal — Soma's identity is unique to each user |
+| `muscles/` | **Gitignored** | Personal learned patterns |
+| `automations/` | **Gitignored** | Personal triggers |
 | `memory/` | **Gitignored** | Session-specific, personal |
-| `sessions/` | **Gitignored** | Daily logs, personal |
 
 ## User-Level: `~/.soma/agent/`
 
@@ -77,8 +84,9 @@ Fresh session (soma):
     2. preload — skip (fresh session)
     3. protocols — load by heat (hot=full, warm=breadcrumb, cold=name)
     4. muscles — load by heat within token budget
-    5. scripts — list available .soma/scripts/
-    6. git-context — inject recent commits + changed files
+    5. automations — load by heat
+    6. scripts — list available .soma/scripts/
+    7. git-context — inject recent commits + changed files
   → inject all into system prompt
 
 Continue session (soma -c):
