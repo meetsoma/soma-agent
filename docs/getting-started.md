@@ -99,7 +99,7 @@ Created by `soma init` or on first run:
 ├── memory/
 │   ├── muscles/             ← patterns learned from experience
 │   ├── preload-next-*.md      ← session-scoped continuations
-│   └── sessions/            ← daily logs
+│   └── sessions/            ← per-session logs
 └── scripts/                 ← dev tooling (search, scan, etc.)
 ```
 
