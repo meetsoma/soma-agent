@@ -17,8 +17,8 @@ import type { AssistantMessage } from "@mariozechner/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { truncateToWidth } from "@mariozechner/pi-tui";
 import { execSync } from "child_process";
-import { existsSync, readFileSync, unlinkSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, unlinkSync } from "fs";
+import { join } from "path";
 import { findSomaDir, fmtDuration } from "../core/index.js";
 
 // ---------------------------------------------------------------------------
