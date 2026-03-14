@@ -17,6 +17,8 @@ import type { AssistantMessage } from "@mariozechner/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { truncateToWidth } from "@mariozechner/pi-tui";
 import { execSync } from "child_process";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
 import { findSomaDir, fmtDuration } from "../core/index.js";
 
 // ---------------------------------------------------------------------------
@@ -40,6 +42,37 @@ const CONFIG = {
 	get enabled() { return CONFIG.keepaliveEnabled; },
 	set enabled(v: boolean) { (CONFIG as any).keepaliveEnabled = v; },
 };
+
+// ---------------------------------------------------------------------------
+// Restart-required signal
+// ---------------------------------------------------------------------------
+
+let restartSignalPath: string | null = null;
+let restartRequired = false;
+let restartInfo = "";
+
+function checkRestartSignal(): boolean {
+	if (!restartSignalPath) return false;
+	try {
+		if (existsSync(restartSignalPath)) {
+			restartRequired = true;
+			restartInfo = readFileSync(restartSignalPath, "utf-8").trim();
+			return true;
+		}
+		restartRequired = false;
+		return false;
+	} catch {
+		return false;
+	}
+}
+
+function clearRestartSignal(): void {
+	if (restartSignalPath) {
+		try { unlinkSync(restartSignalPath); } catch {}
+	}
+	restartRequired = false;
+	restartInfo = "";
+}
 
 // ---------------------------------------------------------------------------
 // State
@@ -112,6 +145,22 @@ export default function somaStatuslineExtension(pi: ExtensionAPI) {
 
 	function cacheRemaining(): number {
 		return Math.max(0, CONFIG.cacheTtlSeconds - idleSeconds());
+	}
+
+	// -------------------------------------------------------------------
+	// Restart-required — check signal file from post-commit hook
+	// Polls every updateInterval (5s) and on turn_end.
+	// Shows 🔄 in statusline line 2 when restart is needed.
+	// -------------------------------------------------------------------
+
+	function initRestartDetection(): void {
+		const somaDir = findSomaDir(process.cwd());
+		if (somaDir) {
+			restartSignalPath = join(somaDir, ".restart-required");
+			// Clear stale signals on fresh process start
+			// (if the file predates this process, it was from a previous session)
+			clearRestartSignal();
+		}
 	}
 
 	// -------------------------------------------------------------------
@@ -229,6 +278,9 @@ export default function somaStatuslineExtension(pi: ExtensionAPI) {
 					}
 					line2Items.push(brand("🌿soma"));
 					line2Items.push(dim(`¶${state.turnCount}`));
+					if (restartRequired) {
+						line2Items.push(warn("🔄restart"));
+					}
 					const line2 = line2Items.join(" ");
 
 					// Line 3: ╰─ ~/path duration +ins-del
@@ -264,6 +316,9 @@ export default function somaStatuslineExtension(pi: ExtensionAPI) {
 		state.sessionStartTs = Date.now();
 		state.lastActivityTs = Date.now();
 
+		// Init restart detection — clears stale signals from prior sessions
+		initRestartDetection();
+
 		// Restore persisted state
 		for (const entry of ctx.sessionManager.getEntries()) {
 			if (entry.type === "custom" && entry.customType === "soma-statusline" && entry.data) {
@@ -275,9 +330,12 @@ export default function somaStatuslineExtension(pi: ExtensionAPI) {
 
 		installFooter(ctx);
 
-		// Start keepalive timer
+		// Start keepalive + restart-check timer
 		updateTimer = setInterval(() => {
-			if (latestCtx) checkKeepalive(latestCtx);
+			if (latestCtx) {
+				checkKeepalive(latestCtx);
+				checkRestartSignal();
+			}
 		}, CONFIG.updateIntervalMs);
 	});
 
@@ -291,6 +349,13 @@ export default function somaStatuslineExtension(pi: ExtensionAPI) {
 		state.isAgentBusy = false;
 		state.lastActivityTs = Date.now();
 		latestCtx = ctx;
+
+		// Check restart signal after every turn (agent may have just committed)
+		const wasRequired = restartRequired;
+		checkRestartSignal();
+		if (!wasRequired && restartRequired) {
+			ctx.ui.notify("🔄 Restart required — core/extension files changed. Run: bash .soma/amps/scripts/soma-dev.sh restart", "warning");
+		}
 
 		// Persist state periodically
 		if (state.turnCount % 5 === 0) {
