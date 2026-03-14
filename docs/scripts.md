@@ -1,6 +1,6 @@
 ---
 title: "Scripts & Audits"
-description: "Standalone tools for searching, auditing, scanning, and maintaining your .soma/ ecosystem."
+description: "Standalone tools for auditing, verifying, and maintaining your .soma/ ecosystem."
 section: "Reference"
 order: 9
 ---
@@ -8,20 +8,69 @@ order: 9
 # Scripts & Audits
 
 <!-- tldr -->
-Standalone bash tools in `.soma/scripts/` — usable outside agent sessions. `soma-audit.sh` runs ecosystem health checks (PII, drift, stale content, doc freshness, etc.). `soma-search.sh` queries memory by type/status/tags. `soma-scan.sh` scans sessions and extractions. All work from the command line without starting a Soma session.
+Standalone bash tools that run outside agent sessions — no API key, no context window. `soma-audit.sh` runs ecosystem health checks. `soma-verify.sh` handles truth-checking, search, doc sync, and cross-repo state. `soma-snapshot.sh` creates project snapshots. All run from the command line.
 <!-- /tldr -->
 
 ## Why Scripts?
 
 Not everything needs an agent session. Checking for PII leaks, verifying doc consistency, or searching past sessions are tasks that work better as standalone CLI tools. Soma's scripts run from bash — no API key needed, no context window consumed.
 
-## Project-Level Scripts
+## Core Scripts
 
-Live in your project's `.soma/scripts/` or ship with the agent package.
+Ship with the agent package in `scripts/`.
+
+### soma-verify.sh
+
+Unified tool for truth-checking and ecosystem awareness. Absorbs the functionality of several older scripts (soma-search, soma-scan, soma-context, soma-stale).
+
+```bash
+# Verify claims in a doc against code
+scripts/soma-verify.sh doc docs/configuration.md
+
+# Search across all sources for a topic
+scripts/soma-verify.sh topic "heat system"
+
+# Check protocol versions across all sources
+scripts/soma-verify.sh protocols
+
+# Verify website docs are in sync with agent
+scripts/soma-verify.sh website
+
+# Multi-repo state check (branches, dirty, unpushed)
+scripts/soma-verify.sh repos
+
+# Frontmatter-based search
+scripts/soma-verify.sh search --type protocol --status active
+scripts/soma-verify.sh search --stale
+
+# Search session logs and preloads
+scripts/soma-verify.sh sessions "auto-breathe"
+
+# Cross-ecosystem consistency (protocol drift, agent↔CLI sync)
+scripts/soma-verify.sh sync
+
+# Pro vs public stream protection
+scripts/soma-verify.sh streams
+
+# Verify changelog claims against commits
+scripts/soma-verify.sh changelog
+
+# Find what references a file
+scripts/soma-verify.sh impact core/settings.ts
+
+# Trace a value across git history
+scripts/soma-verify.sh history "warmThreshold"
+
+# Find related files via frontmatter
+scripts/soma-verify.sh related protocols/workflow.md
+
+# Minimal output (errors only — good for CI)
+scripts/soma-verify.sh website --compact
+```
 
 ### soma-audit.sh
 
-The ecosystem health checker. Runs focused audits and reports findings.
+Ecosystem health checker. Runs focused audit scripts — each concern is independent.
 
 ```bash
 # Run all audits
@@ -33,7 +82,7 @@ scripts/soma-audit.sh drift pii doc-freshness
 # List available audits
 scripts/soma-audit.sh --list
 
-# Summary only (no details)
+# Summary only
 scripts/soma-audit.sh --quiet
 ```
 
@@ -41,48 +90,17 @@ scripts/soma-audit.sh --quiet
 
 | Audit | What It Checks |
 |-------|---------------|
-| `drift` | Settings schema drift between code and docs |
 | `pii` | Personal information in tracked files (emails, API keys, paths) |
-| `stale-content` | Old protocols/muscles that haven't been updated |
-| `stale-terms` | Deprecated terminology across all content surfaces |
-| `doc-freshness` | Features in code but not in docs, undocumented settings/commands |
-| `docs-sync` | Agent docs ↔ website docs drift |
-| `frontmatter` | Frontmatter compliance in protocols and muscles |
-| `overlap` | Duplicate content across directories |
+| `drift` | Code sync between agent and CLI repos |
 | `commands` | Registered commands vs documented commands |
-| `settings` | Settings in code vs configuration docs |
+| `stale-terms` | Deprecated terminology across all content |
+| `stale-content` | Old protocols/muscles, orphan memories, dead drafts |
+| `doc-freshness` | Features in code but not in docs |
+| `docs-sync` | Agent docs ↔ website docs drift |
+| `overlap` | Duplicate logic across extensions |
 | `tests` | Test coverage gaps |
-| `roadmap` | Stale roadmap items, completed but unclosed |
-
-### soma-search.sh
-
-Query Soma's memory from the command line.
-
-```bash
-# Search by type
-scripts/soma-search.sh --type protocol
-
-# Deep search (extracts TL;DR sections)
-scripts/soma-search.sh --type muscle --deep
-
-# Find muscles missing TL;DR
-scripts/soma-search.sh --missing-tldr
-
-# Search by status
-scripts/soma-search.sh --status active
-```
-
-### soma-tldr.sh
-
-Generate or update TL;DR / digest sections in markdown files.
-
-```bash
-# Generate TL;DR for a file
-scripts/soma-tldr.sh protocols/my-protocol.md
-
-# Update all muscles with missing digests
-scripts/soma-tldr.sh --scan amps/muscles/
-```
+| `settings` | Settings types with no implementation |
+| `roadmap` | Shipped vs planned claims |
 
 ### soma-snapshot.sh
 
@@ -98,117 +116,38 @@ scripts/soma-snapshot.sh ./src "before-migration"
 
 ### soma-compat.sh
 
-Compatibility checker — detects protocol/muscle overlap, redundancy, and directive conflicts in your `.soma/` setup. Produces a 0–100 compatibility score.
+Compatibility checker — detects protocol/muscle overlap, redundancy, and directive conflicts. Produces a 0–100 compatibility score.
 
 ```bash
-# Run compat check
-scripts/soma-compat.sh
-
-# JSON output (for CI)
-scripts/soma-compat.sh --json
+scripts/soma-compat.sh              # run compat check
+scripts/soma-compat.sh --json       # JSON output (for CI)
 ```
-
-Checks: protocol overlap, muscle redundancy, contradictory directives, orphaned references.
 
 ### soma-update-check.sh
 
 Check installed protocols and muscles against the hub for newer versions.
 
 ```bash
-# Check for updates
-scripts/soma-update-check.sh
-
-# Auto-pull updates
-scripts/soma-update-check.sh --update
-
-# Machine-readable output
-scripts/soma-update-check.sh --json
+scripts/soma-update-check.sh            # check for updates
+scripts/soma-update-check.sh --update   # auto-pull updates
+scripts/soma-update-check.sh --json     # machine-readable output
 ```
 
-Compares local protocol/muscle versions against `hub-index.json`. Reports which items are outdated, up to date, or local-only.
+### frontmatter-date-hook.sh
 
-### git-identity-hook.sh
-
-Git pre-commit hook that validates git identity matches `guard.gitIdentity` settings.
+Git pre-commit hook — auto-updates `updated:` field in modified `.md` files.
 
 ```bash
 # Install as pre-commit hook
-cp scripts/git-identity-hook.sh .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
+ln -s scripts/frontmatter-date-hook.sh .git/hooks/pre-commit
 ```
 
-## Workspace-Level Scripts
-
-Live in `~/.soma/scripts/` or your workspace `.soma/scripts/`. Operate across the full workspace.
-
-### soma-scan.sh
-
-Session and topic scanner — searches across Pi session logs, steno extractions, and frontmatter.
-
-```bash
-# Find sessions about a topic
-.soma/scripts/soma-scan.sh topic "checkpoints"
-
-# List all sessions
-.soma/scripts/soma-scan.sh sessions
-
-# List all steno extractions
-.soma/scripts/soma-scan.sh extractions
-
-# Trace a concept across sessions
-.soma/scripts/soma-scan.sh trail "inheritance"
-
-# Find related concepts
-.soma/scripts/soma-scan.sh related "preload"
-
-# Find files mentioning a term
-.soma/scripts/soma-scan.sh files "guard"
-```
-
-### soma-context.sh
-
-Pre-change context gatherer. Before modifying a file or concept, see what exists.
-
-```bash
-# Context for a file
-.soma/scripts/soma-context.sh STATE.md
-
-# Context for a concept
-.soma/scripts/soma-context.sh "heat system"
-```
-
-Shows: other versions, cross-references, recent discussions, git history, and related concepts.
-
-### soma-stale.sh
-
-Finds stale documentation across the workspace.
-
-```bash
-.soma/scripts/soma-stale.sh
-```
-
-Detects: stale by age, overlapping (same name in different dirs), orphaned (unreferenced), drafts/seeds.
-
-### soma-frontmatter.sh
-
-Frontmatter status/type scanner.
-
-```bash
-# Scan all frontmatter
-.soma/scripts/soma-frontmatter.sh
-
-# Find stale by frontmatter dates
-.soma/scripts/soma-frontmatter.sh --stale
-```
-
-## Using Audits in Workflow
+## Using in Workflow
 
 The recommended post-ship workflow:
 
 1. Ship code changes
-2. Run `soma-audit.sh doc-freshness stale-terms` — get the exact update list
-3. Fix docs (source of truth first, then sync)
-4. Run `soma-audit.sh docs-sync` — verify zero drift
-5. Push all repos
-
-See [Commands](/docs/commands#scripts) for the full listing.
+2. Run `soma-verify.sh website --compact` — check doc sync
+3. Run `soma-audit.sh doc-freshness stale-terms` — get the exact update list
+4. Fix docs, then re-sync
+5. Run `soma-verify.sh repos` — verify all repos clean
