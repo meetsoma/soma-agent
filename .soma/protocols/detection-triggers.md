@@ -3,14 +3,17 @@ type: protocol
 name: detection-triggers
 status: active
 heat-default: warm
+applies-to: [always]
 version: 1.0.0
 created: 2026-03-12
-updated: 2026-03-12
+updated: 2026-03-14
 tags: [learning, self-improvement, memory, awareness]
 tier: core
-scope: bundled
+version: 1.0.0scope: bundled
 appliesTo: [always]
 breadcrumb: "Recognize capture moments: corrections/preferences/repeated patterns → muscle. Knowledge gaps/errors → session log. One-time instructions and transient state are NOT worth capturing. Bubble-up: log → muscle → protocol → core."
+author: Curtis Mercier
+license: CC BY 4.0
 ---
 
 # Detection Triggers
@@ -69,3 +72,10 @@ This is the bubble-up flow. Each level requires more evidence:
 - **Muscle:** saw it 2-3 times, or user explicitly stated it
 - **Protocol:** applies across users/projects
 - **Core:** universal agent behavior
+
+---
+
+<!--
+Licensed under CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
+Author: Curtis Mercier
+-->

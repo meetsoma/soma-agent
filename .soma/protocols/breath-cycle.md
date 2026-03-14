@@ -11,8 +11,9 @@ scope: bundled
 tags: [session, memory, continuity, self-awareness]
 created: 2026-03-09
 updated: 2026-03-14
+author: Curtis Mercier
+license: CC BY 4.0
 ---
-
 # Breath Cycle
 
 > How Soma manages session lifecycle. This behavior is built into the boot extension — this protocol helps you understand what's happening and how to change it.
@@ -72,3 +73,11 @@ Triggered by `/exhale`, `/breathe`, `/rest`, or auto at 85%. The agent writes a 
 - Boot extension: `extensions/soma-boot.ts` (context monitoring, rotation logic)
 - Preload writer: `core/preload.ts` (preload format, staleness check)
 - Settings: `core/settings.ts` → `BreatheSettings`
+
+---
+
+<!--
+Licensed under CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
+Original: https://github.com/curtismercier/protocols/tree/main/breath-cycle
+Author: Curtis Mercier
+-->

@@ -11,8 +11,9 @@ scope: bundled
 tags: [session, git, continuity, self-awareness]
 created: 2026-03-10
 updated: 2026-03-14
+author: Curtis Mercier
+license: CC BY 4.0
 ---
-
 # Session Checkpoints
 
 > How Soma persists state across sessions using git. Auto-commit and diff-on-boot are configurable.
@@ -68,3 +69,10 @@ If `checkpoints.diffOnBoot` is true, boot surfaces:
 - Checkpoint logic: `extensions/soma-boot.ts` → exhale handler
 - Git context on boot: `extensions/soma-boot.ts` → `case "git-context"` in boot steps
 - Settings: `core/settings.ts` → `CheckpointSettings`
+
+---
+
+<!--
+Licensed under CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
+Author: Curtis Mercier
+-->

@@ -11,8 +11,9 @@ scope: bundled
 tags: [tools, safety, self-awareness]
 created: 2026-03-10
 updated: 2026-03-14
+author: Curtis Mercier
+license: CC BY 4.0
 ---
-
 # Tool Discipline
 
 > How Soma uses tools safely. The guard extension enforces some of these mechanically — this protocol covers both the automated safety net and the craft practices.
@@ -56,3 +57,10 @@ These aren't enforced by code — they produce better results:
 
 - Guard extension: `extensions/soma-guard.ts`
 - Settings: `core/settings.ts` → `GuardSettings`
+
+---
+
+<!--
+Licensed under CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
+Author: Curtis Mercier
+-->

@@ -11,8 +11,9 @@ scope: bundled
 tags: [memory, loading, performance, self-awareness]
 created: 2026-03-09
 updated: 2026-03-14
+author: Curtis Mercier
+license: CC BY 4.0
 ---
-
 # Heat Tracking
 
 > How Soma decides what to load into your context. The heat system runs automatically — this protocol helps you understand and tune it.
@@ -90,3 +91,10 @@ On session end, unused protocols lose `decayRate` heat (default: 1). A protocol 
 - Heat state: `.soma/state.json` (protocol heat values)
 - Auto-detection: `extensions/soma-boot.ts` → `tool_result` event handler
 - Settings: `core/settings.ts` → `ProtocolSettings`, `MuscleSettings`, `HeatSettings`
+
+---
+
+<!--
+Licensed under CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
+Author: Curtis Mercier
+-->
