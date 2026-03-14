@@ -9,8 +9,7 @@ created: 2026-03-12
 updated: 2026-03-14
 tags: [learning, self-improvement, memory, awareness]
 tier: core
-version: 1.0.0scope: bundled
-appliesTo: [always]
+scope: bundled
 breadcrumb: "Recognize capture moments: corrections/preferences/repeated patterns → muscle. Knowledge gaps/errors → session log. One-time instructions and transient state are NOT worth capturing. Bubble-up: log → muscle → protocol → core."
 author: Curtis Mercier
 license: CC BY 4.0
@@ -64,14 +63,19 @@ Know when to capture a learning. Don't rely on discipline alone — recognize th
 ## Escalation Path
 
 ```
-observation → session log → repeated? → muscle → shared? → protocol → universal? → core
+observation → session log → repeated? → muscle → universal? → protocol
+                                              → project-specific? → identity
 ```
 
 This is the bubble-up flow. Each level requires more evidence:
 - **Session log:** saw it once
 - **Muscle:** saw it 2-3 times, or user explicitly stated it
-- **Protocol:** applies across users/projects
-- **Core:** universal agent behavior
+- **Protocol:** applies across users/projects — ships to all Soma users
+- **Identity:** project-specific sharpening of a protocol's universal rule
+
+**The key question at the muscle→protocol boundary:** would this help someone who isn't us? If yes → protocol. If it's about our specific tools, repos, or workflow → identity.
+
+**Identity is not "above" protocols.** It's a parallel track. Protocols are universal defaults. Identity customizes them. A Soma with good protocols and no identity should still work well. A Soma with identity but no protocols is fragile — it has opinions but no foundation.
 
 ---
 
