@@ -674,9 +674,12 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			});
 
 			const sessionTag = currentSessionId ? `\nSession ID: \`${currentSessionId}\`` : "";
+			const sessionLogTarget = soma ? join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename()) : null;
+			const preloadTarget = soma ? join(resolveSomaPath(soma.path, "preloads", settings), preloadFilename()) : null;
+			const fileHints = (sessionLogTarget || preloadTarget) ? `\n\nSession files:\n${sessionLogTarget ? `- Session log: \`${sessionLogTarget}\`\n` : ""}${preloadTarget ? `- Preload: \`${preloadTarget}\`\n` : ""}` : "";
 		const greetStyle = isResumed
-				? `You've resumed a Soma session. Your preload and hot protocols are above. Identity and behavioral rules are in your system prompt. If the preload has an "Orient From" section, read those files before doing anything else. Then greet the user briefly and await instructions.${sessionTag}`
-				: `You've booted into a fresh Soma session. Identity and behavioral rules are in your system prompt. Hot protocols are above if any. Greet the user briefly and await instructions.${sessionTag}`;
+				? `You've resumed a Soma session. Your preload and hot protocols are above. Identity and behavioral rules are in your system prompt. If the preload has an "Orient From" section, read those files before doing anything else. Then greet the user briefly and await instructions.${sessionTag}${fileHints}`
+				: `You've booted into a fresh Soma session. Identity and behavioral rules are in your system prompt. Hot protocols are above if any. Greet the user briefly and await instructions.${sessionTag}${fileHints}`;
 
 			if (ctx.hasUI) {
 				pi.sendUserMessage(
@@ -1262,12 +1265,16 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				// session_switch emit, and prompt() during newSession() causes issues.
 				// Instead, queue it and let the turn_end handler (or next prompt cycle) pick it up.
 				if (parts.length > 0 && ctx.hasUI) {
+					const rotSessionLog = join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename());
+					const rotPreloadTarget = join(resolveSomaPath(soma.path, "preloads", settings), preloadFilename());
+					const rotFileHints = `\n\nSession files:\n- Session log: \`${rotSessionLog}\`\n- Preload: \`${rotPreloadTarget}\`\n`;
 					pendingRotationBoot = 
 						`[Soma Boot — rotated session]\n\n${parts.join("\n")}\n\n` +
 						`You've rotated into a fresh session. Identity and behavioral rules are in your system prompt. ` +
 						`Hot protocols and muscles are above. ` +
 						(preload ? `Your preload from the previous session is included above — read it, orient from its targets, then greet the user briefly and await instructions.` :
-						`Greet the user briefly and await instructions.`);
+						`Greet the user briefly and await instructions.`) +
+						rotFileHints;
 				}
 			}
 		}
