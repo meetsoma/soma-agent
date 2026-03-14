@@ -134,6 +134,18 @@ const somaAgentDir = resolve(__dirname, "..");
 
 export default function somaBootExtension(pi: ExtensionAPI) {
 
+	// Clear restart-required signal at extension load time.
+	// session_start may not fire if cmux pre-starts the session before extensions load.
+	try {
+		const _somaDir = findSomaDir();
+		if (_somaDir) {
+			const _signalFile = join(_somaDir.path, ".restart-required");
+			if (existsSync(_signalFile)) {
+				execSync(`rm -f "${_signalFile}"`, { stdio: "ignore" });
+			}
+		}
+	} catch {}
+
 	// REFACTOR: #1 — 30+ state vars should be grouped into typed objects (SessionState, BreatheState, etc.)
 	// See .soma/plans/soma-boot-refactor.md for details.
 	let soma: SomaDir | null = null;
@@ -510,17 +522,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			debug.boot(`session start — soma: ${soma?.path}, cwd: ${process.cwd()}`);
 			debug.boot(`settings loaded from chain: [${chain.map(c => c.path).join(", ")}]`);
 			debug.boot(`session id: ${currentSessionId}`);
-		}
-
-		// Clear restart-required signal on fresh process start (extensions now reloaded)
-		if (soma) {
-			const signalFile = join(soma.path, ".restart-required");
-			try {
-				if (existsSync(signalFile)) {
-					execSync(`rm -f "${signalFile}"`, { stdio: "ignore" });
-					if (debug.enabled) debug.boot("cleared restart-required signal");
-				}
-			} catch {}
 		}
 
 		const isResumed = ctx.sessionManager.getEntries().some(
