@@ -30,6 +30,10 @@ export default function somaGuard(pi: ExtensionAPI) {
 	let expectedGitEmail: string | null = null;
 	/** Track if we've already warned about identity this session (don't spam) */
 	let gitIdentityWarned = false;
+	/** Tool→muscle gating — require reading muscles before certain commands */
+	let toolGates: Record<string, { muscle: string; mode: "warn" | "block" }> = {};
+	/** Track which gated muscles have already been warned about (don't spam) */
+	const gateWarned = new Set<string>();
 
 	try {
 		const soma = findSomaDir();
@@ -39,6 +43,7 @@ export default function somaGuard(pi: ExtensionAPI) {
 			coreFileMode = settings.guard?.coreFiles ?? "warn";
 			bashGuardMode = (settings.guard as any)?.bashCommands ?? "warn";
 			expectedGitEmail = settings.guard?.gitIdentity?.email ?? null;
+			toolGates = settings.guard?.toolGates ?? {};
 		}
 	} catch { /* default to warn */ }
 
