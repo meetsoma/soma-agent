@@ -17,8 +17,6 @@ import type { AssistantMessage } from "@mariozechner/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { truncateToWidth } from "@mariozechner/pi-tui";
 import { execSync } from "child_process";
-import { existsSync, readFileSync, unlinkSync } from "fs";
-import { join } from "path";
 import { findSomaDir, fmtDuration } from "../core/index.js";
 
 // ---------------------------------------------------------------------------
@@ -44,34 +42,41 @@ const CONFIG = {
 };
 
 // ---------------------------------------------------------------------------
-// Restart-required signal
+// Restart-required signal — uses execSync to avoid adding fs/path imports
+// (jiti in Bun binary is sensitive to import changes)
 // ---------------------------------------------------------------------------
 
 let restartSignalPath: string | null = null;
 let restartRequired = false;
-let restartInfo = "";
 
 function checkRestartSignal(): boolean {
 	if (!restartSignalPath) return false;
 	try {
-		if (existsSync(restartSignalPath)) {
-			restartRequired = true;
-			restartInfo = readFileSync(restartSignalPath, "utf-8").trim();
-			return true;
-		}
-		restartRequired = false;
-		return false;
+		execSync(`test -f "${restartSignalPath}"`, { stdio: "ignore" });
+		restartRequired = true;
+		return true;
 	} catch {
+		restartRequired = false;
 		return false;
 	}
 }
 
 function clearRestartSignal(): void {
-	if (restartSignalPath) {
-		try { unlinkSync(restartSignalPath); } catch {}
-	}
+	if (!restartSignalPath) return;
+	try {
+		execSync(`rm -f "${restartSignalPath}"`, { stdio: "ignore" });
+	} catch {}
 	restartRequired = false;
-	restartInfo = "";
+}
+
+function initRestartDetection(): void {
+	const somaDir = findSomaDir(process.cwd());
+	if (somaDir) {
+		restartSignalPath = somaDir.path + "/.restart-required";
+	}
+	if (restartSignalPath) {
+		clearRestartSignal();
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -145,37 +150,6 @@ export default function somaStatuslineExtension(pi: ExtensionAPI) {
 
 	function cacheRemaining(): number {
 		return Math.max(0, CONFIG.cacheTtlSeconds - idleSeconds());
-	}
-
-	// -------------------------------------------------------------------
-	// Restart-required — check signal file from post-commit hook
-	// Polls every updateInterval (5s) and on turn_end.
-	// Shows 🔄 in statusline line 2 when restart is needed.
-	// -------------------------------------------------------------------
-
-	function initRestartDetection(): void {
-		// Try multiple discovery strategies — extension may load before boot sets cwd
-		const somaDir = findSomaDir(process.cwd());
-		if (somaDir) {
-			restartSignalPath = join(somaDir.path, ".restart-required");
-		} else {
-			// Fallback: check common locations directly
-			const candidates = [
-				join(process.cwd(), ".soma", ".restart-required"),
-				join(process.env.HOME || "", ".soma", ".restart-required"),
-			];
-			for (const c of candidates) {
-				if (existsSync(c)) {
-					restartSignalPath = c;
-					break;
-				}
-			}
-		}
-		if (restartSignalPath) {
-			// Clear stale signals on fresh process start
-			// (if the file predates this process, it was from a previous session)
-			clearRestartSignal();
-		}
 	}
 
 	// -------------------------------------------------------------------
@@ -369,7 +343,7 @@ export default function somaStatuslineExtension(pi: ExtensionAPI) {
 		const wasRequired = restartRequired;
 		checkRestartSignal();
 		if (!wasRequired && restartRequired) {
-			ctx.ui.notify("🔄 Restart required — core/extension files changed. Run: bash .soma/amps/scripts/soma-dev.sh restart", "warning");
+			ctx.ui.notify("🔄 Restart required — core/extension files changed", "warning");
 		}
 
 		// Persist state periodically
