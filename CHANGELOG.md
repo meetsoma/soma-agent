@@ -16,7 +16,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - Session log and preload paths surfaced in boot message (#d934799)
 - Resume boot diffing — `soma -c` skips redundant preload injection (#de39fd1)
 - Restart-required detection — signal file, cmux notification, and statusline indicator when core/extension files change (#9f2a103, #f845894, #926fd4a, #18eba69)
-- `soma-changelog.sh` — generate categorized changelog entries from conventional commits
+- `soma-changelog.sh` — generate categorized changelog entries from conventional commits with `[cl:tag]` consolidation
+- `soma-changelog-json.sh` — parse CHANGELOG.md into JSON for website consumption
+- ChangelogIsland.tsx + RoadmapTimeline.tsx — Preact islands for `/changelog/` and `/roadmap/` pages
+- `soma-threads.sh` — chain-of-thought tracing tool for blog seeds across session logs
+- `soma-verify.sh self-analysis` — muscle health, cross-location divergence, orphan detection
+- Protocol TL;DR extraction — `protocolSummary()` prefers `## TL;DR` body section over breadcrumb (#83ec9ee)
+- Combined session ID format (`sNN-<hex>`) — sequential for human scanning, hex for collision safety (#e7c4057, #618cd9f)
+- `commit-msg` git hook — validates conventional commit format + `[cl:tag]` syntax
+- `guard.toolGates` setting — require reading muscles before dangerous bash commands (#1c6b725)
+- `breathe.graceTurns` setting — configurable auto-breathe grace period, replaces hardcoded 6-turn limit (#c9ab5a8)
+- Session log nudge with template at breathe trigger point (#eb8acc8)
 
 ### Changed
 
@@ -26,6 +36,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - `/scratch` extracted to standalone `soma-scratch.ts` extension (#932f446)
 - Shared helpers extracted to `utils.ts` — deduplication across core modules (#2dbea9a, #3d8467e)
 - Unified rotation through `/inhale`, removed `/auto-continue` (#7b7ba52)
+- Changelog pipeline switched to Ghostty-style commit-driven entries (#ec27a11)
+- `pattern-evolution` protocol updated with identity maturation layer; `working-style` with tool-awareness (#5e4219d)
+- Dev hooks generated locally by `soma-dev.sh`, not committed to repo (#efc6ed4)
 
 ### Fixed
 
@@ -39,6 +52,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - `soma-route.ts` import path — uses `@mariozechner/pi-coding-agent`, not `@anthropic-ai/claude-code` (#49454ea)
 - Internal protocols (`content-triage`, `community-safe`) removed from bundled set (#3ad0884)
 - Auto-init `.soma/.git` when `autoCommit` is true (#276f6f2)
+- Missing TL;DRs on 4 self-awareness protocols (#c457752)
+- `sync-to-cli` path after `_dev/` directory move (#46615ef)
+- Grace countdown skips tool turns during auto-breathe — tool-call turns no longer count toward 6-turn limit (#53bd421)
+- Resume without fingerprint sends minimal boot instead of full redundant injection — saves ~4-6k tokens (#7fd064b)
+- Preload overwrite guard + auto-breathe rotation fix when preload pre-exists (#378a1b1)
 
 ---
 
