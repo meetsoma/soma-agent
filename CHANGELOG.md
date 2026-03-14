@@ -21,6 +21,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **`/scratch` command** — quick notes to `.soma/scratchpad.md`. Agent doesn't see it unless `/scratch read`. Append-only by default, `/scratch clear` to reset.
 - **`guard.bashCommands` setting** — `"allow"` / `"warn"` / `"block"` for dangerous bash command prompts. Default `"warn"`. Set `"allow"` for power user mode (no confirmation prompts).
 - **Automations system** — `.soma/automations/` directory for step-by-step procedural flows. First automation: `dev-session` (orient → pre-flight → plan → implement → ship → doc-refresh → wrap-up).
+- **Polyglot script discovery** — boot discovers `.sh`, `.py`, `.ts`, `.js`, `.mjs` scripts (was `.sh` only). Description extractor handles `#`, `//`, and `"""` comment styles.
+- **Auto-extract script descriptions** — script descriptions pulled from file headers automatically. Zero-config user scripts appear with descriptions in boot table.
+- **`soma init --orphan`** — `--orphan`/`-o` flag sets all `inherit.*` to false for clean child projects with zero parent inheritance. Combines with `--template`.
+
+### Changed
+- **Config-first script extensions** — `settings.scripts.extensions` controls which file types are discovered. No more hardcoded lists.
 
 ### Fixed
 - **Auto-breathe race condition** — `sendUserMessage` from `before_agent_start` raced with Pi's prompt processing. Now deferred to `agent_end` via pending message queue.
