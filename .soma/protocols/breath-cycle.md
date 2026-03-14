@@ -18,6 +18,9 @@ license: CC BY 4.0
 
 > How Soma manages session lifecycle. This behavior is built into the boot extension — this protocol helps you understand what's happening and how to change it.
 
+## TL;DR
+Three phases: inhale (boot — auto), hold (work — context monitored), exhale (save — agent-driven). Auto-breathe thresholds: `triggerAt` (50%) starts wrap-up, `rotateAt` (70%) writes preload + countdown to rotation, 85% emergency safety net. `graceTurns` (default 2) gives user time to interject before rotation. Commands: `/exhale` (end), `/breathe` (rotate), `/rest` (AFK), `/inhale` (load preload). Settings in `breathe` block.
+
 ## How It Works
 
 Soma sessions have three phases, handled by `extensions/soma-boot.ts`:

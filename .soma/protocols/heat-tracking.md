@@ -18,6 +18,9 @@ license: CC BY 4.0
 
 > How Soma decides what to load into your context. The heat system runs automatically — this protocol helps you understand and tune it.
 
+## TL;DR
+Three tiers: cold (0-2, skipped), warm (3-7, breadcrumb), hot (8+, full injection). Heat auto-bumps on tool usage (frontmatter write → frontmatter-standard, git → git-identity, etc.) and decays by `decayRate` (default 1) each session. `/pin` adds `pinBump` (default +5), `/kill` drops to 0. Most protocols have no tool signature — heat only changes via `heat-default` frontmatter or manual pin/kill. Settings in `protocols`, `muscles`, and `heat` blocks.
+
 ## How It Works
 
 Every protocol and muscle has a heat value. Higher heat = more presence in your system prompt.
