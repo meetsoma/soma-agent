@@ -4,10 +4,10 @@ name: pattern-evolution
 status: active
 heat-default: warm
 applies-to: [always]
-breadcrumb: "Patterns mature through AMPS layers: Skills → Muscles → Protocols → Automations. Muscles grow from gaps noticed during work. Repetition builds heat fast. Mature patterns crystallize into the system."
+breadcrumb: "Patterns mature through layers: Skills (knowledge) → Muscles (learned) → Protocols (rules) → Automations (executable). Muscles grow from gaps noticed during work. Repetition builds heat fast. Mature patterns crystallize into the system."
 author: Curtis Mercier
 license: CC BY 4.0
-version: 1.2.0
+version: 1.3.0
 tier: core
 scope: bundled
 tags: [learning, patterns, growth]
@@ -19,7 +19,7 @@ updated: 2026-03-14
 # Pattern Evolution Protocol
 
 ## TL;DR
-- Patterns evolve through **AMPS layers**: **Skills** (knowledge) → **Muscles** (learned patterns) → **Protocols** (behavioral rules) → **Automations** (executable)
+- Patterns evolve through **maturation layers**: **Skills** (knowledge) → **Muscles** (learned patterns) → **Protocols** (behavioral rules) → **Automations** (executable)
 - Muscles are born from **gaps** — moments where you notice missing patterns, repeated friction, workflow holes
 - **Burst heat**: 3+ uses in one session → +3 bonus heat (intense repetition accelerates learning)
 - Not every pattern climbs the full ladder. Some stay muscles forever. That's fine.

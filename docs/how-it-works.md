@@ -93,7 +93,7 @@ Examples:
 - A muscle for your preferred code style
 - A muscle for how to handle a specific API
 
-Muscles live in `.soma/memory/muscles/` and grow organically. Like protocols, they're loaded by **heat** — frequently-used muscles get full content in the prompt, less-used ones get a digest summary, and cold ones stay available but unloaded. See [Muscles](/docs/muscles) for the full guide on writing muscles and the digest system.
+Muscles live in `.soma/amps/muscles/` and grow organically. Like protocols, they're loaded by **heat** — frequently-used muscles get full content in the prompt, less-used ones get a digest summary, and cold ones stay available but unloaded. See [Muscles](/docs/muscles) for the full guide on writing muscles and the digest system.
 
 ## Protocols
 

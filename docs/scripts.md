@@ -81,7 +81,7 @@ Generate or update TL;DR / digest sections in markdown files.
 scripts/soma-tldr.sh protocols/my-protocol.md
 
 # Update all muscles with missing digests
-scripts/soma-tldr.sh --scan memory/muscles/
+scripts/soma-tldr.sh --scan amps/muscles/
 ```
 
 ### soma-snapshot.sh
