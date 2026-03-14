@@ -1248,7 +1248,16 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 		try {
 			const somaGit = join(soma.path, ".git");
-			if (!existsSync(somaGit)) return null;
+			if (!existsSync(somaGit)) {
+				// Auto-init git for .soma/ state tracking
+				try {
+					execSync(`git init -b main`, { cwd: soma.path, stdio: "pipe" });
+					execSync(`git add -A`, { cwd: soma.path, stdio: "pipe" });
+					execSync(`git commit -m "init: .soma/ state tracking"`, { cwd: soma.path, stdio: "pipe" });
+				} catch {
+					return null; // init failed — not fatal, skip silently
+				}
+			}
 
 			// Stage and commit internal state changes (heat, protocol-state, etc.)
 			execSync(`git add -A`, { cwd: soma.path, stdio: "pipe" });
