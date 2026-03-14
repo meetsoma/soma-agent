@@ -145,14 +145,16 @@ const somaAgentDir = resolve(__dirname, "..");
 
 export default function somaBootExtension(pi: ExtensionAPI) {
 
-	// Clear restart-required signal at extension load time.
+	// Clear stale signal files at extension load time.
 	// session_start may not fire if cmux pre-starts the session before extensions load.
 	try {
 		const _somaDir = findSomaDir();
 		if (_somaDir) {
-			const _signalFile = join(_somaDir.path, ".restart-required");
-			if (existsSync(_signalFile)) {
-				execSync(`rm -f "${_signalFile}"`, { stdio: "ignore" });
+			for (const sig of [".restart-required", ".rotate-signal"]) {
+				const _signalFile = join(_somaDir.path, sig);
+				if (existsSync(_signalFile)) {
+					execSync(`rm -f "${_signalFile}"`, { stdio: "ignore" });
+				}
 			}
 		}
 	} catch {}
@@ -980,17 +982,38 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 			// No session:new on router — no command has run yet to provide it.
 			// This happens if auto-breathe triggers before the user runs any slash command.
-			// Fallback: tell the agent to use /inhale (which WILL work when typed by user,
-			// just not via sendUserMessage).
+			// Pi only exposes newSession() in command handler contexts, and sendUserMessage
+			// can't trigger commands (expandPromptTemplates: false by design).
+			//
+			// Fallback: write a .rotate-signal file and call ctx.shutdown().
+			// The CLI wrapper (cli.js) intercepts process.exit, detects the signal,
+			// and re-execs the process — giving us a fresh session automatically.
+			// If the CLI doesn't support rotation (old version), the user just restarts manually.
+			const signalPath = soma ? join(soma.path, ".rotate-signal") : null;
+			if (signalPath) {
+				try {
+					// Write signal with metadata for the CLI wrapper
+					writeFileSync(signalPath, JSON.stringify({
+						reason,
+						timestamp: Date.now(),
+						preload: soma ? findPreload(soma)?.path ?? null : null,
+					}));
+					ctx.ui.notify("🫧 Rotating session via CLI restart...", "info");
+					ctx.shutdown();
+					return;
+				} catch (err: any) {
+					// Signal write failed — fall through to manual instructions
+				}
+			}
+
+			// Last resort: manual rotation instructions
 			ctx.ui.notify(
-				"⚠️ session:new not available on router — no command context captured yet. " +
-				"Use /inhale or /breathe manually.",
+				"⚠️ Auto-rotation unavailable — use /inhale or restart soma",
 				"warning"
 			);
 			pi.sendUserMessage(
 				`[Auto-breathe — manual rotation needed]\n\n` +
-				`Preload is written. Type /inhale to rotate to a fresh session.\n` +
-				`(Auto-rotation requires a prior /breathe or /inhale command to capture session control.)`,
+				`Preload is written. Type /inhale to rotate, or exit and run \`soma\` again.`,
 				{ deliverAs: "followUp" }
 			);
 		};
