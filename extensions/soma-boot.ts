@@ -687,8 +687,35 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				}
 				return; // Skip full boot message
 			}
-			// No previous fingerprint found — fall through to full boot
-			debug.boot("resume: no fingerprint in history — full boot");
+			// No previous fingerprint found — still don't send full boot.
+			// System prompt already carries identity + protocols + muscles.
+			// Sending full parts again wastes tokens with redundant content.
+			debug.boot("resume: no fingerprint — minimal boot (system prompt is current)");
+			booted = true;
+			const sessionTag = somaSessionId ? `\nSession ID: \`${somaSessionId}\`` : "";
+			const sessionLogTarget = soma ? join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename()) : null;
+			const preloadTarget = soma ? join(resolveSomaPath(soma.path, "preloads", settings), preloadFilename()) : null;
+			const fileHints = (sessionLogTarget || preloadTarget) ? `\n\nSession files:\n${sessionLogTarget ? `- Session log: \`${sessionLogTarget}\`\n` : ""}${preloadTarget ? `- Preload: \`${preloadTarget}\`\n` : ""}` : "";
+
+			// Include .soma changes if any (time-dependent, always novel)
+			const somaChanges = parts.filter(p => p.includes(".soma Changes") || p.includes("Recent Changes"));
+			const changeSuffix = somaChanges.length > 0 ? `\n\n${somaChanges.join("\n")}` : "";
+
+			pi.appendEntry("soma-boot", {
+				timestamp: Date.now(),
+				resumed: true,
+				fingerprint: bootFingerprint,
+			});
+
+			if (ctx.hasUI) {
+				pi.sendUserMessage(
+					`[Soma Boot — resumed]\n\n` +
+					`Identity, protocols, and muscles are in your system prompt. ` +
+					`Continue where you left off.${changeSuffix}${sessionTag}${fileHints}`,
+					{ deliverAs: "followUp" }
+				);
+			}
+			return;
 		}
 
 		// Auto-inject preload on fresh boot (not resumed sessions — those have full history)
