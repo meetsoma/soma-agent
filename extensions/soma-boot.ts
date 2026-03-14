@@ -512,6 +512,17 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			debug.boot(`session id: ${currentSessionId}`);
 		}
 
+		// Clear restart-required signal on fresh process start (extensions now reloaded)
+		if (soma) {
+			const signalFile = join(soma.path, ".restart-required");
+			try {
+				if (existsSync(signalFile)) {
+					execSync(`rm -f "${signalFile}"`, { stdio: "ignore" });
+					if (debug.enabled) debug.boot("cleared restart-required signal");
+				}
+			} catch {}
+		}
+
 		const isResumed = ctx.sessionManager.getEntries().some(
 			(e: any) => e.type === "message"
 		);
