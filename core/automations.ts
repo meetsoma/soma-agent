@@ -102,10 +102,10 @@ export function discoverAutomations(soma: SomaDir, settingsOrDir?: SomaSettings 
 		: resolveSomaPath(soma.path, "automations", settingsOrDir);
 	return discoverContent<Automation>({
 		dir: automationDir,
-		fileFilter: f => f.endsWith(".md") && !f.startsWith(".") && !f.startsWith("_"),
+		fileFilter: f => f.endsWith(".md") && !f.startsWith(".") && !f.startsWith("_") && f !== "README.md",
 		parser: ({ file, filePath, content, fm }) => {
 			const status = fm["status"] as Automation["status"] || "active";
-			if (status === "retired") return null;
+			if (status === "retired" || status === "archived") return null;
 			return {
 				name: (fm["name"] as string) || basename(file, ".md"),
 				content,
