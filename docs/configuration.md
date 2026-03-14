@@ -90,7 +90,8 @@ Settings files can exist at any level in the Soma chain:
   "breathe": {
     "auto": false,
     "triggerAt": 50,
-    "rotateAt": 70
+    "rotateAt": 70,
+    "graceTurns": 2
   },
   "context": {
     "notifyAt": 50,
@@ -373,17 +374,22 @@ Proactive context management. Instead of waiting until context is critical, auto
 |-----|---------|-------------|
 | `auto` | `false` | Enable auto-breathe mode |
 | `triggerAt` | `50` | Context % to send a gentle notice (agent keeps working, just stays aware) |
-| `rotateAt` | `70` | Context % to write preload and auto-rotate to a fresh session |
+| `rotateAt` | `70` | Context % to write preload and start countdown to rotation |
+| `graceTurns` | `2` | Turns to wait after preload before rotating — user messages reset the countdown |
 
 **How the phases work:**
 
 | Phase | Default % | What happens |
 |-------|-----------|-------------|
 | Notice | `triggerAt` (50%) | Gentle heads-up. Agent keeps working. "Consider updating logs as you go." |
-| Rotate | `rotateAt` (70%) | Firm wrap-up. Agent writes preload, says BREATHE COMPLETE, session auto-rotates. |
+| Rotate | `rotateAt` (70%) | Firm wrap-up. Agent writes preload, countdown starts. |
+| Grace period | (after preload) | Countdown of `graceTurns` turns. User messages pause and reset the countdown. Agent addresses the user, then countdown restarts. |
+| Rotation | (countdown = 0) | Session rotates to fresh context with preload auto-injected. |
 | Emergency | 85% (always on) | Safety net. Fires regardless of auto-breathe setting. "Stop all work, preload NOW." |
 
 The key insight: the notice at 50% is *not* a shutdown signal. It's awareness. The agent should keep working on its current task — it just knows rotation is ahead and can start logging work incrementally.
+
+**The grace period:** After the preload is written, rotation doesn't happen instantly. Instead, a countdown starts (`graceTurns`, default 2). If you send a message during the countdown, it **pauses** — the agent addresses your concern, then the countdown restarts. This means you're never cut off mid-thought. You can keep working while aware the session is about to rotate.
 
 **Why enable auto-breathe:** Without it, sessions run until the 85% emergency — which is too late for a clean handoff. Auto-breathe produces better preloads because the agent has time to write them thoughtfully instead of in a panic.
 
