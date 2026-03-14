@@ -172,6 +172,12 @@ export interface SomaSettings {
 		} | null;
 	};
 
+	/** Script discovery settings */
+	scripts: {
+		/** File extensions to discover as scripts (default: [".sh", ".py", ".ts", ".js", ".mjs"]) */
+		extensions: string[];
+	};
+
 	/** Steno — background session observer. Ghost setting: does nothing without soma-steno extension. */
 	steno: {
 		/** Enable steno extraction (default: false) */
@@ -300,6 +306,9 @@ const DEFAULTS: SomaSettings = {
 		autoDetect: true,
 		autoDetectBump: 1,
 		pinBump: 5,
+	},
+	scripts: {
+		extensions: [".sh", ".py", ".ts", ".js", ".mjs"],
 	},
 	steno: {
 		enabled: false,
