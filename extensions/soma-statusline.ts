@@ -154,9 +154,24 @@ export default function somaStatuslineExtension(pi: ExtensionAPI) {
 	// -------------------------------------------------------------------
 
 	function initRestartDetection(): void {
+		// Try multiple discovery strategies — extension may load before boot sets cwd
 		const somaDir = findSomaDir(process.cwd());
 		if (somaDir) {
-			restartSignalPath = join(somaDir, ".restart-required");
+			restartSignalPath = join(somaDir.path, ".restart-required");
+		} else {
+			// Fallback: check common locations directly
+			const candidates = [
+				join(process.cwd(), ".soma", ".restart-required"),
+				join(process.env.HOME || "", ".soma", ".restart-required"),
+			];
+			for (const c of candidates) {
+				if (existsSync(c)) {
+					restartSignalPath = c;
+					break;
+				}
+			}
+		}
+		if (restartSignalPath) {
 			// Clear stale signals on fresh process start
 			// (if the file predates this process, it was from a previous session)
 			clearRestartSignal();
