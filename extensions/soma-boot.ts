@@ -203,11 +203,19 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let heatSavedThisSession = false;
 	let currentSessionId = "";
 
-	/** Build preload filename: preload-next-YYYY-MM-DD-XXXXXX.md (6 chars of session ID) */
+	/** Build preload filename: preload-next-YYYY-MM-DD-sNN.md (iterating per session, prevents overwrites) */
 	function preloadFilename(): string {
 		const today = new Date().toISOString().split("T")[0];
-		const shortId = currentSessionId ? currentSessionId.slice(-6) : "000000";
-		return `preload-next-${today}-${shortId}.md`;
+		const preloadDir = soma ? resolveSomaPath(soma.path, "preloads", settings) : null;
+		let next = 1;
+		if (preloadDir && existsSync(preloadDir)) {
+			const existing = readdirSync(preloadDir).filter(f => f.startsWith(`preload-next-${today}`) && f.endsWith(".md"));
+			for (const f of existing) {
+				const m = f.match(/-s(\d+)\.md$/);
+				if (m) next = Math.max(next, parseInt(m[1], 10) + 1);
+			}
+		}
+		return `preload-next-${today}-s${String(next).padStart(2, "0")}.md`;
 	}
 
 	/** Build session log filename: YYYY-MM-DD-sNN.md (iterating per session, prevents overwrites) */
@@ -790,6 +798,29 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			if (pct >= breatheSettings.rotateAt && !autoBreatheRotateSent) {
 				autoBreatheRotateSent = true;
 
+				if (preloadWrittenThisSession) {
+					// Preload already exists — rotate immediately via .rotate-signal.
+					// Don't wait for turn_end — that path failed in practice (session 17).
+					// The agent may continue talking, delaying turn_end and hitting timeout.
+					ctx.ui.notify(`🫧 Rotating — preload already written`, "info");
+					saveAllHeatState();
+					const commitResult = autoCommitSomaState("auto-breathe-rotate");
+					if (commitResult) ctx.ui.notify(`✅ ${commitResult}`, "info");
+
+					const signalPath = join(soma.path, ".rotate-signal");
+					try {
+						writeFileSync(signalPath, JSON.stringify({
+							reason: "auto-breathe-preload-exists",
+							timestamp: Date.now(),
+							preload: findPreload(soma)?.path ?? null,
+						}));
+						ctx.shutdown();
+						return event;
+					} catch {
+						// Fall through to normal flow if signal write fails
+					}
+				}
+
 				additions.push(
 					`\n## 🫧 Auto-Breathe: Rotate (${Math.round(pct)}%)\n` +
 					`Write preload now. Session auto-rotates when preload file is detected.`
@@ -797,23 +828,18 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 				initiateBreathe("auto-breathe-rotate");
 
-				if (preloadWrittenThisSession) {
-					// Preload already exists — rotate will happen in turn_end. Zero token cost.
-					ctx.ui.notify(`🫧 Rotating — preload already written`, "info");
-				} else {
-					// Need the agent to write session log + preload — ONE message
-					const sessionLogTarget = soma ? join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename()) : null;
-					const sessionLogNote = sessionLogTarget
-						? `**First:** Write session log to \`${sessionLogTarget}\` — what shipped (commits), observations.\n\n`
-						: "";
-					pendingFollowUps.push(
-						`[Auto-breathe — ${Math.round(pct)}% context]\n\n` +
-						`${sessionLogNote}` +
-						`**Then:** Write preload to \`${preloadTarget}\` — session auto-rotates when detected.\n` +
-						`Include: Resume Point, What Shipped, Next Priorities, Orient From.`
-					);
-					ctx.ui.notify(`🫧 Auto-breathe: rotating at ${Math.round(pct)}%`, "info");
-				}
+				// Need the agent to write session log + preload — ONE message
+				const sessionLogTarget = soma ? join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename()) : null;
+				const sessionLogNote = sessionLogTarget
+					? `**First:** Write session log to \`${sessionLogTarget}\` — what shipped (commits), observations.\n\n`
+					: "";
+				pendingFollowUps.push(
+					`[Auto-breathe — ${Math.round(pct)}% context]\n\n` +
+					`${sessionLogNote}` +
+					`**Then:** Write preload to \`${preloadTarget}\` — session auto-rotates when detected.\n` +
+					`Include: Resume Point, What Shipped, Next Priorities, Orient From.`
+				);
+				ctx.ui.notify(`🫧 Auto-breathe: rotating at ${Math.round(pct)}%`, "info");
 				lastContextWarningPct = pct;
 
 			// Phase 1: TRIGGER — finish current task, start wrapping up
@@ -1818,15 +1844,23 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			breatheCommandCtx = ctx;
 
 			// --- Edge case: preload already written this session (earlier /exhale or auto-flush) ---
+			// Rotate immediately — don't wait for agent to say "BREATHE COMPLETE".
+			// The previous approach (ask agent to confirm) wasted turns and sometimes timed out.
 			if (preloadWrittenThisSession && preloadPath) {
-				pi.sendUserMessage(
-					`[BREATHE — preload already written this session]\n\n` +
-					`A preload was already saved to \`${preloadPath}\`. ` +
-					`If significant work happened since then, update it. Otherwise, say "BREATHE COMPLETE" to rotate.`,
-					{ deliverAs: "followUp" }
-				);
-				ctx.ui.notify("🫧 Preload exists — update or confirm to rotate", "info");
-				return;
+				ctx.ui.notify("🫧 Preload exists — rotating immediately", "info");
+				const signalPath = join(soma.path, ".rotate-signal");
+				try {
+					writeFileSync(signalPath, JSON.stringify({
+						reason: "breathe-preload-exists",
+						timestamp: Date.now(),
+						preload: preloadPath,
+					}));
+					ctx.shutdown();
+					return;
+				} catch {
+					// Fall through to turn_end rotation
+					ctx.ui.notify("⚠️ Direct rotation failed — waiting for turn_end", "warning");
+				}
 			}
 
 			// --- Edge case: auto-flush already fired → upgrade to breathe (don't re-inject full template) ---

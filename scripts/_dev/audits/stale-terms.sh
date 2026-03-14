@@ -14,6 +14,15 @@ continuation-prompt|preload-next
 somas-daddy|(removed)
 /pulse|/status (pulse not implemented)
 openclaw|soma
+cherry-pick|squash-merge (dev-first flow)
+cherry_pick|squash-merge (dev-first flow)
+Edit in.*agent-stable|Edit in agent/ (dev branch)
+push.*meetsoma main|soma-ship.sh release (squash-merge)
+YYYY-MM-DD.md|YYYY-MM-DD-sNN.md (per-session logs)
+soma-audit|soma-verify (soma-audit replaced)
+soma-restart|soma-dev restart
+soma-self-switch|soma-dev restart
+soma-snapshot|soma-verify
 "
 
 FOUND=0

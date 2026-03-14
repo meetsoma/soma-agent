@@ -103,6 +103,24 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+section "Preload Filename Pattern"
+# ---------------------------------------------------------------------------
+
+# preloadFilename() should use sNN pattern (iterating, prevents overwrites)
+if grep -q 'preload-next-.*-s\${' "$BOOT_TS" 2>/dev/null; then
+  pass "preloadFilename uses sNN iterating pattern"
+else
+  fail "preloadFilename should use sNN pattern (not session ID)"
+fi
+
+# preloadFilename() should scan directory for existing files
+if grep -A15 "function preloadFilename" "$BOOT_TS" | grep -q "readdirSync"; then
+  pass "preloadFilename scans directory to increment"
+else
+  fail "preloadFilename should scan directory like sessionLogFilename"
+fi
+
+# ---------------------------------------------------------------------------
 echo ""
 echo "═══ Results: $PASS/$TOTAL passed, $FAIL failed ═══"
 exit $FAIL

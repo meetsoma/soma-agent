@@ -160,7 +160,7 @@ else
 fi
 
 # Phase 2: calls initiateBreathe
-if grep -A20 "autoBreatheRotateSent = true" "$BOOT_TS" | grep -q "initiateBreathe"; then
+if grep -A35 "autoBreatheRotateSent = true" "$BOOT_TS" | grep -q "initiateBreathe"; then
   pass "Phase 2: triggers breathe rotation"
 else
   fail "Phase 2: should trigger breathe rotation"
