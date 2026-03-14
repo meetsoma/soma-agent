@@ -4,76 +4,59 @@ name: heat-tracking
 status: active
 heat-default: warm
 applies-to: [always]
-breadcrumb: "Protocols have temperature: cold (0-2, not loaded), warm (3-7, breadcrumb in prompt), hot (8+, full in prompt). Heat auto-detected from tool results. Manual: /pin (hot), /kill (cold). Decays -1 per unused session."
-author: Curtis Mercier
-license: CC BY 4.0
-version: 1.2.0
+breadcrumb: "Soma loads protocols and muscles by temperature: cold (skip), warm (breadcrumb), hot (full). Heat auto-adjusts from usage patterns and decays when idle. /pin and /kill for manual control."
+version: 2.0.0
 tier: core
 scope: bundled
-tags: [memory, loading, performance]
-spec-ref: curtismercier/protocols/amp (v0.2, §5)
+tags: [memory, loading, performance, self-awareness]
 created: 2026-03-09
-updated: 2026-03-10
+updated: 2026-03-14
 ---
 
-# Heat Tracking Protocol
+# Heat Tracking
 
-## TL;DR
-- Three temperatures: **cold** (0-2, name only), **warm** (3-7, breadcrumb in prompt), **hot** (8+, full body in prompt)
-- **Auto-detection is limited:** only specific tool results trigger heat (frontmatter writes, git commands, SVG, checkpoints). Many protocol uses go undetected.
-- Manual controls: `/pin <name>` → hot, `/kill <name>` → cold
-- Decays -1 per session if unused (on session shutdown)
-- Thresholds and limits are configurable in `settings.json`, not fixed
+> How Soma decides what to load into your context. The heat system runs automatically — this protocol helps you understand and tune it.
 
-## Rule
+## How It Works
 
-Every protocol and muscle has a temperature that determines how it loads into the agent's boot context.
+Every protocol and muscle has a heat value. Higher heat = more presence in your system prompt.
 
-### Temperature Scale
+| Heat | State | What Loads |
+|------|-------|-----------|
+| 0-2 | Cold | Nothing. Listed as "available" in boot. |
+| 3-7 | Warm | Breadcrumb — 1-2 sentence summary. |
+| 8+ | Hot | Full content injected into system prompt. |
 
-| Range | State | Boot Behavior |
-|-------|-------|--------------|
-| 0-2 | COLD | Not loaded. Discoverable via search. |
-| 3-7 | WARM | Breadcrumb (1-2 sentence TL;DR) injected. |
-| 8+ | HOT | Full protocol content injected. |
+### Auto-Detection
 
-### How Heat Changes
+Soma watches tool results and bumps heat when it sees relevant patterns:
+- Frontmatter writes → `frontmatter-standard` +1
+- Git commands → `git-identity` +1
+- Preload writes → `breath-cycle` +1
+- Checkpoint commits → `session-checkpoints` +1
 
-**Automated (limited set):**
-The extension watches `tool_result` events and bumps heat when specific patterns match:
+**Limitation:** most protocol usage isn't detectable from tool results. A protocol like `working-style` has no tool signature — its heat only changes via manual `/pin` or `heat-default` in frontmatter.
 
-| Pattern | Triggers Heat For |
-|---------|------------------|
-| Write file with YAML frontmatter | frontmatter-standard |
-| Git commands (config/commit/push) | git-identity |
-| Write to preload/continuation file | breath-cycle |
-| Write .svg file | svg-logo-design (muscle) |
-| Checkpoint commits (.soma git) | session-checkpoints |
+### Decay
 
-This is a **limited set**. Many protocol applications (e.g., following community-safe rules, applying pattern-evolution principles) are NOT auto-detected. The heat system will under-count usage for protocols without matching tool patterns.
+On session end, unused protocols lose `decayRate` heat (default: 1). A protocol you stop using naturally fades from context. Use `/pin` to keep something hot.
 
-**Manual:**
+## Settings
 
-| Action | Effect |
-|--------|--------|
-| `/pin <name>` | Bump heat by `settings.heat.pinBump` (default +5) |
-| `/kill <name>` | Drop heat to 0 |
-
-**Decay:**
-On session shutdown, any protocol/muscle NOT used this session decays by `settings.protocols.decayRate` (default -1).
-
-### Configuration
-
-In `settings.json` (all values have sensible defaults):
-
-```json
+```jsonc
 {
   "protocols": {
-    "hotThreshold": 8,
     "warmThreshold": 3,
-    "maxHot": 3,
-    "maxWarm": 10,
-    "decayRate": 1
+    "hotThreshold": 8,
+    "maxHeat": 15,
+    "decayRate": 1,
+    "maxBreadcrumbsInPrompt": 10,
+    "maxFullProtocolsInPrompt": 3
+  },
+  "muscles": {
+    "tokenBudget": 2000,
+    "maxFull": 2,
+    "maxDigest": 8
   },
   "heat": {
     "autoDetect": true,
@@ -83,15 +66,27 @@ In `settings.json` (all values have sensible defaults):
 }
 ```
 
-### State Storage
+### Tuning Guide
 
-- **Protocols:** `.protocol-state.json` in `.soma/` — JSON map of name → heat + events
-- **Muscles:** `heat:` field in each muscle's YAML frontmatter
+| Goal | Adjust |
+|------|--------|
+| Load more protocols | Raise `maxFullProtocolsInPrompt`, lower `hotThreshold` |
+| Faster protocol rotation | Raise `decayRate` to 2-3 |
+| Keep everything loaded | Set `decayRate: 0`, pin what you want |
+| Minimize prompt size | Lower `maxFull` and `tokenBudget` |
+| Disable auto-detection | Set `autoDetect: false` — manual only |
 
-## When to Apply
+## Commands
 
-Automatically — during every inhale (protocol/muscle loading) and every session shutdown (decay). The extension handles this.
+| Command | Effect |
+|---------|--------|
+| `/pin <name>` | Bump heat by `pinBump` (default +5) |
+| `/kill <name>` | Drop heat to 0 |
 
-## When NOT to Apply
+## Source
 
-If you prefer static loading (all protocols always fully loaded), set all heat values high and `decayRate: 0`. Works fine for small protocol sets.
+- Protocol loading: `core/protocols.ts` → `discoverProtocols()`, `buildProtocolInjection()`
+- Muscle loading: `core/muscles.ts` → `discoverMuscles()`, `buildMuscleInjection()`
+- Heat state: `.soma/state.json` (protocol heat values)
+- Auto-detection: `extensions/soma-boot.ts` → `tool_result` event handler
+- Settings: `core/settings.ts` → `ProtocolSettings`, `MuscleSettings`, `HeatSettings`

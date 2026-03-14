@@ -3,104 +3,68 @@ type: protocol
 name: session-checkpoints
 status: active
 heat-default: warm
-applies-to: [always]
-breadcrumb: "Two-track version control: .soma/ is committed every exhale (local-only git), project code gets lightweight checkpoints (local commits/tags, never pushed raw). Ship by squashing checkpoints into clean commits. On inhale, diff both tracks to see what changed."
-author: Curtis Mercier
-license: CC BY 4.0
-version: 1.1.0
+applies-to: [git]
+breadcrumb: "Soma can auto-commit .soma/ state on every exhale and surface git diffs on boot. Two tracks: .soma/ internal git (never pushed) and project code (squash before push)."
+version: 2.0.0
 tier: core
 scope: bundled
-tags: [session, git, workflow, continuity]
-spec-ref: curtismercier/protocols/amp (v0.2, §8)
+tags: [session, git, continuity, self-awareness]
 created: 2026-03-10
-updated: 2026-03-12
+updated: 2026-03-14
 ---
 
-# Session Checkpoints Protocol
+# Session Checkpoints
 
-## TL;DR
+> How Soma persists state across sessions using git. Auto-commit and diff-on-boot are configurable.
 
-Two git tracks, two rhythms:
+## How It Works
 
-| | `.soma/` (agent internal) | Project code |
-|---|---|---|
-| **Tracking** | Own local git repo inside `.soma/` | Project's git repo |
-| **Commit cadence** | Every exhale | Checkpoints — local only |
-| **Push cadence** | Never pushed | Squashed clean before push |
-| **Session resume** | `git diff HEAD~1` | `git diff` from last checkpoint |
+Soma uses two git tracks:
 
-## Rule
+**Track 1: `.soma/` internal** — its own git repo inside `.soma/`. Committed on exhale, never pushed. Gives you `git diff HEAD~1` on boot to see what changed between sessions.
 
-### Track 1: `.soma/` Internal State
+**Track 2: Project code** — your project's git repo. Soma suggests checkpoint commits but doesn't auto-push. Squash checkpoints into clean commits before pushing.
 
-The `.soma/` directory has its own git repository, **never pushed** to a remote.
+### What Happens on Exhale
 
-**On exhale:**
-1. `cd .soma && git add -A`
-2. `git commit -m "checkpoint: 2026-03-10T02:00Z"`
-3. Captures: STATE.md, preload, heat changes, memory additions
+If `checkpoints.soma.autoCommit` is true, the exhale instructions include committing `.soma/` changes.
 
-**On inhale:**
-1. `git diff HEAD~1 --stat` inside `.soma/`
-2. Surface changed files as boot context
+### What Happens on Boot
 
-### Track 2: Project Code Checkpoints
-
-Use the project's git repo, but keep checkpoint commits local.
-
-**On exhale:**
-1. `git add -A && git commit -m "checkpoint: 2026-03-10T02:00Z"`
-2. Do **not** push
-
-**On ship:**
-1. Squash checkpoints: `git rebase -i HEAD~N` or `git merge --squash`
-2. Write meaningful commit message
-3. Push to remote
-
-**On inhale:**
-1. `git log --oneline --grep="checkpoint:" -1` → find last checkpoint
-2. `git diff <sha> --stat` → surface changes as boot context
-
-### What Gets Surfaced on Boot
-
-```
-── .soma changes ──
-  modified: STATE.md (3 lines)
-  added: protocols/heat-state.json
-
-── project changes (since checkpoint) ──
-  modified: src/core/settings.ts (+12 -3)
-  new file: src/components/Filter.tsx
-```
-
-## Anti-patterns
-
-- ❌ Pushing checkpoint commits to GitHub — leaks work-in-progress
-- ❌ Never committing .soma — loses diff-on-boot advantage
-- ❌ Large binary files in .soma — keep text-only (md, json, yaml)
-- ❌ Skipping squash before push — noisy git history
+If `checkpoints.diffOnBoot` is true, boot surfaces:
+- `.soma/` changes since last checkpoint
+- Project changes since last checkpoint
+- Recent git log (commits by others, CI, etc.)
 
 ## Settings
 
-```json
+```jsonc
 {
   "checkpoints": {
-    "soma": { "autoCommit": true },
-    "project": { "style": "commit", "autoCheckpoint": false },
+    "soma": {
+      "autoCommit": true
+    },
+    "project": {
+      "style": "commit",
+      "autoCheckpoint": false
+    },
     "diffOnBoot": true,
     "maxDiffLines": 80
   }
 }
 ```
 
-Checkpoint styles: `commit` (default), `tag`, `stash`.
+### Customization
 
-> **Note:** `autoCommit` and `autoCheckpoint` control whether the exhale message **suggests** the commit commands — the extension does not auto-execute them. The agent runs the commands.
+| Goal | Adjust |
+|------|--------|
+| No auto-commits | `soma.autoCommit: false` |
+| See more context on boot | Raise `maxDiffLines` |
+| Tag instead of commit | `project.style: "tag"` |
+| Disable boot diffs | `diffOnBoot: false` |
 
-## When to Apply
+## Source
 
-Every exhale and inhale. This protocol is the persistence layer — it's what makes session continuity work.
-
-## When NOT to Apply
-
-Solo scripts, one-off tasks, or repos where you don't want session history.
+- Checkpoint logic: `extensions/soma-boot.ts` → exhale handler
+- Git context on boot: `extensions/soma-boot.ts` → `case "git-context"` in boot steps
+- Settings: `core/settings.ts` → `CheckpointSettings`
