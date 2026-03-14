@@ -1221,6 +1221,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		target: string;
 		type: "protocol" | "muscle";
 	}> = [
+		// ── Protocol detection rules ──
 		{
 			match: (tool, input) =>
 				tool === "write" && typeof input?.content === "string" && input.content.startsWith("---\n"),
@@ -1241,18 +1242,23 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		},
 		{
 			match: (tool, input) =>
-				tool === "write" && typeof input?.path === "string" && input.path.endsWith(".svg"),
-			target: "svg-logo-design",
-			type: "muscle",
-		},
-		{
-			match: (tool, input) =>
 				tool === "bash" && typeof input?.command === "string" &&
 				/checkpoint:|\.soma.*git (add|commit)/.test(input.command),
 			target: "session-checkpoints",
 			type: "protocol",
 		},
+		// ── Muscle detection rules ──
+		{
+			match: (tool, input) =>
+				tool === "write" && typeof input?.path === "string" && input.path.endsWith(".svg"),
+			target: "svg-logo-design",
+			type: "muscle",
+		},
 	];
+
+	// ── Dynamic heat detection ──────────────────────────────────────
+	// Beyond static HEAT_RULES, detect muscle reads and script execution
+	// dynamically by matching paths against known muscles/scripts.
 
 	pi.on("tool_result", async (event) => {
 		if (!soma || !protocolState || !settings?.heat.autoDetect) return;
@@ -1262,6 +1268,35 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const output = typeof event.output === "string" ? event.output : "";
 		const bump = settings.heat.autoDetectBump;
 
+		// ── Dynamic muscle read detection ──
+		// When the agent reads a muscle file, bump that muscle's heat.
+		if (toolName === "read" && typeof input?.path === "string") {
+			const path = input.path as string;
+			if (/muscles\/[^/]+\.md$/.test(path)) {
+				const muscleName = path.replace(/^.*muscles\//, "").replace(/\.md$/, "");
+				if (knownMuscleNames.includes(muscleName) && !musclesReferenced.has(muscleName)) {
+					musclesReferenced.add(muscleName);
+					bumpMuscleHeat(soma, muscleName, bump, settings);
+					debug.heat(`muscle read: ${muscleName} +${bump} (dynamic: file read)`);
+				}
+			}
+		}
+
+		// ── Dynamic script execution detection ──
+		// When the agent runs a script via bash, bump it.
+		// Scripts are tracked in state.json (not frontmatter).
+		if (toolName === "bash" && typeof input?.command === "string") {
+			const cmd = input.command as string;
+			// Match: bash .soma/amps/scripts/NAME or bash /full/path/scripts/NAME
+			const scriptMatch = cmd.match(/(?:bash|sh)\s+(?:.*\/)?scripts\/([\w.-]+\.sh)/);
+			if (scriptMatch) {
+				const scriptName = scriptMatch[1];
+				// Record in debug — state.json tracking deferred to saveAllHeatState
+				debug.heat(`script executed: ${scriptName} (dynamic: bash command)`);
+			}
+		}
+
+		// ── Static HEAT_RULES ──
 		for (const rule of HEAT_RULES) {
 			if (!rule.match(toolName, input, output)) continue;
 
