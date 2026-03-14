@@ -9,6 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [Unreleased]
 
 ### Added
+- **countdown grace period before rotation**
 - **resume boot diffing — skip redundant injection on soma -c**
 - **CLI-based rotation fallback via .rotate-signal**
 - **soma-route.ts — capability router for inter-extension communication**
@@ -51,6 +52,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.5.0] — 2026-03-12
 
 ### Added
+- **countdown grace period before rotation**
 - **resume boot diffing — skip redundant injection on soma -c**
 - **CLI-based rotation fallback via .rotate-signal**
 - **soma-route.ts — capability router for inter-extension communication**
@@ -89,6 +91,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.4.0] — 2026-03-11
 
 ### Added
+- **countdown grace period before rotation**
 - **resume boot diffing — skip redundant injection on soma -c**
 - **CLI-based rotation fallback via .rotate-signal**
 - **soma-route.ts — capability router for inter-extension communication**
@@ -128,6 +131,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.3.0] — 2026-03-10
 
 ### Added
+- **countdown grace period before rotation**
 - **resume boot diffing — skip redundant injection on soma -c**
 - **CLI-based rotation fallback via .rotate-signal**
 - **soma-route.ts — capability router for inter-extension communication**
@@ -166,6 +170,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.2.0] — 2026-03-09
 
 ### Added
+- **countdown grace period before rotation**
 - **resume boot diffing — skip redundant injection on soma -c**
 - **CLI-based rotation fallback via .rotate-signal**
 - **soma-route.ts — capability router for inter-extension communication**
