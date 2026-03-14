@@ -34,15 +34,10 @@ const CONFIG = {
 	keepaliveEnabled: true,
 };
 
-// Cross-extension signal: boot can disable keepalive via globalThis.__somaKeepalive
-// LEGACY: kept for backward compat. New code should use router:
+// Keepalive control is via soma-route.ts capabilities:
 //   route.get("keepalive:toggle")?.(false)   — disable
 //   route.get("keepalive:toggle")?.(true)    — enable
-//   route.get("keepalive:status")?.()        — { enabled, remaining }
-(globalThis as any).__somaKeepalive = {
-	get enabled() { return CONFIG.keepaliveEnabled; },
-	set enabled(v: boolean) { (CONFIG as any).keepaliveEnabled = v; },
-};
+//   route.get("keepalive:status")?.()        — { enabled, intervalMs }
 
 // Register keepalive capabilities on the router (if available).
 // soma-route.ts may load before or after us — that's fine.
