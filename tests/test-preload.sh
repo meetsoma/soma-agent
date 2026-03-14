@@ -103,6 +103,24 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+section "Preload Filename Pattern"
+# ---------------------------------------------------------------------------
+
+# preloadFilename() should use session ID in name (unique per session, prevents overwrites)
+if grep -A5 "function preloadFilename" "$BOOT_TS" | grep -q "somaSessionId\|generateSessionId"; then
+  pass "preloadFilename uses unique session ID"
+else
+  fail "preloadFilename should use somaSessionId for unique filenames"
+fi
+
+# preloadFilename() should have overwrite guard
+if grep -A20 "function preloadFilename" "$BOOT_TS" | grep -q "existsSync"; then
+  pass "preloadFilename has overwrite guard"
+else
+  fail "preloadFilename should check for existing files (overwrite guard)"
+fi
+
+# ---------------------------------------------------------------------------
 echo ""
 echo "═══ Results: $PASS/$TOTAL passed, $FAIL failed ═══"
 exit $FAIL

@@ -484,6 +484,22 @@ Controls when context usage warnings fire during a session. These are the **pass
 }
 ```
 
+### Sessions
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `sessions.overwriteGuard` | `true` | Prevent overwriting existing session logs and preloads. Files use unique session IDs in filenames. |
+
+**Session IDs** combine sequential numbering with a random hex suffix: `s05-a3f2c1`. The sequential part (`s05`) gives you human-readable order within a day. The hex part (`a3f2c1`) prevents collisions when multiple terminals run the same Soma agent simultaneously. Both appear in filenames (`2026-03-14-s05-a3f2c1.md`) and frontmatter (`session-id:`).
+
+```json
+{
+  "sessions": {
+    "overwriteGuard": true
+  }
+}
+```
+
 ### Checkpoints
 
 Two-track version control: Soma's own `.soma/` state and your project code are checkpointed separately.

@@ -202,32 +202,67 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let autoBreatheRotateSent = false;
 	let heatSavedThisSession = false;
 	let currentSessionId = "";
+	let somaSessionId = ""; // Short hex ID generated per Soma session (distinct from Pi's session file)
 
-	// Countdown state — grace period between preload-written and rotation
-	let breatheCountdown = 0;          // turns remaining before rotation (0 = not counting)
-	let selfTriggeredTurn = false;     // true when this turn was started by our followUp
-	let userSpokeThisTurn = false;     // true when user (not followUp) initiated this turn
-
-	/** Build preload filename: preload-next-YYYY-MM-DD-XXXXXX.md (6 chars of session ID) */
-	function preloadFilename(): string {
-		const today = new Date().toISOString().split("T")[0];
-		const shortId = currentSessionId ? currentSessionId.slice(-6) : "000000";
-		return `preload-next-${today}-${shortId}.md`;
-	}
-
-	/** Build session log filename: YYYY-MM-DD-sNN.md (iterating per session, prevents overwrites) */
-	function sessionLogFilename(): string {
+	/** Generate a session ID: sNN-<hex> (sequential for readability, hex for uniqueness) */
+	function generateSessionId(): string {
 		const today = new Date().toISOString().split("T")[0];
 		const sessDir = soma ? resolveSomaPath(soma.path, "sessions", settings) : null;
+
+		// Sequential part: find next sNN for today
 		let next = 1;
 		if (sessDir && existsSync(sessDir)) {
-			const existing = readdirSync(sessDir).filter(f => f.startsWith(today) && /^.+-s\d+\.md$/.test(f));
+			const existing = readdirSync(sessDir).filter(f => f.startsWith(today) && f.endsWith(".md"));
 			for (const f of existing) {
-				const m = f.match(/-s(\d+)\.md$/);
+				const m = f.match(/-s(\d+)/);
 				if (m) next = Math.max(next, parseInt(m[1], 10) + 1);
 			}
 		}
-		return `${today}-s${String(next).padStart(2, "0")}.md`;
+		const seq = `s${String(next).padStart(2, "0")}`;
+
+		// Hex part: 6-char random for collision safety across terminals
+		let hex: string;
+		try {
+			const { randomBytes } = require("crypto");
+			hex = randomBytes(3).toString("hex");
+		} catch {
+			hex = Date.now().toString(16).slice(-6);
+		}
+
+		return `${seq}-${hex}`;
+	}
+
+	/** Build preload filename: preload-next-YYYY-MM-DD-<id>.md (unique per session, prevents overwrites) */
+	function preloadFilename(): string {
+		const today = new Date().toISOString().split("T")[0];
+		const id = somaSessionId || generateSessionId();
+		const name = `preload-next-${today}-${id}.md`;
+
+		// Overwrite guard: if file exists (shouldn't with unique ID, but safety check)
+		const preloadDir = soma ? resolveSomaPath(soma.path, "preloads", settings) : null;
+		if (preloadDir && existsSync(join(preloadDir, name))) {
+			// Append counter to avoid collision
+			let counter = 2;
+			while (existsSync(join(preloadDir, `preload-next-${today}-${id}-${counter}.md`))) counter++;
+			return `preload-next-${today}-${id}-${counter}.md`;
+		}
+		return name;
+	}
+
+	/** Build session log filename: YYYY-MM-DD-<id>.md (unique per session, prevents overwrites) */
+	function sessionLogFilename(): string {
+		const today = new Date().toISOString().split("T")[0];
+		const id = somaSessionId || generateSessionId();
+		const name = `${today}-${id}.md`;
+
+		// Overwrite guard: if file exists, append counter
+		const sessDir = soma ? resolveSomaPath(soma.path, "sessions", settings) : null;
+		if (sessDir && existsSync(join(sessDir, name))) {
+			let counter = 2;
+			while (existsSync(join(sessDir, `${today}-${id}-${counter}.md`))) counter++;
+			return `${today}-${id}-${counter}.md`;
+		}
+		return name;
 	}
 
 	/** Save all heat state to disk — protocols, muscles, automations. */
@@ -507,6 +542,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			currentSessionId = sessionFile ? sessionFile.split("/").pop()?.replace(/\.[^.]+$/, "") || "" : "";
 		} catch { currentSessionId = ""; }
 
+		// Generate unique Soma session ID (short hex, used in filenames and frontmatter)
+		somaSessionId = generateSessionId();
+
 		soma = findSomaDir();
 
 		if (!soma) {
@@ -623,7 +661,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				if (changes.length === 0) {
 					// Nothing changed — ultra-minimal boot
 					booted = true;
-					const sessionTag = currentSessionId ? `\nSession ID: \`${currentSessionId}\`` : "";
+					const sessionTag = somaSessionId ? `\nSession ID: \`${somaSessionId}\`` : "";
 					debug.boot("resume: no changes since last boot — minimal injection");
 					if (ctx.hasUI) {
 						pi.sendUserMessage(
@@ -636,7 +674,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				} else {
 					// Only inject the delta
 					booted = true;
-					const sessionTag = currentSessionId ? `\nSession ID: \`${currentSessionId}\`` : "";
+					const sessionTag = somaSessionId ? `\nSession ID: \`${somaSessionId}\`` : "";
 					debug.boot(`resume: ${changes.length} changes since last boot`);
 					if (ctx.hasUI) {
 						pi.sendUserMessage(
@@ -649,8 +687,35 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				}
 				return; // Skip full boot message
 			}
-			// No previous fingerprint found — fall through to full boot
-			debug.boot("resume: no fingerprint in history — full boot");
+			// No previous fingerprint found — still don't send full boot.
+			// System prompt already carries identity + protocols + muscles.
+			// Sending full parts again wastes tokens with redundant content.
+			debug.boot("resume: no fingerprint — minimal boot (system prompt is current)");
+			booted = true;
+			const sessionTag = somaSessionId ? `\nSession ID: \`${somaSessionId}\`` : "";
+			const sessionLogTarget = soma ? join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename()) : null;
+			const preloadTarget = soma ? join(resolveSomaPath(soma.path, "preloads", settings), preloadFilename()) : null;
+			const fileHints = (sessionLogTarget || preloadTarget) ? `\n\nSession files:\n${sessionLogTarget ? `- Session log: \`${sessionLogTarget}\`\n` : ""}${preloadTarget ? `- Preload: \`${preloadTarget}\`\n` : ""}` : "";
+
+			// Include .soma changes if any (time-dependent, always novel)
+			const somaChanges = parts.filter(p => p.includes(".soma Changes") || p.includes("Recent Changes"));
+			const changeSuffix = somaChanges.length > 0 ? `\n\n${somaChanges.join("\n")}` : "";
+
+			pi.appendEntry("soma-boot", {
+				timestamp: Date.now(),
+				resumed: true,
+				fingerprint: bootFingerprint,
+			});
+
+			if (ctx.hasUI) {
+				pi.sendUserMessage(
+					`[Soma Boot — resumed]\n\n` +
+					`Identity, protocols, and muscles are in your system prompt. ` +
+					`Continue where you left off.${changeSuffix}${sessionTag}${fileHints}`,
+					{ deliverAs: "followUp" }
+				);
+			}
+			return;
 		}
 
 		// Auto-inject preload on fresh boot (not resumed sessions — those have full history)
@@ -673,7 +738,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				fingerprint: bootFingerprint,
 			});
 
-			const sessionTag = currentSessionId ? `\nSession ID: \`${currentSessionId}\`` : "";
+			const sessionTag = somaSessionId ? `\nSession ID: \`${somaSessionId}\`` : "";
 			const sessionLogTarget = soma ? join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename()) : null;
 			const preloadTarget = soma ? join(resolveSomaPath(soma.path, "preloads", settings), preloadFilename()) : null;
 			const fileHints = (sessionLogTarget || preloadTarget) ? `\n\nSession files:\n${sessionLogTarget ? `- Session log: \`${sessionLogTarget}\`\n` : ""}${preloadTarget ? `- Preload: \`${preloadTarget}\`\n` : ""}` : "";
@@ -699,18 +764,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	// 200+ lines. Extract: compileSessionPrompt(), evaluateContextPressure(), handleAutoBreathe().
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (!soma || !booted) return;
-
-		// ── Detect user vs followUp turns for countdown logic ──────────
-		userSpokeThisTurn = !selfTriggeredTurn;
-		selfTriggeredTurn = false; // consume the flag
-
-		// If user spoke during active countdown → pause and reset
-		if (userSpokeThisTurn && breatheCountdown > 0 && breathePending) {
-			const graceTurns = settings?.breathe?.graceTurns ?? 2;
-			breatheCountdown = graceTurns; // reset countdown
-			ctx.ui.notify("⏸ Rotation paused — addressing your message", "info");
-			debug.boot(`breathe countdown paused by user message, reset to ${graceTurns}`);
-		}
 
 		// ═══════════════════════════════════════════════════════════════════
 		// PROTOCOL: frontal-cortex — compiled system prompt
@@ -807,6 +860,29 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			if (pct >= breatheSettings.rotateAt && !autoBreatheRotateSent) {
 				autoBreatheRotateSent = true;
 
+				if (preloadWrittenThisSession) {
+					// Preload already exists — rotate immediately via .rotate-signal.
+					// Don't wait for turn_end — that path failed in practice (session 17).
+					// The agent may continue talking, delaying turn_end and hitting timeout.
+					ctx.ui.notify(`🫧 Rotating — preload already written`, "info");
+					saveAllHeatState();
+					const commitResult = autoCommitSomaState("auto-breathe-rotate");
+					if (commitResult) ctx.ui.notify(`✅ ${commitResult}`, "info");
+
+					const signalPath = join(soma.path, ".rotate-signal");
+					try {
+						writeFileSync(signalPath, JSON.stringify({
+							reason: "auto-breathe-preload-exists",
+							timestamp: Date.now(),
+							preload: findPreload(soma)?.path ?? null,
+						}));
+						ctx.shutdown();
+						return event;
+					} catch {
+						// Fall through to normal flow if signal write fails
+					}
+				}
+
 				additions.push(
 					`\n## 🫧 Auto-Breathe: Rotate (${Math.round(pct)}%)\n` +
 					`Write preload now. Session auto-rotates when preload file is detected.`
@@ -814,23 +890,18 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 				initiateBreathe("auto-breathe-rotate");
 
-				if (preloadWrittenThisSession) {
-					// Preload already exists — rotate will happen in turn_end. Zero token cost.
-					ctx.ui.notify(`🫧 Rotating — preload already written`, "info");
-				} else {
-					// Need the agent to write session log + preload — ONE message
-					const sessionLogTarget = soma ? join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename()) : null;
-					const sessionLogNote = sessionLogTarget
-						? `**First:** Write session log to \`${sessionLogTarget}\` — what shipped (commits), observations.\n\n`
-						: "";
-					pendingFollowUps.push(
-						`[Auto-breathe — ${Math.round(pct)}% context]\n\n` +
-						`${sessionLogNote}` +
-						`**Then:** Write preload to \`${preloadTarget}\` — session auto-rotates when detected.\n` +
-						`Include: Resume Point, What Shipped, Next Priorities, Orient From.`
-					);
-					ctx.ui.notify(`🫧 Auto-breathe: rotating at ${Math.round(pct)}%`, "info");
-				}
+				// Need the agent to write session log + preload — ONE message
+				const sessionLogTarget = soma ? join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename()) : null;
+				const sessionLogNote = sessionLogTarget
+					? `**First:** Write session log to \`${sessionLogTarget}\` — what shipped (commits), observations.\n\n`
+					: "";
+				pendingFollowUps.push(
+					`[Auto-breathe — ${Math.round(pct)}% context]\n\n` +
+					`${sessionLogNote}` +
+					`**Then:** Write preload to \`${preloadTarget}\` — session auto-rotates when detected.\n` +
+					`Include: Resume Point, What Shipped, Next Priorities, Orient From.`
+				);
+				ctx.ui.notify(`🫧 Auto-breathe: rotating at ${Math.round(pct)}%`, "info");
 				lastContextWarningPct = pct;
 
 			// Phase 1: TRIGGER — finish current task, start wrapping up
@@ -991,7 +1062,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (pendingFollowUps.length > 0) {
 			const messages = [...pendingFollowUps];
 			pendingFollowUps = [];
-			selfTriggeredTurn = true; // next turn is from our followUp, not user
 			for (const msg of messages) {
 				try {
 					pi.sendUserMessage(msg, { deliverAs: "followUp" });
@@ -1030,7 +1100,17 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 	pi.on("turn_end", async (_event, ctx) => {
 		if (!breathePending) return;
-		breatheTurnCount++;
+
+		// FIX (2026-03-14): Only count non-tool turns toward grace limit.
+		// Tool turns (agent calling bash, read, edit, etc.) are part of active
+		// work chains. Counting them caused the grace countdown to expire while
+		// the agent was mid-research (5-10 rapid tool calls), triggering
+		// "Breathe timed out" before the agent could write a preload.
+		// Only increment when the agent sent a text-only response (no tools).
+		const hasToolResults = _event?.toolResults?.length > 0;
+		if (!hasToolResults) {
+			breatheTurnCount++;
+		}
 
 		// ── Rotation helper ────────────────────────────────────────────
 		// Extracted so both happy-path (preload detected) and manual trigger
@@ -1143,45 +1223,11 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			);
 		};
 
-		// ── Happy path: preload written → countdown → rotate ──────────
-		// Preload file IS the signal to START the countdown.
-		// Countdown gives the user a grace period to send messages.
-		// User messages pause/reset the countdown. Agent addresses them,
-		// then countdown restarts. Rotation only happens when countdown
-		// reaches 0 with no user interruption.
-		const graceTurns = settings?.breathe?.graceTurns ?? 2;
-
+		// ── Happy path: preload written → rotate ───────────────────────
+		// Preload file IS the signal — no "BREATHE COMPLETE" magic words needed.
 		if (preloadWrittenThisSession && breathePending) {
-			if (breatheCountdown <= 0) {
-				// Start the countdown — first detection of preload
-				breatheCountdown = graceTurns;
-				ctx.ui.notify(
-					`🫧 Preload saved. Rotating in ~${graceTurns} turn${graceTurns > 1 ? "s" : ""}. Send a message to pause.`,
-					"info"
-				);
-				debug.boot(`breathe countdown started: ${graceTurns} turns`);
-				return;
-			}
-
-			// Countdown is active — decrement (user messages reset it in before_agent_start)
-			if (!userSpokeThisTurn) {
-				breatheCountdown--;
-				debug.boot(`breathe countdown: ${breatheCountdown} turns remaining`);
-			}
-
-			if (breatheCountdown <= 0) {
-				// Countdown complete — rotate
-				ctx.ui.notify("🫧 Rotating to fresh session...", "info");
-				await performRotation("preload-detected");
-				return;
-			} else {
-				// Still counting down
-				ctx.ui.notify(
-					`🫧 Rotating in ~${breatheCountdown} turn${breatheCountdown > 1 ? "s" : ""}. Send a message to pause.`,
-					"info"
-				);
-				return;
-			}
+			await performRotation("preload-detected");
+			return;
 		}
 
 		// ── Manual trigger: "BREATHE COMPLETE" (backward compat) ───────
@@ -1194,7 +1240,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (breatheTurnCount >= 6 && !preloadWrittenThisSession) {
 			breathePending = false;
 			breatheTurnCount = 0;
-			breatheCountdown = 0;
 			breatheCommandCtx = null;
 
 			const route = getRoute();
@@ -1224,9 +1269,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			preloadWrittenThisSession = false;
 			breathePending = false;
 			breatheTurnCount = 0;
-			breatheCountdown = 0;
-			selfTriggeredTurn = false;
-			userSpokeThisTurn = false;
 			autoBreatheTriggerSent = false;
 			autoBreatheRotateSent = false;
 			heatSavedThisSession = false;
@@ -1740,6 +1782,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 		const template =
 			`**Step 2:** Write session log to \`${logPath}\` — one file per session (unique filename). ` +
+			`⚠️ **Never overwrite existing session logs or preloads** — the filename contains a unique session ID (\`${somaSessionId}\`). ` +
+			`Include frontmatter with \`session-id: ${somaSessionId}\`. ` +
 			`Include: what shipped (commits), **Gaps & Recoveries** (tool errors, workarounds, false starts), ` +
 			`**Observations** (patterns noticed, tagged by domain: [bash], [testing], [api-design], [architecture], [workflow], [meta]). ` +
 			`Observations are seeds for future muscles/protocols — they're the unique value session logs provide.\n\n` +
@@ -1753,7 +1797,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			`---\n` +
 			`type: preload\n` +
 			`created: ${today}\n` +
-			`session: ${currentSessionId || "unknown"}\n` +
+			`session: ${somaSessionId || "unknown"}\n` +
 			`commits: []        # list commit hashes from this session\n` +
 			`projects: []       # project names touched (e.g. [soma-agent, website])\n` +
 			`tags: []           # topics/themes (e.g. [refactor, amps, paths])\n` +
@@ -1874,15 +1918,23 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			breatheCommandCtx = ctx;
 
 			// --- Edge case: preload already written this session (earlier /exhale or auto-flush) ---
+			// Rotate immediately — don't wait for agent to say "BREATHE COMPLETE".
+			// The previous approach (ask agent to confirm) wasted turns and sometimes timed out.
 			if (preloadWrittenThisSession && preloadPath) {
-				pi.sendUserMessage(
-					`[BREATHE — preload already written this session]\n\n` +
-					`A preload was already saved to \`${preloadPath}\`. ` +
-					`If significant work happened since then, update it. Otherwise, say "BREATHE COMPLETE" to rotate.`,
-					{ deliverAs: "followUp" }
-				);
-				ctx.ui.notify("🫧 Preload exists — update or confirm to rotate", "info");
-				return;
+				ctx.ui.notify("🫧 Preload exists — rotating immediately", "info");
+				const signalPath = join(soma.path, ".rotate-signal");
+				try {
+					writeFileSync(signalPath, JSON.stringify({
+						reason: "breathe-preload-exists",
+						timestamp: Date.now(),
+						preload: preloadPath,
+					}));
+					ctx.shutdown();
+					return;
+				} catch {
+					// Fall through to turn_end rotation
+					ctx.ui.notify("⚠️ Direct rotation failed — waiting for turn_end", "warning");
+				}
 			}
 
 			// --- Edge case: auto-flush already fired → upgrade to breathe (don't re-inject full template) ---

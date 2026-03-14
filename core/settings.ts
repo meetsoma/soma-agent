@@ -140,8 +140,6 @@ export interface SomaSettings {
 		triggerAt: number;
 		/** Context % to write preload and rotate (default: 70) */
 		rotateAt: number;
-		/** Turns to wait after preload before rotating — user messages reset the countdown (default: 2) */
-		graceTurns: number;
 	};
 
 	/** Preload settings */
@@ -178,6 +176,12 @@ export interface SomaSettings {
 	scripts: {
 		/** File extensions to discover as scripts (default: [".sh", ".py", ".ts", ".js", ".mjs"]) */
 		extensions: string[];
+	};
+
+	/** Session settings — overwrite protection */
+	sessions: {
+		/** Prevent overwriting existing session logs and preloads (default: true) */
+		overwriteGuard: boolean;
 	};
 
 	/** Steno — background session observer. Ghost setting: does nothing without soma-steno extension. */
@@ -312,6 +316,9 @@ const DEFAULTS: SomaSettings = {
 	scripts: {
 		extensions: [".sh", ".py", ".ts", ".js", ".mjs"],
 	},
+	sessions: {
+		overwriteGuard: true,
+	},
 	steno: {
 		enabled: false,
 	},
@@ -351,7 +358,6 @@ const DEFAULTS: SomaSettings = {
 		auto: false,
 		triggerAt: 50,
 		rotateAt: 70,
-		graceTurns: 2,
 	},
 	preload: {
 		staleAfterHours: 48,

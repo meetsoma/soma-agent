@@ -24,8 +24,10 @@ export interface Protocol {
 	name: string;
 	/** Full file content */
 	content: string;
-	/** Breadcrumb TL;DR (from frontmatter) */
+	/** Breadcrumb — short one-liner (from frontmatter) */
 	breadcrumb: string | null;
+	/** TL;DR — extracted from ## TL;DR section in body (richer than breadcrumb) */
+	tldr: string | null;
 	/** File path */
 	path: string;
 	/** Starting heat level from frontmatter */
@@ -156,6 +158,18 @@ export function detectProjectSignals(projectDir: string): Set<ProjectSignal> {
 }
 
 /**
+ * Extract ## TL;DR section from protocol body.
+ * Returns the text between ## TL;DR and the next ## heading (or end of content).
+ */
+function extractTldr(content: string): string | null {
+	const body = stripFrontmatter(content);
+	const match = body.match(/^## TL;DR\s*\n([\s\S]*?)(?=\n## |\n---|\s*$)/m);
+	if (!match) return null;
+	const text = match[1].trim();
+	return text || null;
+}
+
+/**
  * Check if a protocol matches the project signals.
  * A protocol with empty appliesTo matches everything (same as "always").
  */
@@ -188,6 +202,7 @@ export function discoverProtocols(soma: SomaDir, settings?: SomaSettings | null)
 			name: fm["name"] || basename(file, ".md"),
 			content,
 			breadcrumb: fm["breadcrumb"] || null,
+			tldr: extractTldr(content),
 			path: filePath,
 			heatDefault: parseHeatDefault(fm["heat-default"]),
 			scope: fm["scope"] === "shared" ? "shared" : "local",

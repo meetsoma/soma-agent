@@ -318,9 +318,13 @@ function loadCoreTemplate(customPath?: string): string {
  * Uses breadcrumb if available, otherwise first sentence of body.
  */
 function protocolSummary(proto: Protocol): string {
+	// Prefer TL;DR (richer, extracted from ## TL;DR section)
+	if (proto.tldr) return proto.tldr;
+
+	// Fall back to breadcrumb (short one-liner from frontmatter)
 	if (proto.breadcrumb) return proto.breadcrumb;
 
-	// Strip frontmatter, take first meaningful line
+	// Last resort: first meaningful line from body
 	const body = stripFrontmatter(proto.content);
 	const lines = body.split("\n").filter(l => l.trim() && !l.startsWith("#"));
 	if (lines.length > 0) {
