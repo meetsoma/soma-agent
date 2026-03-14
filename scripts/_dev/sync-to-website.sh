@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-AGENT_DIR="$(dirname "$SCRIPT_DIR")"
+AGENT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 WEBSITE_DIR="$(dirname "$AGENT_DIR")/website"
 WEBSITE_DOCS="$WEBSITE_DIR/src/content/docs"
 
