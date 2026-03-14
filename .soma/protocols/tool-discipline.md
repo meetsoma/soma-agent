@@ -4,49 +4,55 @@ name: tool-discipline
 status: active
 heat-default: warm
 applies-to: [always]
-breadcrumb: "Read before edit (never cat/sed). Prefer grep/find/ls over bash for exploration. Edit for surgical changes, write only for new files. Batch independent calls. Output plain text — don't cat/bash to display results."
-author: Curtis Mercier
-license: CC BY 4.0
-version: 1.0.0
+breadcrumb: "Read before edit. grep/find for exploration. Edit for surgical changes. The guard extension blocks dangerous bash commands based on your guard settings."
+version: 2.0.0
 tier: core
-scope: hub
-tags: [tools, workflow, discipline]
+scope: bundled
+tags: [tools, safety, self-awareness]
 created: 2026-03-10
-updated: 2026-03-10
+updated: 2026-03-14
 ---
 
 # Tool Discipline
 
-How to use tools effectively. These rules adapt based on which tools are available — if a tool isn't loaded, its rules don't apply.
+> How Soma uses tools safely. The guard extension enforces some of these mechanically — this protocol covers both the automated safety net and the craft practices.
 
-## TL;DR
+## What the Guard Handles (Automatic)
 
-Read before edit (never cat/sed). Prefer dedicated tools over bash for exploration. Edit for surgical changes, write for new files only. Batch independent calls. Output plain text — don't use tools to display summaries.
+The `soma-guard.ts` extension intercepts bash commands and flags dangerous patterns:
 
-## When to Apply
+- `rm -rf` on sensitive paths
+- `>` redirect to root/system paths (but `>>` append is allowed)
+- Force pushes, rebase on shared branches
+- Credential/secret exposure
 
-Any session involving file operations — reading, writing, editing, searching. Adapts to available toolset.
+**Guard levels** (configurable):
+```jsonc
+{
+  "guard": {
+    "bashCommands": "warn",
+    "coreFiles": "warn"
+  }
+}
+```
 
-## File Reading
+| Level | Behavior |
+|-------|----------|
+| `allow` | No prompts. Power user mode. |
+| `warn` | Flags dangerous commands, asks for confirmation. |
+| `block` | Requires explicit override for each dangerous command. |
 
-- **Read before you edit.** Always. Never modify a file you haven't read this session.
-- **Use the read tool**, not `cat` or `sed` or `head` via bash. The read tool tracks what you've seen. Bash doesn't.
-- **Earn context.** Don't read everything preemptively. Read on demand, when the task requires it.
+## Craft Practices (Not Automated)
 
-## File Exploration
+These aren't enforced by code — they produce better results:
 
-- **Prefer grep/find/ls tools over bash** for file discovery and search. They're faster and respect `.gitignore` automatically.
-- **Use grep for content search**, find for file location, ls for directory structure. Don't `bash find` or `bash grep` when dedicated tools exist.
+- **Read before edit** — always check file contents before modifying
+- **grep/find/ls for exploration** — cheaper than reading whole files
+- **Edit for surgical changes** — `edit` replaces exact text, safer than `write`
+- **Write for new files only** — `write` overwrites everything
+- **Batch independent calls** — if two reads don't depend on each other, do them in one turn
 
-## Editing
+## Source
 
-- **Use edit for surgical changes.** The old text must match exactly — this is precision, not convenience.
-- **Use write only for new files or complete rewrites.** If the file exists and you're changing part of it, use edit.
-- **Batch independent operations.** If multiple reads or edits don't depend on each other, make them in the same call.
-
-## Output
-
-- **Output plain text directly** when summarizing your work. Don't use `cat`, `bash echo`, or other tools to display what you did.
-- **Show file paths clearly.** When referencing files, use the full path. Be specific about what changed and where.
-
-
+- Guard extension: `extensions/soma-guard.ts`
+- Settings: `core/settings.ts` → `GuardSettings`
