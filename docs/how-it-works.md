@@ -149,6 +149,8 @@ For proactive sessions, enable **auto-breathe** (`/auto-breathe on` or `settings
 1. **Wrap-up** at `triggerAt` (default 50%) — finish current task, update session log
 2. **Rotate** at `rotateAt` (default 70%) — write preload, auto-continue into fresh session
 
+Rotation uses the **capability router** (`soma-route.ts`) when a slash command has run in the session — this calls `newSession()` directly for a seamless transition. If no command has run, the CLI handles rotation via process restart (transparent to the user).
+
 The 85% safety net always stays active as a backstop. See [Configuration](/docs/configuration#auto-breathe) for thresholds.
 
 ## Parent-Child Workspaces
