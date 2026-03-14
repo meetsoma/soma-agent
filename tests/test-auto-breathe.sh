@@ -90,18 +90,19 @@ else
   fail "pendingFollowUps queue missing — race condition not fixed"
 fi
 
-# initiateBreathe pushes to queue instead of calling sendUserMessage directly
-if grep -A20 "const initiateBreathe" "$BOOT_TS" | grep -q "pendingFollowUps.push"; then
-  pass "initiateBreathe queues message (not direct sendUserMessage)"
+# initiateBreathe sets breathePending (callers handle messaging)
+if grep -A15 "const initiateBreathe" "$BOOT_TS" | grep -q "breathePending = true"; then
+  pass "initiateBreathe sets breathePending flag"
 else
-  fail "initiateBreathe should push to pendingFollowUps, not call sendUserMessage"
+  fail "initiateBreathe should set breathePending flag"
 fi
 
-# initiateBreathe does NOT call sendUserMessage
-if grep -A20 "const initiateBreathe" "$BOOT_TS" | grep -q "pi.sendUserMessage"; then
-  fail "initiateBreathe still calls sendUserMessage directly — race condition!"
+# initiateBreathe does NOT call sendUserMessage or push to pendingFollowUps
+# (callers decide notification strategy — some rotate with zero tokens)
+if grep -A15 "const initiateBreathe" "$BOOT_TS" | grep -q "pendingFollowUps\|sendUserMessage"; then
+  fail "initiateBreathe should not push messages — callers handle notification"
 else
-  pass "initiateBreathe does not call sendUserMessage (race condition fixed)"
+  pass "initiateBreathe delegates messaging to callers (zero-token rotation possible)"
 fi
 
 # agent_end flushes pendingFollowUps
