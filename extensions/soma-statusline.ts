@@ -281,7 +281,7 @@ export default function somaStatuslineExtension(pi: ExtensionAPI) {
 						cacheFmt(`◷${fmtTime(remaining)}`), kaStr,
 					].join(SEP);
 
-					// Line 2: │  ⊛ branch 🌿soma ¶turns
+					// Line 2: │  ⊛ branch 🌿soma ¶turns 📋session-id
 					const gitIcon = git.dirty ? `${B_YELLOW}⊛${RESET}` : `${B_BLUE}⊚${RESET}`;
 					const line2Items: string[] = [brand("│ ")];
 					if (git.branch) {
@@ -291,6 +291,15 @@ export default function somaStatuslineExtension(pi: ExtensionAPI) {
 					}
 					line2Items.push(brand("🌿soma"));
 					line2Items.push(dim(`¶${state.turnCount}`));
+
+					// Session ID from soma-boot via router
+					const somaRoute = (globalThis as any).__somaRoute;
+					const getSessionId = somaRoute?.get("session:id");
+					const sessionId = getSessionId?.();
+					if (sessionId) {
+						line2Items.push(dim(`📋${sessionId}`));
+					}
+
 					if (restartRequired) {
 						line2Items.push(warn("🔄restart"));
 					}

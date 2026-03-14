@@ -545,6 +545,15 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		// Generate unique Soma session ID (short hex, used in filenames and frontmatter)
 		somaSessionId = generateSessionId();
 
+		// Expose session ID on router so statusline can display it
+		const route = getRoute();
+		if (route) {
+			route.provide("session:id", () => somaSessionId, {
+				provider: "soma-boot",
+				description: "Get current Soma session ID (e.g. s01-abc123)",
+			});
+		}
+
 		soma = findSomaDir();
 
 		if (!soma) {
