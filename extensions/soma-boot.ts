@@ -204,30 +204,32 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let currentSessionId = "";
 	let somaSessionId = ""; // Short hex ID generated per Soma session (distinct from Pi's session file)
 
-	/** Generate a session ID based on settings.sessions.idFormat */
+	/** Generate a session ID: sNN-<hex> (sequential for readability, hex for uniqueness) */
 	function generateSessionId(): string {
-		const format = settings?.sessions?.idFormat ?? "hex";
-		if (format === "sequential") {
-			// Sequential: find next sNN in the sessions dir
-			const today = new Date().toISOString().split("T")[0];
-			const sessDir = soma ? resolveSomaPath(soma.path, "sessions", settings) : null;
-			let next = 1;
-			if (sessDir && existsSync(sessDir)) {
-				const existing = readdirSync(sessDir).filter(f => f.startsWith(today) && f.endsWith(".md"));
-				for (const f of existing) {
-					const m = f.match(/-s(\d+)/);
-					if (m) next = Math.max(next, parseInt(m[1], 10) + 1);
-				}
+		const today = new Date().toISOString().split("T")[0];
+		const sessDir = soma ? resolveSomaPath(soma.path, "sessions", settings) : null;
+
+		// Sequential part: find next sNN for today
+		let next = 1;
+		if (sessDir && existsSync(sessDir)) {
+			const existing = readdirSync(sessDir).filter(f => f.startsWith(today) && f.endsWith(".md"));
+			for (const f of existing) {
+				const m = f.match(/-s(\d+)/);
+				if (m) next = Math.max(next, parseInt(m[1], 10) + 1);
 			}
-			return `s${String(next).padStart(2, "0")}`;
 		}
-		// Default: hex (6-char random)
+		const seq = `s${String(next).padStart(2, "0")}`;
+
+		// Hex part: 6-char random for collision safety across terminals
+		let hex: string;
 		try {
 			const { randomBytes } = require("crypto");
-			return randomBytes(3).toString("hex");
+			hex = randomBytes(3).toString("hex");
 		} catch {
-			return Date.now().toString(16).slice(-6);
+			hex = Date.now().toString(16).slice(-6);
 		}
+
+		return `${seq}-${hex}`;
 	}
 
 	/** Build preload filename: preload-next-YYYY-MM-DD-<id>.md (unique per session, prevents overwrites) */

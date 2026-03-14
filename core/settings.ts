@@ -178,10 +178,8 @@ export interface SomaSettings {
 		extensions: string[];
 	};
 
-	/** Session settings — ID format, overwrite protection */
+	/** Session settings — overwrite protection */
 	sessions: {
-		/** Session ID format: "hex" (6-char random hash) or "sequential" (s01, s02...) */
-		idFormat: "hex" | "sequential";
 		/** Prevent overwriting existing session logs and preloads (default: true) */
 		overwriteGuard: boolean;
 	};
@@ -319,7 +317,6 @@ const DEFAULTS: SomaSettings = {
 		extensions: [".sh", ".py", ".ts", ".js", ".mjs"],
 	},
 	sessions: {
-		idFormat: "hex" as const,
 		overwriteGuard: true,
 	},
 	steno: {

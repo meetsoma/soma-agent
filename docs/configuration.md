@@ -482,15 +482,13 @@ Controls when context usage warnings fire during a session. These are the **pass
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `sessions.idFormat` | `"hex"` | Session ID format: `"hex"` (6-char hex hash) or `"sequential"` (sNN counter) |
 | `sessions.overwriteGuard` | `true` | Prevent overwriting existing session logs and preloads. Files use unique session IDs in filenames. |
 
-**Session IDs** are generated at boot and used in both session log and preload filenames. They appear in frontmatter as `session-id:` for cross-referencing. The hex format (`a3f2c1`) produces globally unique names; sequential (`s01`, `s02`) is human-friendlier but can collide across terminals.
+**Session IDs** combine sequential numbering with a random hex suffix: `s05-a3f2c1`. The sequential part (`s05`) gives you human-readable order within a day. The hex part (`a3f2c1`) prevents collisions when multiple terminals run the same Soma agent simultaneously. Both appear in filenames (`2026-03-14-s05-a3f2c1.md`) and frontmatter (`session-id:`).
 
 ```json
 {
   "sessions": {
-    "idFormat": "hex",
     "overwriteGuard": true
   }
 }
