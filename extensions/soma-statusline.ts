@@ -35,11 +35,40 @@ const CONFIG = {
 };
 
 // Cross-extension signal: boot can disable keepalive via globalThis.__somaKeepalive
-// Checked every tick in checkKeepalive()
+// LEGACY: kept for backward compat. New code should use router:
+//   route.get("keepalive:toggle")?.(false)   — disable
+//   route.get("keepalive:toggle")?.(true)    — enable
+//   route.get("keepalive:status")?.()        — { enabled, remaining }
 (globalThis as any).__somaKeepalive = {
 	get enabled() { return CONFIG.keepaliveEnabled; },
 	set enabled(v: boolean) { (CONFIG as any).keepaliveEnabled = v; },
 };
+
+// Register keepalive capabilities on the router (if available).
+// soma-route.ts may load before or after us — that's fine.
+// We also re-register in session_start to catch late router init.
+function provideKeepaliveToRouter() {
+	const route = (globalThis as any).__somaRoute;
+	if (!route) return;
+
+	route.provide("keepalive:toggle", (enabled: boolean) => {
+		CONFIG.keepaliveEnabled = enabled;
+	}, {
+		provider: "soma-statusline",
+		description: "Enable/disable keepalive timer (true=on, false=off)",
+	});
+
+	route.provide("keepalive:status", () => ({
+		enabled: CONFIG.keepaliveEnabled,
+		intervalMs: CONFIG.keepaliveIntervalMs,
+	}), {
+		provider: "soma-statusline",
+		description: "Get keepalive status { enabled, intervalMs }",
+	});
+}
+
+// Try to register immediately (works if soma-route loaded first)
+provideKeepaliveToRouter();
 
 // ---------------------------------------------------------------------------
 // Restart-required signal — uses execSync to avoid adding fs/path imports
@@ -304,6 +333,9 @@ export default function somaStatuslineExtension(pi: ExtensionAPI) {
 		latestCtx = ctx;
 		state.sessionStartTs = Date.now();
 		state.lastActivityTs = Date.now();
+
+		// Re-register keepalive on router (catches late router init)
+		provideKeepaliveToRouter();
 
 		// Init restart detection — clears stale signals from prior sessions
 		initRestartDetection();
