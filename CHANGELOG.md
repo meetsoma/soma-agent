@@ -27,6 +27,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - `guard.toolGates` setting — require reading muscles before dangerous bash commands (#1c6b725)
 - `breathe.graceTurns` setting — configurable auto-breathe grace period, replaces hardcoded 6-turn limit (#c9ab5a8)
 - Session log nudge with template at breathe trigger point (#eb8acc8)
+- Periodic auto-commit every 5th turn for crash resilience (#c6caccc)
+- Scratch note lifecycle — session IDs, date sections, active/done/parked status, router capabilities, auto-inject (#0d364f2)
+- Statusline shows session ID on line 2 (#d474cbf)
+- Polyglot script discovery — `.sh`, `.py`, `.ts`, `.js`, `.mjs` (#1acb8c2)
 
 ### Changed
 
@@ -42,6 +46,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 
 ### Fixed
 
+- Muscle and automation discovery — filter archived status and README files (#e42da9b, #5f5ccae)
+- Scratch completions — remove PRO commands from free completions list (#fd0bda2)
 - Auto-breathe race condition — `sendUserMessage` from `before_agent_start` raced with Pi's prompt processing, now deferred to `agent_end` via pending message queue (#2823ee9, #927bd74)
 - Auto-breathe phase 1 ignored by agent — wrap-up trigger now sends a followUp user message, not just system prompt + UI toast (#9d09dd5)
 - Auto-breathe triple notification spam reduced (#927bd74)
@@ -57,6 +63,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - Grace countdown skips tool turns during auto-breathe — tool-call turns no longer count toward 6-turn limit (#53bd421)
 - Resume without fingerprint sends minimal boot instead of full redundant injection — saves ~4-6k tokens (#7fd064b)
 - Preload overwrite guard + auto-breathe rotation fix when preload pre-exists (#378a1b1)
+- All doc paths updated to `amps/` layout — `.soma/amps/protocols/`, `.soma/amps/muscles/`, etc. (#420f19b)
+- Memory layout docs rewritten — core structure is amps/, memory/, projects/, skills/ (#b35c2be)
 
 ---
 
