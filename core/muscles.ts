@@ -107,10 +107,10 @@ export function discoverMuscles(soma: SomaDir, settingsOrDir?: SomaSettings | st
 		: resolveSomaPath(soma.path, "muscles", settingsOrDir);
 	return discoverContent<Muscle>({
 		dir: muscleDir,
-		fileFilter: f => f.endsWith(".md") && !f.startsWith(".") && !f.startsWith("_"),
+		fileFilter: f => f.endsWith(".md") && !f.startsWith(".") && !f.startsWith("_") && f !== "README.md",
 		parser: ({ file, filePath, content, fm }) => {
 			const status = fm["status"] as Muscle["status"] || "active";
-			if (status === "retired") return null;
+			if (status === "retired" || status === "archived") return null;
 			return {
 				name: basename(file, ".md"),
 				content,
