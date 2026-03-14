@@ -32,6 +32,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **Config-first script extensions** — `settings.scripts.extensions` controls which file types are discovered. No more hardcoded lists.
 
 ### Fixed
+- **soma-route.ts import path — use pi-coding-agent not claude-code**
 - **sync-to-cli path after _dev/ move**
 - **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
@@ -64,6 +65,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **CI improvements** — PR check and release workflows now run all 10 test suites. Release uses full `sync-from-agent.sh` instead of hardcoded doc list.
 
 ### Fixed
+- **soma-route.ts import path — use pi-coding-agent not claude-code**
 - **sync-to-cli path after _dev/ move**
 - **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
@@ -104,6 +106,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **CLAUDE.md awareness, not adoption** — system prompt notes existence but doesn't inject content.
 
 ### Fixed
+- **soma-route.ts import path — use pi-coding-agent not claude-code**
 - **sync-to-cli path after _dev/ move**
 - **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
@@ -139,6 +142,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **Distribution scope** — bundled protocols slimmed from all to 4 (breath-cycle, heat-tracking, session-checkpoints, pattern-evolution). Hub protocols install via templates.
 
 ### Fixed
+- **soma-route.ts import path — use pi-coding-agent not claude-code**
 - **sync-to-cli path after _dev/ move**
 - **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
@@ -163,6 +167,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **9 core modules** — discovery, identity, protocols, muscles, settings, init, preload, utils, index.
 
 ### Fixed
+- **soma-route.ts import path — use pi-coding-agent not claude-code**
 - **sync-to-cli path after _dev/ move**
 - **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
