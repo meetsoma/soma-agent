@@ -31,6 +31,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **Config-first script extensions** — `settings.scripts.extensions` controls which file types are discovered. No more hardcoded lists.
 
 ### Fixed
+- **sync-to-cli path after _dev/ move**
 - **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - **Auto-breathe race condition** — `sendUserMessage` from `before_agent_start` raced with Pi's prompt processing. Now deferred to `agent_end` via pending message queue.
@@ -61,6 +62,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **CI improvements** — PR check and release workflows now run all 10 test suites. Release uses full `sync-from-agent.sh` instead of hardcoded doc list.
 
 ### Fixed
+- **sync-to-cli path after _dev/ move**
 - **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - **System prompt dropped after turn 1** — Pi resets to base each `before_agent_start`. Now caches compiled prompt and returns it every turn.
@@ -99,6 +101,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **CLAUDE.md awareness, not adoption** — system prompt notes existence but doesn't inject content.
 
 ### Fixed
+- **sync-to-cli path after _dev/ move**
 - **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - Print-mode race condition — `ctx.hasUI` guard on `sendUserMessage` in `session_start`.
@@ -132,6 +135,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **Distribution scope** — bundled protocols slimmed from all to 4 (breath-cycle, heat-tracking, session-checkpoints, pattern-evolution). Hub protocols install via templates.
 
 ### Fixed
+- **sync-to-cli path after _dev/ move**
 - **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - PII scrubbed from git history across all repos.
@@ -154,6 +158,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **9 core modules** — discovery, identity, protocols, muscles, settings, init, preload, utils, index.
 
 ### Fixed
+- **sync-to-cli path after _dev/ move**
 - **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - Extensions load correctly.
