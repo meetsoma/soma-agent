@@ -619,10 +619,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const preloadTarget = memDir ? join(memDir, preloadFilename()) : null;
 
 		// Helper: initiate breathe rotation (shared by auto-breathe and auto-flush safety net)
-		// NOTE: This runs inside before_agent_start. Calling pi.sendUserMessage here races
-		// with Pi's prompt processing (the agent is about to start). Instead, we queue the
-		// message and flush it in agent_end, when it's safe to send followUps.
-		const initiateBreathe = (label: string, message: string) => {
+		// Saves heat + commits state. Does NOT inject user messages — callers decide notification strategy.
+		const initiateBreathe = (label: string) => {
 			if (breathePending) return; // already in progress
 			saveAllHeatState();
 			const commitResult = autoCommitSomaState(label);
@@ -630,8 +628,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			breathePending = true;
 			breatheTurnCount = 0;
 			breatheCommandCtx = ctx;
-			// Queue for delivery after agent finishes this turn
-			pendingFollowUps.push(message);
+			// Pause keepalive during rotation to avoid wasted turns
+			(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = false);
 		};
 
 		// ── AUTO-BREATHE MODE (proactive) ──────────────────────────────
@@ -643,71 +641,55 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (breatheSettings.auto && soma) {
 
 			// Phase 2: ROTATE — write preload and go
+			// Notification: system prompt addition + UI notify.
+			// If preload already written → rotate mechanically (zero tokens).
+			// If not → ONE followUp asking agent to write preload. No "BREATHE COMPLETE" needed.
+			// turn_end watcher rotates when preloadWrittenThisSession becomes true.
 			if (pct >= breatheSettings.rotateAt && !autoBreatheRotateSent) {
 				autoBreatheRotateSent = true;
 
 				additions.push(
 					`\n## 🫧 Auto-Breathe: Rotate (${Math.round(pct)}%)\n` +
-					`Wrap up and write preload. Session will auto-rotate.`
+					`Write preload now. Session auto-rotates when preload file is detected.`
 				);
 
-				if (preloadWrittenThisSession && preloadPath) {
-					initiateBreathe("auto-breathe-rotate",
-						`[AUTO-BREATHE — time to rotate (${Math.round(pct)}%)]\n\n` +
-						`Preload already at \`${preloadPath}\`. Update it if needed, then say "BREATHE COMPLETE".`
-					);
-				} else {
-					initiateBreathe("auto-breathe-rotate",
-						`[AUTO-BREATHE — time to rotate (${Math.round(pct)}%)]\n\n` +
-						`Wrap up what you're doing and prepare for rotation.\n\n` +
-						`1. Commit uncommitted work\n` +
-						`2. Update session log\n` +
-						`3. Write \`${preloadTarget}\` — Resume Point, What Shipped, Next Priorities, Orient From\n` +
-						`4. Say "BREATHE COMPLETE"\n\n` +
-						`Session auto-rotates with your preload injected.`
-					);
-				}
+				initiateBreathe("auto-breathe-rotate");
 
-				ctx.ui.notify(`🫧 Auto-breathe: rotating at ${Math.round(pct)}%`, "info");
+				if (preloadWrittenThisSession) {
+					// Preload already exists — rotate will happen in turn_end. Zero token cost.
+					ctx.ui.notify(`🫧 Rotating — preload already written`, "info");
+				} else {
+					// Need the agent to write the preload — ONE message
+					pendingFollowUps.push(
+						`[Auto-breathe — ${Math.round(pct)}% context]\n\n` +
+						`Write preload to \`${preloadTarget}\` now. Session auto-rotates when detected.\n` +
+						`Include: Resume Point, What Shipped, Next Priorities, Orient From.`
+					);
+					ctx.ui.notify(`🫧 Auto-breathe: rotating at ${Math.round(pct)}%`, "info");
+				}
 				lastContextWarningPct = pct;
 
 			// Phase 1: TRIGGER — finish current task, start wrapping up
+			// Notification: system prompt addition + UI notify only. NO user message (zero tokens).
 			} else if (pct >= breatheSettings.triggerAt && !autoBreatheTriggerSent) {
 				autoBreatheTriggerSent = true;
 
 				// Signal for extensions (e.g. soma-steno) — ghost if no listener
 				pi.events.emit("soma:recall", { reason: "auto-breathe-trigger", pct });
 
-				// Phase 1 is a gentle nudge — NOT a shutdown order.
-				// The agent should keep working. Just be aware context is accumulating.
-				// Includes session log path + template so the agent can log observations mid-session.
 				const preloadHint = preloadTarget ? `\n- Preload target: \`${preloadTarget}\`` : "";
 				const sessionLogPath = soma ? join(resolveSomaPath(soma.path, "sessions", settings), `${new Date().toISOString().slice(0, 10)}.md`) : null;
 				const sessionLogHint = sessionLogPath
-					? `\n\nReflect and log any observations. Template:\n` +
-					  `\`\`\`\n` +
-					  `## HH:MM\n\n` +
-					  `- what shipped (commits with hashes)\n` +
-					  `- **Observations:** patterns noticed, tagged by domain: [bash], [testing], [api-design], [architecture], [workflow], [meta]\n` +
-					  `\`\`\`\n` +
-					  `→ \`${sessionLogPath}\``
-					: "";
+					? `\n- Session log: \`${sessionLogPath}\`` : "";
+
+				// System prompt addition — agent sees this in context, no token cost for user messages
 				additions.push(
 					`\n## 🫧 Auto-Breathe: Notice (${Math.round(pct)}%)\n` +
-					`Context is at ${Math.round(pct)}%. Keep working — just be aware. ` +
+					`Context at ${Math.round(pct)}%. Keep working. ` +
 					`Rotation at ~${breatheSettings.rotateAt}%.${preloadHint}${sessionLogHint}`
 				);
 
-				// Soft notice — agent keeps working, just knows rotation is ahead
-				pendingFollowUps.push(
-					`[AUTO-BREATHE — ${Math.round(pct)}% context]\n\n` +
-					`Just a heads up — context is at ${Math.round(pct)}%. No need to stop. ` +
-					`Keep working on your current task. As you finish things, consider:\n` +
-					`- Committing completed work\n` +
-					`- Logging observations to session log${sessionLogPath ? `: \`${sessionLogPath}\`` : ""}${preloadHint}\n\n` +
-					`Rotation happens at ~${breatheSettings.rotateAt}% — you've got room.`
-				);
-
+				// UI notify only — no user message injection
 				ctx.ui.notify(`🫧 Context ${Math.round(pct)}% — rotation at ~${breatheSettings.rotateAt}%`, "info");
 				lastContextWarningPct = pct;
 			}
@@ -726,23 +708,18 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			);
 
 			if (breathePending) {
-				// Already rotating — just hurry up
-				ctx.ui.notify(`🔴 Context at ${Math.round(pct)}% — breathe in progress, hurry up`, "error");
+				// Already rotating — UI-only nudge, no additional user messages
+				ctx.ui.notify(`🔴 Context at ${Math.round(pct)}% — write preload NOW`, "error");
 			} else {
-				// Emergency: no breathe was triggered — initiate now with minimal instructions
-				initiateBreathe("auto-breathe-emergency",
-					`[EMERGENCY AUTO-BREATHE — context at ${Math.round(pct)}%]\n\n` +
-					`Context is critical. Stop ALL work. Write a preload NOW.\n\n` +
-					`1. Commit any uncommitted work.\n` +
-					`2. Write \`${preloadTarget}\` — MINIMAL format:\n` +
-					`   - **Resume Point** (2 sentences)\n` +
-					`   - **What Shipped** (bullet list)\n` +
-					`   - **In-Flight** (what's unfinished, where you stopped)\n` +
-					`   - **Next Priorities**\n` +
-					`3. Say "BREATHE COMPLETE" — session auto-rotates.\n\n` +
-					`No session log — no time. Preload only.`
+				// Emergency: no breathe was triggered — initiate + ONE message
+				initiateBreathe("auto-breathe-emergency");
+				pendingFollowUps.push(
+					`[Emergency — context at ${Math.round(pct)}%]\n\n` +
+					`Write preload to \`${preloadTarget}\` immediately. Minimal format:\n` +
+					`Resume Point, What Shipped, In-Flight, Next Priorities.\n` +
+					`Session auto-rotates when preload is detected.`
 				);
-				ctx.ui.notify(`🔴 Context at ${Math.round(pct)}% — EMERGENCY AUTO-BREATHE`, "error");
+				ctx.ui.notify(`🔴 Emergency auto-breathe at ${Math.round(pct)}%`, "error");
 			}
 			lastContextWarningPct = pct;
 
@@ -859,31 +836,24 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 		}
 
-		// If breathe/auto-breathe is pending but didn't complete, give the user a way forward
-		if (breathePending && !flushCompleteDetected) {
-			if (preloadWrittenThisSession) {
-				ctx.ui.notify(
-					"⚠️ Preload written but rotation didn't complete. Say BREATHE COMPLETE to rotate, or /breathe to retry.",
-					"warning"
-				);
-			} else {
-				ctx.ui.notify(
-					"⚠️ Session ended without preload. Use /exhale or /breathe next session.",
-					"warning"
-				);
-			}
-		} else if (flushCompleteDetected && preloadWrittenThisSession && !breathePending) {
-			// Flush complete but no breathe — manual exhale flow. Preload auto-loads on next boot.
+		// If breathe pending but preload not written and agent stopped — warn user
+		if (breathePending && !preloadWrittenThisSession) {
 			ctx.ui.notify(
-				"🟢 Preload saved. Next session will auto-load it, or use /inhale to load now.",
+				"⚠️ Session ending without preload. Use /exhale or /breathe to save state.",
+				"warning"
+			);
+		} else if (preloadWrittenThisSession && !breathePending) {
+			// Preload written, no rotation — manual exhale flow
+			ctx.ui.notify(
+				"🟢 Preload saved. Next session auto-loads it.",
 				"info"
 			);
 		}
 
 		// Warn if significant work happened after preload was written
-		if (preloadWrittenThisSession && toolCallsAfterPreload > 5 && !flushCompleteDetected) {
+		if (preloadWrittenThisSession && toolCallsAfterPreload > 5) {
 			ctx.ui.notify(
-				`⚠️ ${toolCallsAfterPreload} tool calls since preload was written — consider updating it before session ends`,
+				`⚠️ ${toolCallsAfterPreload} tool calls since preload — consider updating it`,
 				"warning"
 			);
 		}
@@ -898,13 +868,16 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		breatheTurnCount++;
 
 		// Happy path: preload written + completion signal → rotate
+		// Preload file IS the signal — no "BREATHE COMPLETE" magic words needed.
 		// NOTE: newSession() is only available on ExtensionCommandContext (from commands),
 		// NOT on ExtensionContext (from event handlers). Route through /inhale instead.
-		if (preloadWrittenThisSession && flushCompleteDetected && breathePending) {
+		if (preloadWrittenThisSession && breathePending) {
 			breathePending = false;
 			breatheTurnCount = 0;
 			breatheCommandCtx = null;
-			ctx.ui.notify("🫧 Inhaling — rotating to fresh session...", "info");
+			// Re-enable keepalive for next session
+			(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
+			ctx.ui.notify("🫧 Preload detected — rotating to fresh session...", "info");
 			// Route through /inhale command which has ExtensionCommandContext
 			setTimeout(() => {
 				pi.sendUserMessage("/inhale --heat-saved", { deliverAs: "followUp" });
@@ -912,22 +885,27 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			return;
 		}
 
-		// Preload written but agent forgot the magic words → nudge
-		if (preloadWrittenThisSession && !flushCompleteDetected && breatheTurnCount >= 2) {
-			pi.sendUserMessage(
-				`[Soma] Preload written — say "BREATHE COMPLETE" to trigger rotation.`,
-				{ deliverAs: "followUp" }
-			);
-			return;
-		}
-
-		// Timeout: 4+ turns with no preload written → cancel breathe, notify
-		if (breatheTurnCount >= 4 && !preloadWrittenThisSession) {
+		// Still accept "BREATHE COMPLETE" as a manual trigger (backward compat + /breathe flow)
+		if (flushCompleteDetected && breathePending) {
 			breathePending = false;
 			breatheTurnCount = 0;
 			breatheCommandCtx = null;
+			(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
+			ctx.ui.notify("🫧 Rotating to fresh session...", "info");
+			setTimeout(() => {
+				pi.sendUserMessage("/inhale --heat-saved", { deliverAs: "followUp" });
+			}, 500);
+			return;
+		}
+
+		// Timeout: 6+ turns with no preload written → cancel breathe, notify
+		if (breatheTurnCount >= 6 && !preloadWrittenThisSession) {
+			breathePending = false;
+			breatheTurnCount = 0;
+			breatheCommandCtx = null;
+			(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
 			ctx.ui.notify(
-				"⚠️ Breathe timed out — no preload written after 4 turns. Use /breathe to retry or /exhale to end.",
+				"⚠️ Breathe timed out — no preload after 6 turns. Use /breathe to retry.",
 				"warning"
 			);
 		}
@@ -952,6 +930,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			heatSavedThisSession = false;
 			toolCallsAfterPreload = 0;
 			pendingFollowUps = [];
+			// Re-enable keepalive for fresh session
+			(globalThis as any).__somaKeepalive && ((globalThis as any).__somaKeepalive.enabled = true);
 			// REFACTOR: #1 — these 15+ resets should be `sessionState = createFreshState()`
 			protocolsReferenced = new Set();
 			musclesReferenced = new Set();
