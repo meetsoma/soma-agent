@@ -31,6 +31,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **Config-first script extensions** — `settings.scripts.extensions` controls which file types are discovered. No more hardcoded lists.
 
 ### Fixed
+- **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - **Auto-breathe race condition** — `sendUserMessage` from `before_agent_start` raced with Pi's prompt processing. Now deferred to `agent_end` via pending message queue.
 - **Auto-breathe phase 1 ignored by agent** — wrap-up trigger only added to system prompt + UI toast, which agents don't reliably act on. Now sends a followUp user message so the agent actually responds.
@@ -60,6 +61,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **CI improvements** — PR check and release workflows now run all 10 test suites. Release uses full `sync-from-agent.sh` instead of hardcoded doc list.
 
 ### Fixed
+- **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - **System prompt dropped after turn 1** — Pi resets to base each `before_agent_start`. Now caches compiled prompt and returns it every turn.
 - **Identity never in compiled prompt** — `isPiDefaultPrompt()` checked for "inside pi" but Soma CLI says "inside Soma". Phase 3 full replacement never activated.
@@ -97,6 +99,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **CLAUDE.md awareness, not adoption** — system prompt notes existence but doesn't inject content.
 
 ### Fixed
+- **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - Print-mode race condition — `ctx.hasUI` guard on `sendUserMessage` in `session_start`.
 - Skip scaffolding core extensions into project `.soma/extensions/`.
@@ -129,6 +132,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **Distribution scope** — bundled protocols slimmed from all to 4 (breath-cycle, heat-tracking, session-checkpoints, pattern-evolution). Hub protocols install via templates.
 
 ### Fixed
+- **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - PII scrubbed from git history across all repos.
 - CLI stripped to distribution only — agent is source of truth.
@@ -150,6 +154,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **9 core modules** — discovery, identity, protocols, muscles, settings, init, preload, utils, index.
 
 ### Fixed
+- **stop shipping dev-only scripts to users**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - Extensions load correctly.
 - Skills install to correct path.
