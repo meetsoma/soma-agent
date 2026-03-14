@@ -9,6 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [Unreleased]
 
 ### Added
+- **restart-required detection — signal file + cmux notify + statusline indicator**
 - **identity layer in pattern-evolution, tool-awareness in working-style**
 - **Git hooks: auto-changelog + docs-drift nudge** — `post-commit` appends feat/fix entries to CHANGELOG.md automatically. `pre-push` warns when code changed but docs weren't updated. Non-blocking.
 - **Bundled protocols: `correction-capture` + `detection-triggers`** — learning-agent protocols from ClawHub competitive analysis. Capture corrections as muscles, recognize when to log vs crystallize patterns.
@@ -31,6 +32,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **Config-first script extensions** — `settings.scripts.extensions` controls which file types are discovered. No more hardcoded lists.
 
 ### Fixed
+- **auto-init .soma/.git when autoCommit is true**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - **Auto-breathe race condition** — `sendUserMessage` from `before_agent_start` raced with Pi's prompt processing. Now deferred to `agent_end` via pending message queue.
 - **Auto-breathe phase 1 ignored by agent** — wrap-up trigger only added to system prompt + UI toast, which agents don't reliably act on. Now sends a followUp user message so the agent actually responds.
@@ -44,6 +46,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.5.0] — 2026-03-12
 
 ### Added
+- **restart-required detection — signal file + cmux notify + statusline indicator**
 - **identity layer in pattern-evolution, tool-awareness in working-style**
 - **post-commit auto-changelog + pre-push docs-drift nudge**
 - **`/auto-commit` command** — toggle `.soma/` auto-commit on exhale/breathe (`on|off|status`).
@@ -60,6 +63,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **CI improvements** — PR check and release workflows now run all 10 test suites. Release uses full `sync-from-agent.sh` instead of hardcoded doc list.
 
 ### Fixed
+- **auto-init .soma/.git when autoCommit is true**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - **System prompt dropped after turn 1** — Pi resets to base each `before_agent_start`. Now caches compiled prompt and returns it every turn.
 - **Identity never in compiled prompt** — `isPiDefaultPrompt()` checked for "inside pi" but Soma CLI says "inside Soma". Phase 3 full replacement never activated.
@@ -75,6 +79,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.4.0] — 2026-03-11
 
 ### Added
+- **restart-required detection — signal file + cmux notify + statusline indicator**
 - **identity layer in pattern-evolution, tool-awareness in working-style**
 - **post-commit auto-changelog + pre-push docs-drift nudge**
 - **Compiled system prompt ("Frontal Cortex")** — `core/prompt.ts` assembles complete system prompt from identity chain, protocol summaries, muscle digests, dynamic tool section. Replaces Pi's default prompt entirely when detected; falls back to prepend for custom SYSTEM.md.
@@ -97,6 +102,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **CLAUDE.md awareness, not adoption** — system prompt notes existence but doesn't inject content.
 
 ### Fixed
+- **auto-init .soma/.git when autoCommit is true**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - Print-mode race condition — `ctx.hasUI` guard on `sendUserMessage` in `session_start`.
 - Skip scaffolding core extensions into project `.soma/extensions/`.
@@ -107,6 +113,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.3.0] — 2026-03-10
 
 ### Added
+- **restart-required detection — signal file + cmux notify + statusline indicator**
 - **identity layer in pattern-evolution, tool-awareness in working-style**
 - **post-commit auto-changelog + pre-push docs-drift nudge**
 - **AMPS content type system** — 4 shareable types: Automations, Muscles, Protocols, Skills. `scope` field (bundled/hub) controls distribution. `depends-on` for cross-type dependencies.
@@ -129,6 +136,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **Distribution scope** — bundled protocols slimmed from all to 4 (breath-cycle, heat-tracking, session-checkpoints, pattern-evolution). Hub protocols install via templates.
 
 ### Fixed
+- **auto-init .soma/.git when autoCommit is true**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - PII scrubbed from git history across all repos.
 - CLI stripped to distribution only — agent is source of truth.
@@ -138,6 +146,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.2.0] — 2026-03-09
 
 ### Added
+- **restart-required detection — signal file + cmux notify + statusline indicator**
 - **identity layer in pattern-evolution, tool-awareness in working-style**
 - **post-commit auto-changelog + pre-push docs-drift nudge**
 - **Protocols & Heat System** — behavioral rules loaded by temperature. Heat rises through use, decays through neglect.
@@ -150,6 +159,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - **9 core modules** — discovery, identity, protocols, muscles, settings, init, preload, utils, index.
 
 ### Fixed
+- **auto-init .soma/.git when autoCommit is true**
 - **remove internal protocols from bundled — content-triage, community-safe**
 - Extensions load correctly.
 - Skills install to correct path.
