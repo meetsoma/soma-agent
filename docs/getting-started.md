@@ -91,24 +91,32 @@ Created by `soma init` or on first run:
 ```
 .soma/
 ├── identity.md              ← who Soma becomes (discovered through use)
-├── STATE.md                 ← project architecture truth
 ├── settings.json            ← configurable thresholds (optional)
-├── protocols/               ← behavioral rules (heat-tracked)
-│   ├── breath-cycle.md      ← ships by default (the meta-protocol)
-│   └── _template.md         ← format reference for new protocols
-├── memory/
-│   ├── muscles/             ← patterns learned from experience
-│   ├── preload-next-*.md      ← session-scoped continuations
-│   └── sessions/            ← per-session logs
-└── scripts/                 ← dev tooling (search, scan, etc.)
+├── state.json               ← heat state (auto-managed)
+│
+├── amps/                    ← the AMPS content system
+│   ├── automations/         ← triggered actions (heat-tracked)
+│   ├── muscles/             ← learned patterns (heat-tracked)
+│   ├── protocols/           ← behavioral rules (heat-tracked)
+│   │   ├── breath-cycle.md  ← ships by default (the meta-protocol)
+│   │   └── _template.md     ← format reference for new protocols
+│   └── scripts/             ← developer tools
+│
+├── memory/                  ← temporal state
+│   ├── preloads/            ← session continuations
+│   └── sessions/            ← per-session work logs
+│
+├── projects/                ← per-project specs, plans, notes
+│
+└── skills/                  ← knowledge sets (Pi-native SKILL.md format)
 ```
 
 ### What's Private vs Public
 
 If you're using Soma in a public repo:
 
-- **Ships with repo:** `.soma/STATE.md`, `.soma/skills/`
-- **Gitignored (private):** `.soma/identity.md`, `.soma/memory/`, `.soma/sessions/`
+- **Ships with repo:** `.soma/amps/protocols/`, `.soma/amps/scripts/`, `.soma/skills/`
+- **Gitignored (private):** `.soma/identity.md`, `.soma/memory/`, `.soma/amps/muscles/`, `.soma/amps/automations/`
 
 Templates ship. Instances don't.
 

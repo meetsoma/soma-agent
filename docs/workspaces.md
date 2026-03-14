@@ -23,22 +23,28 @@ Place a `.soma/` at the workspace root for shared knowledge. Child projects inhe
 ~/work/monorepo/
 ├── .soma/                          ← parent
 │   ├── identity.md                 ← "We use pnpm, conventional commits, TypeScript"
-│   ├── protocols/
-│   │   ├── git-identity.md         ← shared: use work email
-│   │   └── code-review.md          ← shared: review checklist
-│   └── settings.json               ← shared thresholds
+│   ├── settings.json               ← shared thresholds
+│   └── amps/
+│       ├── protocols/
+│       │   ├── git-identity.md     ← shared: use work email
+│       │   └── code-review.md      ← shared: review checklist
+│       ├── muscles/                ← shared learned patterns
+│       ├── automations/            ← shared triggers
+│       └── scripts/                ← shared dev tools
 │
 ├── apps/web/
 │   └── .soma/                      ← child
 │       ├── identity.md             ← "I'm a Next.js frontend"
-│       └── protocols/
-│           └── testing.md          ← project-specific: Playwright tests
+│       └── amps/
+│           └── protocols/
+│               └── testing.md      ← project-specific: Playwright tests
 │
 ├── apps/api/
 │   └── .soma/                      ← child
 │       ├── identity.md             ← "I'm a Hono API service"
-│       └── protocols/
-│           └── api-versioning.md   ← project-specific
+│       └── amps/
+│           └── protocols/
+│               └── api-versioning.md ← project-specific
 │
 └── packages/shared/                ← no .soma/ — uses parent directly
 ```
@@ -136,14 +142,16 @@ Parent holds your personal preferences (gitignored). The project `.soma/` is min
 ~/oss/
 ├── .soma/                    ← gitignored, personal
 │   ├── identity.md           ← your voice, your style
-│   └── protocols/
-│       └── git-identity.md   ← your email
+│   └── amps/
+│       └── protocols/
+│           └── git-identity.md ← your email
 │
 └── cool-project/
     └── .soma/                ← tracked in repo
         ├── STATE.md          ← project architecture
-        └── protocols/
-            └── contributing.md ← project rules
+        └── amps/
+            └── protocols/
+                └── contributing.md ← project rules
 ```
 
 ### Multiple Clients
