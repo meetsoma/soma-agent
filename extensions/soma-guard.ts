@@ -271,6 +271,39 @@ export default function somaGuard(pi: ExtensionAPI) {
 				}
 			}
 
+			// === TOOL→MUSCLE GATING ===
+			// Check if this command matches any toolGate pattern.
+			// If the gated muscle hasn't been read this session, warn or block.
+			for (const [pattern, gate] of Object.entries(toolGates)) {
+				if (cmd.includes(pattern)) {
+					// Check if the muscle file has been read this session
+					const muscleRead = Array.from(readPaths).some(
+						(p) => p.includes(`muscles/${gate.muscle}`) || p.endsWith(`${gate.muscle}.md`)
+					);
+
+					if (!muscleRead && !gateWarned.has(pattern)) {
+						if (gate.mode === "block") {
+							guardEvents++;
+							const reason = `Blocked: read the "${gate.muscle}" muscle before running "${pattern}"`;
+							if (ctx.hasUI) {
+								ctx.ui.notify(`🛡️ ${reason}`, "warning");
+							}
+							return { block: true, reason };
+						} else {
+							// warn mode — notify but allow
+							if (ctx.hasUI) {
+								ctx.ui.notify(
+									`🛡️ Consider reading the "${gate.muscle}" muscle before "${pattern}"`,
+									"info"
+								);
+							}
+							gateWarned.add(pattern); // only warn once per pattern per session
+						}
+					}
+					break; // first matching gate wins
+				}
+			}
+
 			// === GIT IDENTITY GUARD (notify only) ===
 			if (!gitIdentityWarned && /git\s+commit\b/.test(cmd) && ctx.hasUI) {
 				try {
@@ -303,7 +336,7 @@ export default function somaGuard(pi: ExtensionAPI) {
 		handler: async (_args, ctx) => {
 			if (ctx.hasUI) {
 				ctx.ui.notify(
-					`🛡️ Guard: ${readPaths.size} reads tracked, ${listedDirs.size} dirs listed, ${guardEvents} interventions | core files: ${coreFileMode}`,
+					`🛡️ Guard: ${readPaths.size} reads tracked, ${listedDirs.size} dirs listed, ${guardEvents} interventions | core: ${coreFileMode} | gates: ${Object.keys(toolGates).length}`,
 					"info"
 				);
 			}
