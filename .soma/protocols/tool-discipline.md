@@ -18,6 +18,9 @@ license: CC BY 4.0
 
 > How Soma uses tools safely. The guard extension enforces some of these mechanically — this protocol covers both the automated safety net and the craft practices.
 
+## TL;DR
+Guard extension auto-blocks dangerous bash (rm -rf, force push, credential exposure). Three levels: `allow` (power user), `warn` (flag + confirm), `block` (require override). Craft rules: read before edit, grep/find for exploration, `edit` for surgical changes, `write` for new files only, batch independent calls. Settings: `guard.bashCommands` and `guard.coreFiles`.
+
 ## What the Guard Handles (Automatic)
 
 The `soma-guard.ts` extension intercepts bash commands and flags dangerous patterns:

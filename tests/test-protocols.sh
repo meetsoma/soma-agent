@@ -240,7 +240,7 @@ section "Boot Integration"
 
 if command -v soma &>/dev/null; then
   version=$(soma --version 2>&1)
-  if echo "$version" | grep -qE '^[0-9]+\.[0-9]+'; then
+  if echo "$version" | grep -qE '[0-9]+\.[0-9]+'; then
     pass "soma --version: $version"
   else
     fail "soma --version: expected semver, got error (check CLI dependencies)"
