@@ -156,7 +156,7 @@
  * @ships yes — this is a core extension, not workspace-only
  */
 
-import type { ExtensionAPI } from "@anthropic-ai/claude-code";
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
