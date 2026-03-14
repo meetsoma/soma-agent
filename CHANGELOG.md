@@ -9,6 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [Unreleased]
 
 ### Added
+- **soma-route.ts — capability router for inter-extension communication**
 - **identity layer in pattern-evolution, tool-awareness in working-style**
 - **Git hooks: auto-changelog + docs-drift nudge** — `post-commit` appends feat/fix entries to CHANGELOG.md automatically. `pre-push` warns when code changed but docs weren't updated. Non-blocking.
 - **Bundled protocols: `correction-capture` + `detection-triggers`** — learning-agent protocols from ClawHub competitive analysis. Capture corrections as muscles, recognize when to log vs crystallize patterns.
@@ -46,6 +47,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.5.0] — 2026-03-12
 
 ### Added
+- **soma-route.ts — capability router for inter-extension communication**
 - **identity layer in pattern-evolution, tool-awareness in working-style**
 - **post-commit auto-changelog + pre-push docs-drift nudge**
 - **`/auto-commit` command** — toggle `.soma/` auto-commit on exhale/breathe (`on|off|status`).
@@ -79,6 +81,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.4.0] — 2026-03-11
 
 ### Added
+- **soma-route.ts — capability router for inter-extension communication**
 - **identity layer in pattern-evolution, tool-awareness in working-style**
 - **post-commit auto-changelog + pre-push docs-drift nudge**
 - **Compiled system prompt ("Frontal Cortex")** — `core/prompt.ts` assembles complete system prompt from identity chain, protocol summaries, muscle digests, dynamic tool section. Replaces Pi's default prompt entirely when detected; falls back to prepend for custom SYSTEM.md.
@@ -113,6 +116,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.3.0] — 2026-03-10
 
 ### Added
+- **soma-route.ts — capability router for inter-extension communication**
 - **identity layer in pattern-evolution, tool-awareness in working-style**
 - **post-commit auto-changelog + pre-push docs-drift nudge**
 - **AMPS content type system** — 4 shareable types: Automations, Muscles, Protocols, Skills. `scope` field (bundled/hub) controls distribution. `depends-on` for cross-type dependencies.
@@ -146,6 +150,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [0.2.0] — 2026-03-09
 
 ### Added
+- **soma-route.ts — capability router for inter-extension communication**
 - **identity layer in pattern-evolution, tool-awareness in working-style**
 - **post-commit auto-changelog + pre-push docs-drift nudge**
 - **Protocols & Heat System** — behavioral rules loaded by temperature. Heat rises through use, decays through neglect.
