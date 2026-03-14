@@ -1,24 +1,22 @@
 #!/usr/bin/env bash
-# Docs drift nudge — warn when code changed but docs didn't
+# pre-push — Docs drift nudge
 # Non-blocking: warns only, never prevents push
 set -euo pipefail
 
-# What's being pushed (commits since last push)
 REMOTE="$1"
 while read -r _ LOCAL_SHA _ REMOTE_SHA; do
   [[ "$LOCAL_SHA" == "0000000000000000000000000000000000000000" ]] && continue
-  
+
   if [[ "$REMOTE_SHA" == "0000000000000000000000000000000000000000" ]]; then
-    RANGE="$LOCAL_SHA~5..$LOCAL_SHA"  # new branch, check last 5
+    RANGE="$LOCAL_SHA~5..$LOCAL_SHA"
   else
     RANGE="$REMOTE_SHA..$LOCAL_SHA"
   fi
-  
-  # Check what changed
+
   CODE_CHANGED=$(git diff --name-only "$RANGE" 2>/dev/null | grep -E "^(core|extensions)/" | head -5 || true)
   DOCS_CHANGED=$(git diff --name-only "$RANGE" 2>/dev/null | grep -E "^docs/" || true)
   SETTINGS_CHANGED=$(git diff --name-only "$RANGE" 2>/dev/null | grep -E "core/settings\.ts" || true)
-  
+
   if [[ -n "$CODE_CHANGED" && -z "$DOCS_CHANGED" ]]; then
     echo ""
     echo "📋 Docs nudge: code changed but no docs updated"
@@ -26,7 +24,7 @@ while read -r _ LOCAL_SHA _ REMOTE_SHA; do
     echo "   Consider: configuration.md, commands.md, how-it-works.md"
     echo ""
   fi
-  
+
   if [[ -n "$SETTINGS_CHANGED" ]]; then
     if ! echo "$DOCS_CHANGED" | grep -q "configuration.md"; then
       echo "⚙️  Settings changed but configuration.md not updated"
@@ -34,4 +32,4 @@ while read -r _ LOCAL_SHA _ REMOTE_SHA; do
   fi
 done
 
-exit 0  # never block
+exit 0
