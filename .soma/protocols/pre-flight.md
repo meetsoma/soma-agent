@@ -7,6 +7,8 @@ breadcrumb: "Before building anything: check if it exists. Before accepting a re
 heat-default: 8
 scope: shared
 tier: free
+author: meetsoma
+license: MIT
 ---
 
 # Pre-Flight Protocol

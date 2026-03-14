@@ -5,8 +5,8 @@ status: active
 heat-default: warm
 applies-to: [always]
 breadcrumb: "Deletion is irreversible — move or archive. Protect critical files. Clean commits with descriptive messages. Know which branch deploys. Atomic commits — one concern each."
-author: Curtis Mercier
-license: CC BY 4.0
+author: meetsoma
+license: MIT
 version: 1.0.0
 tier: official
 scope: hub
@@ -43,8 +43,3 @@ Every session, every commit. These are baseline guardrails — not optional refi
 
 
 ---
-
-<!--
-Licensed under CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
-Author: Curtis Mercier
--->

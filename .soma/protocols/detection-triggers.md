@@ -11,8 +11,8 @@ tags: [learning, self-improvement, memory, awareness]
 tier: core
 scope: bundled
 breadcrumb: "Recognize capture moments: corrections/preferences/repeated patterns → muscle. Knowledge gaps/errors → session log. One-time instructions and transient state are NOT worth capturing. Bubble-up: log → muscle → protocol → core."
-author: Curtis Mercier
-license: CC BY 4.0
+author: meetsoma
+license: MIT
 ---
 
 # Detection Triggers
@@ -78,8 +78,3 @@ This is the bubble-up flow. Each level requires more evidence:
 **Identity is not "above" protocols.** It's a parallel track. Protocols are universal defaults. Identity customizes them. A Soma with good protocols and no identity should still work well. A Soma with identity but no protocols is fragile — it has opinions but no foundation.
 
 ---
-
-<!--
-Licensed under CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
-Author: Curtis Mercier
--->
