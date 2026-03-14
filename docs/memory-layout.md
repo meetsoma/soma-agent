@@ -23,7 +23,8 @@ Lives in your project root. Contains everything specific to this project.
 ├── memory/
 │   ├── muscles/             ← learned patterns (auto-discovered)
 │   │   └── deployment.md    ← example: learned deployment process
-│   ├── preload-<sessionId>.md ← session-scoped continuations
+│   ├── preloads/             ← session continuations
+│   │   └── preload-next-*.md ← one per session exhale
 │   └── sessions/
 │       └── 2026-03-08.md    ← daily work log
 ├── skills/                  ← project-specific skills (optional)
@@ -82,10 +83,10 @@ Fresh session (soma):
 
 Continue session (soma -c):
   → same as above, plus:
-  → step 2 loads most recent .soma/memory/preload-<sessionId>.md
+  → step 2 loads most recent preload from .soma/memory/preloads/
 
 Breathe (/breathe or auto at configurable threshold):
-  → agent writes .soma/memory/preload-<sessionId>.md
+  → agent writes preload to .soma/memory/preloads/preload-next-<date>-<id>.md
   → save protocol + muscle heat state (with decay for unused)
   → agent commits work
   → auto-continues into fresh session
@@ -96,9 +97,9 @@ Exhale (/exhale):
 
 ## Session-Scoped Preloads
 
-Preload files are named `preload-<sessionId>.md` — each exhale writes a unique file rather than overwriting a single `preload-next.md`. On resume, Soma picks the most recent preload by modification time.
+Preload files are named `preload-next-YYYY-MM-DD-XXXXXX.md` — the date plus 6 characters from the session ID. Each exhale writes a unique file. On resume, Soma picks the most recent preload by modification time.
 
-This means you can have multiple preloads from different sessions and resume any of them. The session ID comes from the Pi session that created the preload.
+This means you can have multiple preloads from different sessions. The unique filename prevents overwrites. Soma searches: `memory/preloads/` (configured) → `.soma/` root (legacy) → `memory/` (legacy).
 
 ## Parent Chain Discovery
 

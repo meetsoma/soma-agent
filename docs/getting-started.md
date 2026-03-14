@@ -98,7 +98,7 @@ Created by `soma init` or on first run:
 │   └── _template.md         ← format reference for new protocols
 ├── memory/
 │   ├── muscles/             ← patterns learned from experience
-│   ├── preload-<sessionId>.md ← session-scoped continuations
+│   ├── preload-next-*.md      ← session-scoped continuations
 │   └── sessions/            ← daily logs
 └── scripts/                 ← dev tooling (search, scan, etc.)
 ```
