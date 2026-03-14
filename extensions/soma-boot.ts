@@ -1073,7 +1073,17 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 	pi.on("turn_end", async (_event, ctx) => {
 		if (!breathePending) return;
-		breatheTurnCount++;
+
+		// FIX (2026-03-14): Only count non-tool turns toward grace limit.
+		// Tool turns (agent calling bash, read, edit, etc.) are part of active
+		// work chains. Counting them caused the grace countdown to expire while
+		// the agent was mid-research (5-10 rapid tool calls), triggering
+		// "Breathe timed out" before the agent could write a preload.
+		// Only increment when the agent sent a text-only response (no tools).
+		const hasToolResults = _event?.toolResults?.length > 0;
+		if (!hasToolResults) {
+			breatheTurnCount++;
+		}
 
 		// ── Rotation helper ────────────────────────────────────────────
 		// Extracted so both happy-path (preload detected) and manual trigger
