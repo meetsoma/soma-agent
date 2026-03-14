@@ -285,7 +285,7 @@ See [Muscles](muscles.md) for writing muscles and the digest system.
 | `fullThreshold` | `5` | Heat needed to load an automation in full |
 | `digestThreshold` | `1` | Heat needed to load an automation as digest |
 
-Automations are procedural step-by-step flows — like protocols but action-oriented. "Do this sequence" rather than "behave like this." They live in `.soma/automations/` and support heat, `/pin`, `/kill`, and cold-start boost just like muscles.
+Automations are procedural step-by-step flows — like protocols but action-oriented. "Do this sequence" rather than "behave like this." They live in `.soma/amps/automations/` and support heat, `/pin`, `/kill`, and cold-start boost just like muscles.
 
 **Why adjust:** If you have many automations competing for prompt space, increase `tokenBudget`. If you want multiple automations loaded in full (e.g. a deploy automation AND a review automation), increase `maxFull`.
 
@@ -314,7 +314,7 @@ The boot sequence controls what loads into the agent's context on session start.
 | `protocols` | Discover and inject protocols by heat tier |
 | `muscles` | Discover and inject muscles by heat within token budget |
 | `automations` | Discover and inject automations by heat (procedural step-by-step flows) |
-| `scripts` | List available `.soma/scripts/` with descriptions |
+| `scripts` | List available `.soma/amps/scripts/` with descriptions |
 | `git-context` | Inject recent git commits and changed files |
 
 **Why adjust:** Order matters — items earlier in the list get priority in the system prompt. If your automations are more important than scripts, they're already ordered that way by default. If you're on a model with a smaller context window, remove steps to save tokens (e.g. drop `git-context` and `scripts`).
