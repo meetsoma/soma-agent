@@ -282,43 +282,40 @@ fi
 # ---------------------------------------------------------------------------
 # 7. State Reset — Session Switch & Init
 # ---------------------------------------------------------------------------
-section "Extension: Countdown Grace Period"
+section "Extension: Grace Period"
 
-# Countdown state variables exist
-for var in breatheCountdown selfTriggeredTurn userSpokeThisTurn; do
-  if grep -q "let $var" "$BOOT_TS"; then
-    pass "countdown state: $var declared"
-  else
-    fail "countdown state: $var missing"
-  fi
-done
-
-# before_agent_start detects user vs followUp turns
-if grep -A10 "before_agent_start" "$BOOT_TS" | grep -q "userSpokeThisTurn"; then
-  pass "before_agent_start tracks user messages for countdown"
+# graceTurns setting exists in type and defaults
+if grep -A10 "breathe:" "$SETTINGS_TS" | grep -q "graceTurns: number"; then
+  pass "SomaSettings.breathe has graceTurns type"
 else
-  fail "before_agent_start should detect user vs followUp turns"
+  fail "SomaSettings.breathe missing graceTurns type"
 fi
 
-# turn_end uses countdown instead of instant rotation
-if grep -A5 "preloadWrittenThisSession && breathePending" "$BOOT_TS" | grep -q "breatheCountdown"; then
-  pass "turn_end uses countdown before rotation"
+if grep -A6 "breathe:" "$SETTINGS_TS" | grep -q "graceTurns: 2"; then
+  pass "Default: breathe.graceTurns = 2"
 else
-  fail "turn_end should use countdown, not instant rotation"
+  fail "Default breathe.graceTurns should be 2"
 fi
 
-# agent_end marks followUp turns
-if grep -A15 'agent_end' "$BOOT_TS" | grep -q "selfTriggeredTurn = true"; then
-  pass "agent_end marks self-triggered turns"
-else
-  fail "agent_end should set selfTriggeredTurn when sending followUps"
-fi
-
-# graceTurns setting read from config
+# Boot extension reads graceTurns from settings
 if grep -q "graceTurns" "$BOOT_TS"; then
   pass "boot extension reads graceTurns setting"
 else
   fail "boot extension should use graceTurns setting"
+fi
+
+# Tool turns are excluded from grace countdown
+if grep -q "toolResults" "$BOOT_TS"; then
+  pass "turn_end checks toolResults to skip tool turns"
+else
+  fail "turn_end should skip tool turns (check toolResults)"
+fi
+
+# breatheTurnCount only increments on non-tool turns
+if grep -A5 "toolResults" "$BOOT_TS" | grep -q "breatheTurnCount++"; then
+  pass "breatheTurnCount increments only for non-tool turns"
+else
+  fail "breatheTurnCount should increment conditionally"
 fi
 
 # Documentation mentions grace period
@@ -330,7 +327,7 @@ fi
 
 section "Extension: State Reset"
 
-for var in autoBreatheTriggerSent autoBreatheRotateSent breathePending breatheTurnCount breatheCountdown selfTriggeredTurn userSpokeThisTurn; do
+for var in autoBreatheTriggerSent autoBreatheRotateSent breathePending breatheTurnCount; do
   if grep -A40 '"session_switch"' "$BOOT_TS" | grep -q "$var"; then
     pass "session_switch resets $var"
   else

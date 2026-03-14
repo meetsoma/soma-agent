@@ -1236,8 +1236,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			return;
 		}
 
-		// ── Timeout: 6+ turns with no preload → cancel ────────────────
-		if (breatheTurnCount >= 6 && !preloadWrittenThisSession) {
+		// ── Timeout: graceTurns non-tool turns with no preload → cancel ──
+		const graceLimit = settings?.breathe?.graceTurns ?? 6;
+		if (breatheTurnCount >= graceLimit && !preloadWrittenThisSession) {
 			breathePending = false;
 			breatheTurnCount = 0;
 			breatheCommandCtx = null;
@@ -1249,7 +1250,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 
 			ctx.ui.notify(
-				"⚠️ Breathe timed out — no preload after 6 turns. Use /breathe to retry.",
+				`⚠️ Breathe timed out — no preload after ${graceLimit} turns. Use /breathe to retry.`,
 				"warning"
 			);
 		}
