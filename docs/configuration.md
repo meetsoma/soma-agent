@@ -91,7 +91,7 @@ Settings files can exist at any level in the Soma chain:
     "auto": false,
     "triggerAt": 50,
     "rotateAt": 70,
-    "graceTurns": 2
+    "graceSeconds": 30
   },
   "context": {
     "notifyAt": 50,
@@ -390,7 +390,7 @@ Proactive context management. Instead of waiting until context is critical, auto
 | `auto` | `false` | Enable auto-breathe mode |
 | `triggerAt` | `50` | Context % to send a gentle notice (agent keeps working, just stays aware) |
 | `rotateAt` | `70` | Context % to write preload and start countdown to rotation |
-| `graceTurns` | `2` | Turns to wait after preload before rotating — user messages reset the countdown |
+| `graceSeconds` | `30` | Seconds to wait for preload before timing out — time-based, not turn-based |
 
 **How the phases work:**
 
@@ -398,13 +398,13 @@ Proactive context management. Instead of waiting until context is critical, auto
 |-------|-----------|-------------|
 | Notice | `triggerAt` (50%) | Gentle heads-up. Agent keeps working. "Consider updating logs as you go." |
 | Rotate | `rotateAt` (70%) | Firm wrap-up. Agent writes preload, countdown starts. |
-| Grace period | (after preload) | Countdown of `graceTurns` turns. User messages pause and reset the countdown. Agent addresses the user, then countdown restarts. |
+| Grace period | (after rotate) | `graceSeconds` (default 30s) timer. Agent writes session log + preload within this window. If preload detected, rotation happens immediately. |
 | Rotation | (countdown = 0) | Session rotates to fresh context with preload auto-injected. |
 | Emergency | 85% (always on) | Safety net. Fires regardless of auto-breathe setting. "Stop all work, preload NOW." |
 
 The key insight: the notice at 50% is *not* a shutdown signal. It's awareness. The agent should keep working on its current task — it just knows rotation is ahead and can start logging work incrementally.
 
-**The grace period:** After the preload is written, rotation doesn't happen instantly. Instead, a countdown starts (`graceTurns`, default 2). If you send a message during the countdown, it **pauses** — the agent addresses your concern, then the countdown restarts. This means you're never cut off mid-thought. You can keep working while aware the session is about to rotate.
+**The grace period:** After rotation is triggered, the agent has `graceSeconds` (default 30) to write a preload. This is time-based, not turn-based — the agent can make as many tool calls as needed within the window. As soon as the preload file is detected, rotation happens immediately. If the timer expires without a preload, breathe times out and the user can retry with `/breathe`.
 
 **Why enable auto-breathe:** Without it, sessions run until the 85% emergency — which is too late for a clean handoff. Auto-breathe produces better preloads because the agent has time to write them thoughtfully instead of in a panic.
 

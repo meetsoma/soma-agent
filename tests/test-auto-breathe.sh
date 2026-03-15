@@ -46,10 +46,10 @@ else
   fail "SomaSettings missing breathe.rotateAt type"
 fi
 
-if grep -A10 "breathe:" "$SETTINGS_TS" | grep -q "graceTurns: number"; then
-  pass "SomaSettings has breathe.graceTurns: number"
+if grep -A10 "breathe:" "$SETTINGS_TS" | grep -q "graceSeconds: number"; then
+  pass "SomaSettings has breathe.graceSeconds: number"
 else
-  fail "SomaSettings missing breathe.graceTurns type"
+  fail "SomaSettings missing breathe.graceSeconds type"
 fi
 
 section "Settings: Defaults"
@@ -73,10 +73,10 @@ else
   fail "Default breathe.rotateAt should be 70"
 fi
 
-if grep -A5 "breathe:" "$SETTINGS_TS" | grep -q "graceTurns: 2"; then
-  pass "Default: breathe.graceTurns = 2"
+if grep -A5 "breathe:" "$SETTINGS_TS" | grep -q "graceSeconds: 30"; then
+  pass "Default: breathe.graceSeconds = 30"
 else
-  fail "Default breathe.graceTurns should be 2"
+  fail "Default breathe.graceSeconds should be 30"
 fi
 
 # triggerAt < rotateAt < autoExhaleAt (85)
@@ -285,23 +285,23 @@ fi
 section "Extension: Grace Period"
 
 # graceTurns setting exists in type and defaults
-if grep -A10 "breathe:" "$SETTINGS_TS" | grep -q "graceTurns: number"; then
-  pass "SomaSettings.breathe has graceTurns type"
+if grep -A10 "breathe:" "$SETTINGS_TS" | grep -q "graceSeconds: number"; then
+  pass "SomaSettings.breathe has graceSeconds type"
 else
-  fail "SomaSettings.breathe missing graceTurns type"
+  fail "SomaSettings.breathe missing graceSeconds type"
 fi
 
-if grep -A6 "breathe:" "$SETTINGS_TS" | grep -q "graceTurns: 2"; then
-  pass "Default: breathe.graceTurns = 2"
+if grep -A6 "breathe:" "$SETTINGS_TS" | grep -q "graceSeconds: 30"; then
+  pass "Default: breathe.graceSeconds = 30"
 else
-  fail "Default breathe.graceTurns should be 2"
+  fail "Default breathe.graceSeconds should be 30"
 fi
 
 # Boot extension reads graceTurns from settings
-if grep -q "graceTurns" "$BOOT_TS"; then
-  pass "boot extension reads graceTurns setting"
+if grep -q "graceSeconds" "$BOOT_TS"; then
+  pass "boot extension reads graceSeconds setting"
 else
-  fail "boot extension should use graceTurns setting"
+  fail "boot extension should use graceSeconds setting"
 fi
 
 # Tool turns are excluded from grace countdown
@@ -319,10 +319,10 @@ else
 fi
 
 # Documentation mentions grace period
-if grep -q "graceTurns" "$PROJECT_DIR/docs/configuration.md" 2>/dev/null; then
-  pass "configuration.md documents graceTurns"
+if grep -q "graceSeconds" "$PROJECT_DIR/docs/configuration.md" 2>/dev/null; then
+  pass "configuration.md documents graceSeconds"
 else
-  fail "configuration.md should document graceTurns"
+  fail "configuration.md should document graceSeconds"
 fi
 
 section "Extension: State Reset"

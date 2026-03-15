@@ -447,6 +447,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let breatheCommandCtx: any = null;
 	let breathePending = false;
 	let breatheTurnCount = 0;
+	let breatheStartTime = 0; // timestamp when breathe was initiated
 	let autoBreatheTriggerSent = false;
 	let autoBreatheRotateSent = false;
 	let heatSavedThisSession = false;
@@ -1191,6 +1192,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			if (commitResult) ctx.ui.notify(`✅ ${commitResult}`, "info");
 			breathePending = true;
 			breatheTurnCount = 0;
+			breatheStartTime = Date.now();
 			breatheCommandCtx = ctx;
 			// Pause keepalive during rotation to avoid wasted turns
 			const route = getRoute();
@@ -1503,6 +1505,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		const performRotation = async (reason: string) => {
 			breathePending = false;
 			breatheTurnCount = 0;
+			breatheStartTime = 0;
 			breatheCommandCtx = null;
 
 			// Re-enable keepalive via router (or globalThis fallback)
@@ -1610,11 +1613,17 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			return;
 		}
 
-		// ── Timeout: graceTurns non-tool turns with no preload → cancel ──
-		const graceLimit = settings?.breathe?.graceTurns ?? 6;
-		if (breatheTurnCount >= graceLimit && !preloadWrittenThisSession) {
+		// ── Timeout: time-based grace period with no preload → cancel ──
+		// Turn-based counting was unreliable — agent can do 10+ tool calls in
+		// seconds, but a single text response counted as a "turn". Time-based
+		// is predictable: 30s default gives the agent plenty of time to write
+		// session log + preload (typically 5-10s of tool calls).
+		const graceMs = (settings?.breathe?.graceSeconds ?? 30) * 1000;
+		const elapsed = Date.now() - breatheStartTime;
+		if (elapsed >= graceMs && !preloadWrittenThisSession) {
 			breathePending = false;
 			breatheTurnCount = 0;
+			breatheStartTime = 0;
 			breatheCommandCtx = null;
 
 			const route = getRoute();
@@ -1624,7 +1633,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 
 			ctx.ui.notify(
-				`⚠️ Breathe timed out — no preload after ${graceLimit} turns. Use /breathe to retry.`,
+				`⚠️ Breathe timed out — no preload after ${Math.round(elapsed / 1000)}s. Use /breathe to retry.`,
 				"warning"
 			);
 		}
@@ -1644,6 +1653,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			preloadWrittenThisSession = false;
 			breathePending = false;
 			breatheTurnCount = 0;
+			breatheStartTime = 0;
 			autoBreatheTriggerSent = false;
 			autoBreatheRotateSent = false;
 			heatSavedThisSession = false;
@@ -2304,6 +2314,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 			breathePending = true;
 			breatheTurnCount = 0;
+			breatheStartTime = Date.now();
 			breatheCommandCtx = ctx;
 
 			// --- Edge case: preload already written this session (earlier /exhale or auto-flush) ---

@@ -140,8 +140,10 @@ export interface SomaSettings {
 		triggerAt: number;
 		/** Context % to write preload and rotate (default: 70) */
 		rotateAt: number;
-		/** Non-tool turns before grace expires and breathe times out (default: 6) */
-		graceTurns: number;
+		/** Seconds before breathe times out waiting for preload (default: 30) */
+		graceSeconds: number;
+		/** @deprecated Use graceSeconds. Kept for backward compat. */
+		graceTurns?: number;
 	};
 
 	/** Preload settings */
@@ -380,7 +382,7 @@ const DEFAULTS: SomaSettings = {
 		auto: false,
 		triggerAt: 50,
 		rotateAt: 70,
-		graceTurns: 2,
+		graceSeconds: 30,
 	},
 	preload: {
 		staleAfterHours: 48,
