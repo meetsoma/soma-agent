@@ -448,6 +448,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	let breathePending = false;
 	let breatheTurnCount = 0;
 	let breatheStartTime = 0; // timestamp when breathe was initiated
+	let breatheUserInterrupts = 0; // how many times user interrupted during breathe
 	let autoBreatheTriggerSent = false;
 	let autoBreatheRotateSent = false;
 	let heatSavedThisSession = false;
@@ -1125,6 +1126,38 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		if (!soma || !booted) return;
 
 		// ═══════════════════════════════════════════════════════════════════
+		// PROTOCOL: breath-cycle — user interrupt detection during breathe
+		// If user sends a real message while breathe is pending:
+		//   1st interrupt: reset the countdown (they have something to say)
+		//   2nd interrupt: cancel breathe entirely (they're actively working)
+		// System injections ([Soma, [Auto-breathe, [cache keepalive) don't count.
+		// ═══════════════════════════════════════════════════════════════════
+		if (breathePending && event.prompt) {
+			const msg = event.prompt.trim();
+			const isSystemInjection = msg.startsWith("[Soma") || msg.startsWith("[Auto-breathe")
+				|| msg.startsWith("[cache keepalive") || msg.startsWith("[Soma Boot");
+			if (!isSystemInjection && msg.length > 0) {
+				breatheUserInterrupts++;
+				if (breatheUserInterrupts >= 2) {
+					// Second interrupt — cancel breathe, user is actively working
+					breathePending = false;
+					breatheTurnCount = 0;
+					breatheStartTime = 0;
+					breatheUserInterrupts = 0;
+					breatheCommandCtx = null;
+					const route = getRoute();
+					const toggleKeepalive = route?.get("keepalive:toggle");
+					if (toggleKeepalive) toggleKeepalive(true);
+					ctx.ui.notify("🫧 Breathe cancelled — you're still working. Use /breathe when ready.", "info");
+				} else {
+					// First interrupt — reset countdown, let them speak
+					breatheStartTime = Date.now();
+					ctx.ui.notify("🫧 Breathe paused — addressing your message. Timer reset.", "info");
+				}
+			}
+		}
+
+		// ═══════════════════════════════════════════════════════════════════
 		// PROTOCOL: frontal-cortex — compiled system prompt
 		// Phase 3: Full replacement when Pi's default detected.
 		// Falls back to prepend when custom SYSTEM.md is in use.
@@ -1506,6 +1539,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			breathePending = false;
 			breatheTurnCount = 0;
 			breatheStartTime = 0;
+			breatheUserInterrupts = 0;
 			breatheCommandCtx = null;
 
 			// Re-enable keepalive via router (or globalThis fallback)
@@ -1624,6 +1658,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			breathePending = false;
 			breatheTurnCount = 0;
 			breatheStartTime = 0;
+			breatheUserInterrupts = 0;
 			breatheCommandCtx = null;
 
 			const route = getRoute();
@@ -1654,6 +1689,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			breathePending = false;
 			breatheTurnCount = 0;
 			breatheStartTime = 0;
+			breatheUserInterrupts = 0;
 			autoBreatheTriggerSent = false;
 			autoBreatheRotateSent = false;
 			heatSavedThisSession = false;
