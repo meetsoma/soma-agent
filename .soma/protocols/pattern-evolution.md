@@ -4,7 +4,7 @@ name: pattern-evolution
 status: active
 heat-default: warm
 applies-to: [always]
-breadcrumb: "Patterns mature through layers: Skills (knowledge) → Muscles (learned) → Protocols (universal rules) → Automations (executable). Identity sharpens protocols for a specific project but never replaces them. Protocols should work without identity. During mid-session reflections, check: should this observation become a muscle? Should this muscle become a protocol? Is this identity line actually universal?"
+breadcrumb: "Skills → Muscles → Protocols → Automations. Born from gaps and friction. Not every pattern climbs the full ladder."
 author: Curtis Mercier
 license: CC BY 4.0
 version: 1.4.0
@@ -13,7 +13,7 @@ scope: bundled
 tags: [learning, patterns, growth]
 spec-ref: curtismercier/protocols/amp (v0.2, §3.2)
 created: 2026-03-09
-updated: 2026-03-14
+updated: 2026-03-15
 ---
 
 # Pattern Evolution Protocol

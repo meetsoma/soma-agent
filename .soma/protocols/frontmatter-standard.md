@@ -4,7 +4,7 @@ name: frontmatter-standard
 status: active
 heat-default: warm
 applies-to: [always]
-breadcrumb: "All .md files get YAML frontmatter: type, status, created, updated. 8 statuses: draft/active/stable/stale/archived/deprecated/blocked/review. 12 types: plan/spec/note/index/memory/muscle/protocol/decision/log/template/identity/config."
+breadcrumb: "Every .md file needs frontmatter: type, status, created, updated. Protocols get TL;DR; muscles get digest."
 author: meetsoma
 license: MIT
 version: 1.1.0
@@ -13,7 +13,7 @@ scope: hub
 tags: [structure, metadata, organization]
 spec-ref: curtismercier/protocols/atlas (v0.1)
 created: 2026-03-09
-updated: 2026-03-14
+updated: 2026-03-15
 ---
 
 # Frontmatter Standard Protocol

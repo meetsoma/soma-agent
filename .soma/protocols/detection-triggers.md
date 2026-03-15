@@ -6,11 +6,11 @@ heat-default: warm
 applies-to: [always]
 version: 1.0.0
 created: 2026-03-12
-updated: 2026-03-14
+updated: 2026-03-15
 tags: [learning, self-improvement, memory, awareness]
 tier: core
 scope: bundled
-breadcrumb: "Recognize capture moments: corrections/preferences/repeated patterns → muscle. Knowledge gaps/errors → session log. One-time instructions and transient state are NOT worth capturing. Bubble-up: log → muscle → protocol → core."
+breadcrumb: "Capture on corrections, preferences, 3+ patterns, knowledge gaps. Bubble-up: log → muscle → protocol → core."
 author: meetsoma
 license: MIT
 ---
