@@ -8,6 +8,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 
 ## [Unreleased]
 
+### Added
+- `soma inhale` CLI subcommand — fresh session with preload from last session (#f61064f)
+- `soma` (no args) now starts clean — no preload injection (#f61064f)
+- User interrupt detection during auto-breathe — 1st interrupt resets timer, 2nd cancels (#d530af8)
+- Gum-formatted `--help` output with tables and styled header (cli #e20e6f6)
+
+### Fixed
+- Warm protocol TL;DRs shortened from 400-555 to ~150 chars — saves ~1500 tokens per boot (#9008d43)
+- `pre-flight` heat lowered from 8 (hot) to 5 (warm) — too heavy for empty repos (#9008d43)
+- `scaffoldProtocols()` now copies ALL bundled protocols on init, not just breath-cycle (#9008d43)
+- Auto-breathe grace period is now time-based (30s default) instead of turn-based (#8ca5e52)
+- Preload trust hierarchy — boot instructions explicitly require stating resume point (#dfb5ca9)
+
 ---
 
 ## [0.5.2] — 2026-03-15
