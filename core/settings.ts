@@ -148,6 +148,8 @@ export interface SomaSettings {
 	preload: {
 		/** Hours before a preload is considered stale (default: 48) */
 		staleAfterHours: number;
+		/** Number of recent conversation messages to inject before preload on fresh boot (default: 10, 0 to disable) */
+		lastMessages: number;
 	};
 
 	/** Guard settings — file protection tiers */
@@ -382,6 +384,7 @@ const DEFAULTS: SomaSettings = {
 	},
 	preload: {
 		staleAfterHours: 48,
+		lastMessages: 10,
 	},
 	guard: {
 		coreFiles: "warn",

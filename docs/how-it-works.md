@@ -166,14 +166,16 @@ Soma supports **parent-child inheritance** for monorepos and multi-project works
 ```
 ~/work/.soma/                    ← parent (workspace-wide)
 ├── identity.md                  ← "We use pnpm, conventional commits"
-├── protocols/
-│   └── git-identity.md          ← shared git rules
-└── settings.json
+├── settings.json
+└── amps/
+    └── protocols/
+        └── git-identity.md      ← shared git rules
 
 ~/work/my-app/.soma/             ← child (project-specific)
 ├── identity.md                  ← "I'm a React frontend"
-└── protocols/
-    └── testing.md               ← project-specific testing rules
+└── amps/
+    └── protocols/
+        └── testing.md           ← project-specific testing rules
 ```
 
 On boot, Soma walks up the filesystem to find parent `.soma/` directories and layers their content:

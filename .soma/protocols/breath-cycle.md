@@ -19,7 +19,7 @@ license: CC BY 4.0
 > How Soma manages session lifecycle. This behavior is built into the boot extension — this protocol helps you understand what's happening and how to change it.
 
 ## TL;DR
-Three phases: inhale (boot — auto), hold (work — context monitored), exhale (save — agent-driven). Auto-breathe thresholds: `triggerAt` (50%) starts wrap-up, `rotateAt` (70%) writes preload + countdown to rotation, 85% emergency safety net. `graceTurns` (default 2) gives user time to interject before rotation. Commands: `/exhale` (end), `/breathe` (rotate), `/rest` (AFK), `/inhale` (load preload). Settings in `breathe` block.
+Three phases: inhale (boot — auto), hold (work — context monitored), exhale (save — agent-driven). Auto-breathe thresholds: `triggerAt` (50%) starts wrap-up, `rotateAt` (70%) writes preload + countdown to rotation, 85% emergency safety net. `graceTurns` (default 2) gives user time to interject before rotation. Commands: `/exhale` (end), `/breathe` (rotate), `/rest` (AFK), `/inhale` (load preload). Settings in `breathe` block. Preload quality matters: include resume point, what shipped, orient from targets, do-not-re-read list, actionable next steps.
 
 ## How It Works
 
@@ -70,6 +70,18 @@ Triggered by `/exhale`, `/breathe`, `/rest`, or auto at 85%. The agent writes a 
 | `/breathe` | Save + rotate into fresh session |
 | `/rest` | Disable keepalive + exhale |
 | `/inhale` | Load preload into current session |
+
+## Preload Quality
+
+A good preload is the difference between a productive next session and a wasted one. Key elements:
+
+- **Resume point** — one sentence: what were you doing, where did you stop?
+- **What shipped** — commits, features, fixes. Concrete, not vague.
+- **Orient From** — exact file paths the next session should read before starting work.
+- **Do NOT Re-Read** — files already in context that the next session shouldn't waste tokens on.
+- **Actionable next steps** — numbered, with blockers noted. Not a wish list — a plan.
+
+A preload that says "continued working on the feature" is useless. A preload that says "shipped `abc123`, blocked on API auth, next: read `src/auth.ts` lines 40-80" is gold.
 
 ## Source
 

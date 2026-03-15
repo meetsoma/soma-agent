@@ -11,8 +11,8 @@ scope: bundled
 tags: [session, git, continuity, self-awareness]
 created: 2026-03-10
 updated: 2026-03-14
-author: Curtis Mercier
-license: CC BY 4.0
+author: meetsoma
+license: MIT
 ---
 # Session Checkpoints
 
@@ -74,8 +74,3 @@ If `checkpoints.diffOnBoot` is true, boot surfaces:
 - Settings: `core/settings.ts` → `CheckpointSettings`
 
 ---
-
-<!--
-Licensed under CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
-Author: Curtis Mercier
--->

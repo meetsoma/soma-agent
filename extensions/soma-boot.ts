@@ -33,7 +33,7 @@
  */
 
 import { join, dirname, resolve } from "path";
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync, statSync } from "fs";
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
@@ -106,37 +106,286 @@ const SCRIPT_DESCRIPTION_OVERRIDES: Record<string, string> = {
 /** Default script extensions — overridable via settings.scripts.extensions */
 const DEFAULT_SCRIPT_EXTENSIONS = [".sh", ".py", ".ts", ".js", ".mjs"];
 
-function getScriptDescription(scriptPath: string, scriptName: string): string {
-	// Check overrides first
-	if (SCRIPT_DESCRIPTION_OVERRIDES[scriptName]) return SCRIPT_DESCRIPTION_OVERRIDES[scriptName];
+interface ScriptMeta {
+	description: string;
+	useWhen: string;
+	relatedMuscles: string[];
+	lastModified: string;  // ISO date
+}
 
-	// Auto-extract: read first 8 lines, find first descriptive comment (skip shebangs, docstring markers)
+function getScriptMeta(scriptPath: string, scriptName: string): ScriptMeta {
+	const meta: ScriptMeta = { description: "—", useWhen: "", relatedMuscles: [], lastModified: "" };
+
+	// Last modified date
+	try {
+		const stat = statSync(scriptPath);
+		meta.lastModified = stat.mtime.toISOString().slice(0, 10);
+	} catch { /* ignore */ }
+
+	// Check overrides for description
+	if (SCRIPT_DESCRIPTION_OVERRIDES[scriptName]) {
+		meta.description = SCRIPT_DESCRIPTION_OVERRIDES[scriptName];
+	}
+
+	// Parse header comments (first 15 lines)
 	try {
 		const content = readFileSync(scriptPath, "utf-8");
-		const lines = content.split("\n").slice(0, 8);
+		const lines = content.split("\n").slice(0, 15);
 		for (const line of lines) {
-			if (line.startsWith("#!")) continue; // skip shebang
-			// Bash/Python/Ruby comments: # description
-			if (line.startsWith("# ")) {
+			if (line.startsWith("#!")) continue;
+
+			// Description: first comment line (line 2)
+			if (meta.description === "—" && line.startsWith("# ")) {
 				let desc = line.replace(/^#\s*/, "");
-				// Strip "scriptname.ext — " prefix if present
 				desc = desc.replace(/^\S+\.\w+\s*[—–-]\s*/, "");
-				if (desc.length > 0) return desc;
+				if (desc.length > 0) meta.description = desc;
+				continue;
 			}
-			// TypeScript/JavaScript: // description or /** description */
-			if (line.startsWith("// ") && !line.startsWith("// @")) {
+
+			// USE WHEN line
+			if (/^#\s*USE WHEN:/i.test(line)) {
+				meta.useWhen = line.replace(/^#\s*USE WHEN:\s*/i, "").trim();
+				continue;
+			}
+
+			// Related muscles
+			if (/^#\s*Related muscles?:/i.test(line)) {
+				const muscleStr = line.replace(/^#\s*Related muscles?:\s*/i, "");
+				// Extract muscle names (before parenthetical descriptions)
+				const muscleNames = muscleStr.split(",").map(m => {
+					return m.trim().replace(/\s*\(.*\)/, "").replace(/\s*$/, "");
+				}).filter(m => m.length > 0);
+				meta.relatedMuscles.push(...muscleNames);
+				continue;
+			}
+
+			// TypeScript/JavaScript: // description
+			if (meta.description === "—" && line.startsWith("// ") && !line.startsWith("// @")) {
 				let desc = line.replace(/^\/\/\s*/, "");
 				desc = desc.replace(/^\S+\.\w+\s*[—–-]\s*/, "");
-				if (desc.length > 0) return desc;
-			}
-			// Docstring-style: """ or ''' (Python)
-			if (line.startsWith('"""') || line.startsWith("'''")) {
-				let desc = line.replace(/^["']{3}\s*/, "").replace(/["']{3}\s*$/, "");
-				if (desc.length > 0) return desc;
+				if (desc.length > 0) meta.description = desc;
 			}
 		}
-	} catch { /* can't read — fall through */ }
-	return "—";
+	} catch { /* can't read */ }
+
+	return meta;
+}
+
+// Backward-compat wrapper
+function getScriptDescription(scriptPath: string, scriptName: string): string {
+	return getScriptMeta(scriptPath, scriptName).description;
+}
+
+// ---------------------------------------------------------------------------
+// Session Log Scanner — reads Pi's JSONL conversation logs
+// ---------------------------------------------------------------------------
+// Pi stores conversations as append-only JSONL in ~/.pi/agent/sessions/<encoded-cwd>/.
+// Each line is a JSON object with type "session" (header), "message", or "custom".
+// Messages have { type: "message", message: { role, content: [{ type: "text", text }] } }.
+// CWD is encoded: /Users/user/Foo → --Users-user-Foo--
+
+interface ConversationMessage {
+	role: "user" | "assistant";
+	text: string;
+	timestamp?: string;
+}
+
+function getAgentSessionDir(): string {
+	const home = process.env.HOME || process.env.USERPROFILE || "";
+	return join(home, ".pi", "agent", "sessions");
+}
+
+function encodeCwdToSessionDir(cwd: string): string {
+	const safePath = `--${cwd.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
+	return join(getAgentSessionDir(), safePath);
+}
+
+/**
+ * Scan Pi's JSONL session logs and extract recent conversation messages.
+ *
+ * @param count - Number of messages to return (default 10)
+ * @param currentSessionFile - Current session file path to exclude (optional)
+ * @param cwd - Working directory to scope sessions (defaults to process.cwd())
+ * @returns Array of recent messages, oldest first
+ */
+function scanSessionLogs(
+	count: number = 10,
+	currentSessionFile?: string,
+	cwd?: string
+): ConversationMessage[] {
+	if (count <= 0) return [];
+
+	const targetCwd = cwd || process.cwd();
+
+	// Try multiple session dirs — Pi may store under CWD or a parent
+	const candidateDirs: string[] = [];
+	candidateDirs.push(encodeCwdToSessionDir(targetCwd));
+
+	// Also check parent dirs (e.g., /Users/user/Gravicity/meetsoma → /Users/user/Gravicity)
+	let parent = dirname(targetCwd);
+	while (parent !== targetCwd && parent !== "/" && parent !== ".") {
+		candidateDirs.push(encodeCwdToSessionDir(parent));
+		targetCwd === parent; // safety
+		const next = dirname(parent);
+		if (next === parent) break;
+		parent = next;
+	}
+
+	// Also check named session dirs (Pi supports project-name aliases like "zenith")
+	const baseSessionDir = getAgentSessionDir();
+	if (existsSync(baseSessionDir)) {
+		try {
+			const dirs = readdirSync(baseSessionDir);
+			for (const d of dirs) {
+				const dirPath = join(baseSessionDir, d);
+				if (!d.startsWith("--") && statSync(dirPath).isDirectory()) {
+					// Named dir — check if sessions inside have matching CWD
+					candidateDirs.push(dirPath);
+				}
+			}
+		} catch { /* ignore */ }
+	}
+
+	// Find all JSONL files across candidate dirs, sorted newest first
+	const allFiles: { path: string; mtime: number }[] = [];
+	const seen = new Set<string>();
+
+	for (const dir of candidateDirs) {
+		if (!existsSync(dir) || seen.has(dir)) continue;
+		seen.add(dir);
+		try {
+			const files = readdirSync(dir).filter(f => f.endsWith(".jsonl"));
+			for (const f of files) {
+				const fullPath = join(dir, f);
+				// Skip current session
+				if (currentSessionFile && fullPath === currentSessionFile) continue;
+				try {
+					const stat = statSync(fullPath);
+					allFiles.push({ path: fullPath, mtime: stat.mtimeMs });
+				} catch { /* skip */ }
+			}
+		} catch { /* skip */ }
+	}
+
+	// Sort newest first
+	allFiles.sort((a, b) => b.mtime - a.mtime);
+
+	// Read messages from most recent files until we have enough
+	const messages: ConversationMessage[] = [];
+
+	for (const file of allFiles) {
+		if (messages.length >= count) break;
+
+		try {
+			const content = readFileSync(file.path, "utf-8");
+			const lines = content.trim().split("\n");
+			const fileMessages: ConversationMessage[] = [];
+
+			// Check the session header — verify CWD matches our project
+			if (lines.length > 0) {
+				try {
+					const header = JSON.parse(lines[0]);
+					if (header.type === "session" && header.cwd) {
+						// Only include sessions from our CWD or parent
+						const sessionCwd = header.cwd;
+						const normalizedTarget = (cwd || process.cwd()).replace(/\/$/, "");
+						if (!normalizedTarget.startsWith(sessionCwd) && !sessionCwd.startsWith(normalizedTarget)) {
+							continue; // Skip sessions from unrelated projects
+						}
+					}
+				} catch { /* skip header parse errors */ }
+			}
+
+			for (const line of lines) {
+				try {
+					const entry = JSON.parse(line);
+					if (entry.type !== "message") continue;
+					const msg = entry.message;
+					if (!msg || !msg.role || !["user", "assistant"].includes(msg.role)) continue;
+
+					// Extract text content
+					let text = "";
+					if (Array.isArray(msg.content)) {
+						for (const block of msg.content) {
+							if (block.type === "text" && block.text) {
+								text = block.text;
+								break;
+							}
+						}
+					} else if (typeof msg.content === "string") {
+						text = msg.content;
+					}
+
+					if (!text) continue;
+
+					// Skip cache keepalives and system injections
+					if (text.startsWith("[cache keepalive")) continue;
+					if (text.startsWith("[Soma Boot")) continue;
+					if (text.startsWith("[Soma ")) continue;
+					if (text.includes("FLUSH COMPLETE")) continue;
+					if (text.includes("BREATHE COMPLETE")) continue;
+
+					fileMessages.push({
+						role: msg.role,
+						text,
+						timestamp: entry.timestamp,
+					});
+				} catch { /* skip malformed lines */ }
+			}
+
+			// Take last N messages from this file (they're in chronological order)
+			const needed = count - messages.length;
+			const tail = fileMessages.slice(-needed);
+			// Prepend (since we're going newest-file-first but want chronological order)
+			messages.unshift(...tail);
+		} catch { /* skip unreadable files */ }
+
+		// Only read from most recent session file
+		break;
+	}
+
+	return messages.slice(-count);
+}
+
+/**
+ * Format scanned messages for injection into boot context.
+ */
+function formatConversationTail(messages: ConversationMessage[]): string {
+	if (messages.length === 0) return "";
+
+	const lines: string[] = [];
+	for (const msg of messages) {
+		const prefix = msg.role === "user" ? "**User:**" : "**Assistant:**";
+		// Truncate long messages to keep injection compact
+		const maxLen = msg.role === "assistant" ? 500 : 300;
+		let text = msg.text;
+		if (text.length > maxLen) {
+			text = text.slice(0, maxLen) + "…";
+		}
+		lines.push(`${prefix} ${text}`);
+	}
+
+	return `---\n## Last Conversation (${messages.length} messages)\n\n${lines.join("\n\n")}\n`;
+}
+
+/**
+ * Get behavioral warnings from previous session's tool usage.
+ * Shells out to soma-stats.sh --warnings for the analysis.
+ */
+function getSessionWarnings(somaPath: string): string[] {
+	const statsScript = join(somaPath, "amps", "scripts", "soma-stats.sh");
+	if (!existsSync(statsScript)) return [];
+
+	try {
+		const output = execSync(
+			`bash "${statsScript}" --warnings --cwd "${process.cwd()}"`,
+			{ encoding: "utf-8", timeout: 5000, stdio: ["pipe", "pipe", "pipe"] }
+		).trim();
+		if (!output || output.startsWith("✅")) return [];
+		return output.split("\n").filter(l => l.trim().length > 0);
+	} catch {
+		return [];
+	}
 }
 
 // Resolve agent dir from this module's location (extensions/ → parent)
@@ -329,7 +578,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					const injection = buildProtocolInjection(protocols, protocolState, protoThresholds);
 					if (injection.hot.length > 0) {
 						const hotBlock = injection.hot.map(p => {
-							const body = stripFrontmatter(p.content);
+							let body = stripFrontmatter(p.content);
+							// Strip h1 title — redundant with ### Protocol: name
+							body = body.replace(/^# [^\n]+\n+/, "");
 							return `### Protocol: ${p.name}\n${body}`;
 						}).join("\n\n");
 						parts.push(`\n---\n## Hot Protocols (full reference)\n\n${hotBlock}`);
@@ -346,7 +597,12 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					const muscleInjection = buildMuscleInjection(muscles, settings.muscles);
 					if (muscleInjection.hot.length > 0) {
 						const hotBlock = muscleInjection.hot.map(m => {
-							const body = stripFrontmatter(m.content);
+							let body = stripFrontmatter(m.content);
+							// Strip digest markers — they're for extraction, not display
+							body = body.replace(/<!-- digest:start -->\n?/g, "");
+							body = body.replace(/\n?<!-- digest:end -->/g, "");
+							// Strip the h1 title — redundant with ### Muscle: name
+							body = body.replace(/^# [^\n]+\n+/, "");
 							return `### Muscle: ${m.name}\n${body}`;
 						}).join("\n\n");
 						parts.push(`\n---\n## Hot Muscles (full reference)\n\n${hotBlock}`);
@@ -367,7 +623,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					const automationInjection = buildAutomationInjection(automations, settings.automations);
 					if (automationInjection.hot.length > 0) {
 						const hotBlock = automationInjection.hot.map(a => {
-							const body = stripFrontmatter(a.content);
+							let body = stripFrontmatter(a.content);
+							body = body.replace(/^# [^\n]+\n+/, "");
 							return `### Automation: ${a.name}\n${body}`;
 						}).join("\n\n");
 						parts.push(`\n---\n## Hot Automations (full reference)\n\n${hotBlock}`);
@@ -401,7 +658,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				}
 
 				const seenScripts = new Set<string>();
-				const allScripts: { name: string; dir: string }[] = [];
+				const allScripts: { name: string; dir: string; meta: ScriptMeta }[] = [];
 				for (const dir of scriptDirs) {
 					if (!existsSync(dir)) continue;
 					try {
@@ -410,25 +667,79 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 						for (const s of scripts) {
 							if (!seenScripts.has(s)) {
 								seenScripts.add(s);
-								allScripts.push({ name: s, dir });
+								const meta = getScriptMeta(join(dir, s), s);
+								allScripts.push({ name: s, dir, meta });
 							}
 						}
 					} catch { /* ignore */ }
 				}
 
 				if (allScripts.length > 0) {
+					// Load script usage from state.json
+					const stateFile = join(soma.path, "state.json");
+					let scriptUsage: Record<string, { count: number; lastUsed: string }> = {};
+					try {
+						const stateData = JSON.parse(readFileSync(stateFile, "utf-8"));
+						scriptUsage = stateData.scripts ?? {};
+					} catch { /* no state or no scripts key */ }
+
+					// Sort: most used first, then alphabetical
+					allScripts.sort((a, b) => {
+						const aCount = scriptUsage[a.name]?.count ?? 0;
+						const bCount = scriptUsage[b.name]?.count ?? 0;
+						if (bCount !== aCount) return bCount - aCount;
+						return a.name.localeCompare(b.name);
+					});
+
+					// Build the table
 					const scriptLines = [
 						"## Available Scripts\n",
-						"| Script | Location | What it does |",
-						"|--------|----------|-------------|",
-						...allScripts.map(({ name, dir }) => {
-							const desc = getScriptDescription(join(dir, name), name);
-							return `| \`${name}\` | \`${dir}/\` | ${desc} |`;
+						"**Before coding, check if a script already handles the task. Read the associated muscle first.**\n",
+						"| Script | What it does | Uses |",
+						"|--------|-------------|------|",
+						...allScripts.map(({ name, dir, meta }) => {
+							const uses = scriptUsage[name]?.count ?? 0;
+							const usesStr = uses > 0 ? `${uses}` : "";
+							return `| \`${name}\` | ${meta.description} | ${usesStr} |`;
 						}),
 						"",
 						"Run with `bash <path>`. Use `--help` for options.",
 						"",
 					];
+
+					// Collect related muscles referenced by scripts (deduplicated)
+					const relatedMuscleNames = new Set<string>();
+					for (const { meta } of allScripts) {
+						for (const m of meta.relatedMuscles) {
+							relatedMuscleNames.add(m);
+						}
+					}
+
+					// Cross-reference: show digest of muscles that scripts reference
+					if (relatedMuscleNames.size > 0 && knownMuscles.length > 0) {
+						const crossRefs: string[] = [];
+						for (const muscleName of relatedMuscleNames) {
+							const muscle = knownMuscles.find(m => m.name === muscleName);
+							if (muscle?.digest) {
+								// Which scripts reference this muscle?
+								const referencingScripts = allScripts
+									.filter(s => s.meta.relatedMuscles.includes(muscleName))
+									.map(s => s.name.replace(/\.sh$/, ""));
+								crossRefs.push(
+									`**${muscleName}** (used by: ${referencingScripts.join(", ")}): ${muscle.digest.trim()}`
+								);
+							}
+						}
+						if (crossRefs.length > 0) {
+							scriptLines.push(
+								"\n### Script ↔ Muscle Reference\n",
+								"Read the full muscle before using its script.\n",
+								...crossRefs,
+								""
+							);
+						}
+					}
+
 					parts.push(`\n---\n${scriptLines.join("\n")}`);
 				}
 				break;
@@ -736,6 +1047,36 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					`\n---\n## Preload (from last session${staleTag})\n\n${preload.content}\n`
 				);
 				debug.boot(`preload auto-injected: ${preload.name} (${Math.floor(preload.ageHours)}h old)`);
+			}
+
+			// Inject last N conversation messages before preload for continuity
+			const lastMsgCount = settings.preload.lastMessages ?? 10;
+			if (lastMsgCount > 0) {
+				try {
+					const currentFile = ctx.sessionManager.getSessionFile?.() || undefined;
+					const recentMsgs = scanSessionLogs(lastMsgCount, currentFile);
+					if (recentMsgs.length > 0) {
+						const tail = formatConversationTail(recentMsgs);
+						// Insert before preload (preload was unshifted to position 0)
+						parts.unshift(tail);
+						debug.boot(`conversation tail injected: ${recentMsgs.length} messages`);
+					}
+				} catch (err) {
+					debug.boot(`conversation tail scan failed: ${err}`);
+				}
+			}
+
+			// Inject behavioral warnings from previous session's tool usage
+			try {
+				const warnings = getSessionWarnings(soma.path);
+				if (warnings.length > 0) {
+					const warningBlock = `---\n## Session Warnings (from previous session)\n\n${warnings.join("\n")}\n\n**Tool preference:** script > ls > grep > find (find hangs on large trees)\n`;
+					// Insert at top — warnings should be seen first
+					parts.unshift(warningBlock);
+					debug.boot(`session warnings injected: ${warnings.length}`);
+				}
+			} catch (err) {
+				debug.boot(`session warnings failed: ${err}`);
 			}
 		}
 
@@ -1424,16 +1765,30 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 
 		// ── Dynamic script execution detection ──
-		// When the agent runs a script via bash, bump it.
-		// Scripts are tracked in state.json (not frontmatter).
+		// When the agent runs a script via bash, bump usage in state.json.
 		if (toolName === "bash" && typeof input?.command === "string") {
 			const cmd = input.command as string;
 			// Match: bash .soma/amps/scripts/NAME or bash /full/path/scripts/NAME
 			const scriptMatch = cmd.match(/(?:bash|sh)\s+(?:.*\/)?scripts\/([\w.-]+\.sh)/);
 			if (scriptMatch) {
 				const scriptName = scriptMatch[1];
-				// Record in debug — state.json tracking deferred to saveAllHeatState
 				debug.heat(`script executed: ${scriptName} (dynamic: bash command)`);
+				// Persist usage to state.json
+				try {
+					const stateFile = join(soma.path, "state.json");
+					const stateData = existsSync(stateFile)
+						? JSON.parse(readFileSync(stateFile, "utf-8"))
+						: {};
+					if (!stateData.scripts) stateData.scripts = {};
+					if (!stateData.scripts[scriptName]) {
+						stateData.scripts[scriptName] = { count: 0, lastUsed: "" };
+					}
+					stateData.scripts[scriptName].count += 1;
+					stateData.scripts[scriptName].lastUsed = new Date().toISOString().slice(0, 10);
+					writeFileSync(stateFile, JSON.stringify(stateData, null, "\t") + "\n");
+				} catch (e) {
+					debug.heat(`failed to persist script usage: ${e}`);
+				}
 			}
 		}
 
@@ -2395,4 +2750,195 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	});
 
 	// /scratch — extracted to soma-scratch.ts (basic) and .soma/extensions/soma-scratch-pro.ts (pro)
+
+	// /scrape — intelligent doc discovery and scraping
+	// Uses router capability so the command logic can be hot-provided without restart.
+	// The capability builds the bash command; the /scrape command calls it.
+	const buildScrapeCmd = (args: string, somaPath: string): { cmd: string; display: string } | { error: string } => {
+		const parts = args.trim().split(/\s+/).filter(Boolean);
+		if (parts.length === 0) {
+			return { error:
+				"Usage:\n" +
+				"  /scrape <name>              Resolve + pull docs for a project\n" +
+				"  /scrape <name> --resolve    Just show what's available (don't pull)\n" +
+				"  /scrape <topic> --discover  Broad search across GitHub, npm, MDN\n" +
+				"  /scrape --list              Show all scraped sources\n" +
+				"  /scrape <name> --show       Show what we have locally\n" +
+				"  /scrape <name> --update     Re-pull latest docs\n" +
+				"\nOptions: --full, --provider <github|npm|mdn|css|skills|code>"
+			};
+		}
+
+		const flags: string[] = [];
+		const words: string[] = [];
+		let provider = "";
+		for (let i = 0; i < parts.length; i++) {
+			if (parts[i] === "--provider" && parts[i + 1]) {
+				provider = parts[++i];
+			} else if (parts[i].startsWith("--")) {
+				flags.push(parts[i].replace(/^--/, ""));
+			} else {
+				words.push(parts[i]);
+			}
+		}
+
+		const name = words.join(" ");
+		const scriptPath = `${somaPath}/amps/scripts/soma-scrape.sh`;
+
+		let subcmd: string;
+		if (flags.includes("list")) {
+			subcmd = `bash "${scriptPath}" list`;
+		} else if (flags.includes("discover")) {
+			subcmd = `bash "${scriptPath}" discover "${name}"`;
+			if (provider) subcmd += ` --provider ${provider}`;
+		} else if (flags.includes("resolve")) {
+			subcmd = `bash "${scriptPath}" resolve "${name}"`;
+		} else if (flags.includes("show")) {
+			subcmd = `bash "${scriptPath}" show "${name}"`;
+		} else if (flags.includes("update")) {
+			subcmd = `bash "${scriptPath}" update "${name}"`;
+		} else {
+			subcmd = `bash "${scriptPath}" pull "${name}"`;
+			if (flags.includes("full")) subcmd += " --full";
+		}
+
+		return { cmd: subcmd, display: subcmd.replace(scriptPath, "soma-scrape.sh") };
+	};
+
+	// /code — fast codebase navigator
+	const buildCodeCmd = (args: string, somaPath: string): { cmd: string; display: string } | { error: string } => {
+		const parts = args.trim().split(/\s+/).filter(Boolean);
+		if (parts.length === 0) {
+			return { error:
+				"Usage:\n" +
+				"  /code find <pattern> [path]     — grep with file:line format\n" +
+				"  /code lines <file> <start> [end] — show exact lines\n" +
+				"  /code map <file>                 — function/class index\n" +
+				"  /code refs <symbol> [path]       — all references (def vs use)\n" +
+				"  /code replace <file> <ln> <old> <new>\n" +
+				"  /code structure [path]           — file tree with sizes\n" +
+				"  /code physics [path]             — all motion/animation code\n" +
+				"  /code events [path]              — event listeners/dispatchers\n" +
+				"  /code css-vars [path]            — CSS custom property audit\n" +
+				"  /code config [path]              — config/options objects\n" +
+				"\nDefault target: $SOMA_SHELL_DIR (gravicity-io/shell)"
+			};
+		}
+
+		const scriptPath = `${somaPath}/amps/scripts/soma-code.sh`;
+		const subcmd = `bash "${scriptPath}" ${parts.join(" ")}`;
+		return { cmd: subcmd, display: `soma-code.sh ${parts.join(" ")}` };
+	};
+
+	pi.registerCommand("code", {
+		description: "Fast codebase navigator. Usage: /code <find|lines|map|refs|replace|structure|physics|events|css-vars|config> [args]",
+		handler: async (args, ctx) => {
+			if (!soma) { ctx.ui.notify("No .soma/ found.", "error"); return; }
+
+			const route = getRoute();
+			if (route && !route.get("code:build")) {
+				route.provide("code:build", buildCodeCmd, {
+					provider: "soma-boot",
+					description: "Build a soma-code.sh command from args string",
+				});
+			}
+
+			const builder = route?.get("code:build") as typeof buildCodeCmd | null;
+			const result = builder ? builder(args, soma.path) : buildCodeCmd(args, soma.path);
+
+			if ("error" in result) {
+				ctx.ui.notify(result.error, "info");
+				return;
+			}
+
+			ctx.ui.notify(`🔍 Running: ${result.display}`, "info");
+		},
+	});
+
+	pi.registerCommand("scrape", {
+		description: "Scrape docs for a tool, library, or topic. Usage: /scrape <name|topic> [--discover] [--provider github|npm|mdn|css|skills]",
+		handler: async (args, ctx) => {
+			if (!soma) { ctx.ui.notify("No .soma/ found.", "error"); return; }
+
+			// Register on router if not yet done (lazy — first invocation)
+			const route = getRoute();
+			if (route && !route.get("scrape:build")) {
+				route.provide("scrape:build", buildScrapeCmd, {
+					provider: "soma-boot",
+					description: "Build a soma-scrape.sh command from args string",
+				});
+			}
+
+			// Use router capability (hot-swappable) with direct fallback
+			const builder = route?.get("scrape:build") as typeof buildScrapeCmd | null;
+			const result = builder ? builder(args, soma.path) : buildScrapeCmd(args, soma.path);
+
+			if ("error" in result) {
+				ctx.ui.notify(result.error, "info");
+				return;
+			}
+
+			ctx.ui.notify(`🔍 Running: ${result.display}`, "info");
+		},
+	});
+
+	// /scan-logs — scan Pi's conversation JSONL logs
+	pi.registerCommand("scan-logs", {
+		description: "Scan conversation logs. Usage: /scan-logs [count] | /scan-logs tools <pattern> [--results] [--tool bash|read] [--last N]",
+		handler: async (args, ctx) => {
+			const parts = (args?.trim() || "").split(/\s+/).filter(Boolean);
+
+			// Subcommand: tools <pattern> — search tool calls in previous sessions
+			if (parts[0] === "tools" && parts.length >= 2) {
+				if (!soma) { ctx.ui.notify("No .soma/ found.", "error"); return; }
+				const statsScript = join(soma.path, "amps", "scripts", "soma-stats.sh");
+				if (!existsSync(statsScript)) {
+					ctx.ui.notify("soma-stats.sh not found.", "error");
+					return;
+				}
+
+				// Pass remaining args directly to soma-stats.sh tools
+				const toolArgs = parts.slice(1).join(" ");
+				const cmd = `bash "${statsScript}" tools ${toolArgs} --cwd "${process.cwd()}"`;
+				ctx.ui.notify(`🔍 Searching tool calls: \`soma-stats.sh tools ${toolArgs}\``, "info");
+				return;
+			}
+
+			// Default: show recent messages + stats
+			let count = 10;
+			for (const part of parts) {
+				if (/^\d+$/.test(part)) count = parseInt(part, 10);
+			}
+
+			const currentFile = ctx.sessionManager.getSessionFile?.() || undefined;
+
+			try {
+				const messages = scanSessionLogs(count, currentFile);
+				let output = "";
+
+				if (messages.length > 0) {
+					output += formatConversationTail(messages);
+				} else {
+					output += "No recent conversation logs found.\n";
+				}
+
+				if (soma) {
+					const statsScript = join(soma.path, "amps", "scripts", "soma-stats.sh");
+					if (existsSync(statsScript)) {
+						try {
+							const statsOut = execSync(
+								`bash "${statsScript}" --cwd "${process.cwd()}"`,
+								{ encoding: "utf-8", timeout: 5000, stdio: ["pipe", "pipe", "pipe"] }
+							).trim();
+							output += `\n${statsOut}\n`;
+						} catch { /* ignore */ }
+					}
+				}
+
+				ctx.ui.notify(`📜 Session Analysis:\n\n${output}`, "info");
+			} catch (err) {
+				ctx.ui.notify(`Failed to scan logs: ${err}`, "error");
+			}
+		},
+	});
 }

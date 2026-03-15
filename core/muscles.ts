@@ -191,7 +191,11 @@ export function buildMuscleInjection(
 			if (m.digest) {
 				lines.push(`### ${m.name}\n${m.digest}\n`);
 			} else {
-				const body = stripFrontmatter(m.content);
+				let body = stripFrontmatter(m.content);
+				// Clean up formatting: strip h1 title (redundant with ### name) and digest markers
+				body = body.replace(/^# [^\n]+\n+/, "");
+				body = body.replace(/<!-- digest:start -->\n?/g, "");
+				body = body.replace(/\n?<!-- digest:end -->/g, "");
 				lines.push(`### ${m.name}\n${body}\n`);
 			}
 		}
@@ -204,20 +208,8 @@ export function buildMuscleInjection(
 	}
 
 	if (cold.length > 0) {
-		const coldList = cold.map(m => {
-			// Extract a brief hint from digest or first content line after frontmatter
-			let hint = "";
-			if (m.digest) {
-				// Strip markdown bold wrapper and leading "Name —" pattern, take first ~60 chars
-				hint = m.digest
-					.replace(/^>\s*\*\*[^*]+\*\*\s*[—–-]\s*/m, "")
-					.replace(/\n.*/s, "")
-					.trim();
-				if (hint.length > 60) hint = hint.slice(0, 57) + "...";
-			}
-			return hint ? `${m.name} (${hint})` : m.name;
-		});
-		lines.push(`**Available muscles (not loaded):** ${coldList.join("; ")}\n`);
+		// Names only — hints waste tokens. Use `/pin <name>` to load full content.
+		lines.push(`**Available muscles (not loaded):** ${cold.map(m => m.name).join(", ")}\n`);
 	}
 
 	return {

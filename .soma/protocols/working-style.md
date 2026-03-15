@@ -5,8 +5,8 @@ status: active
 heat-default: warm
 applies-to: [always]
 breadcrumb: "Be direct — no ceremony. Lead with action. Know your tools before starting — name them, note gaps. Understand before you change, verify after you build AND after you ship. Maintain the tools — when code changes, verify scripts still produce correct output. Plans live in files, not in context."
-author: Curtis Mercier
-license: CC BY 4.0
+author: meetsoma
+license: MIT
 version: 1.1.0
 tier: official
 scope: hub
@@ -59,8 +59,3 @@ Every session. These are communication and workflow defaults that cool if the us
 - **One concern at a time.** When multiple things need fixing, address them sequentially with clear commits, not one giant change.
 
 ---
-
-<!--
-Licensed under CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/
-Author: Curtis Mercier
--->
