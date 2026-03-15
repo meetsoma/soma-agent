@@ -33,7 +33,7 @@
  */
 
 import { join, dirname, resolve } from "path";
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync, statSync } from "fs";
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
@@ -106,37 +106,74 @@ const SCRIPT_DESCRIPTION_OVERRIDES: Record<string, string> = {
 /** Default script extensions — overridable via settings.scripts.extensions */
 const DEFAULT_SCRIPT_EXTENSIONS = [".sh", ".py", ".ts", ".js", ".mjs"];
 
-function getScriptDescription(scriptPath: string, scriptName: string): string {
-	// Check overrides first
-	if (SCRIPT_DESCRIPTION_OVERRIDES[scriptName]) return SCRIPT_DESCRIPTION_OVERRIDES[scriptName];
+interface ScriptMeta {
+	description: string;
+	useWhen: string;
+	relatedMuscles: string[];
+	lastModified: string;  // ISO date
+}
 
-	// Auto-extract: read first 8 lines, find first descriptive comment (skip shebangs, docstring markers)
+function getScriptMeta(scriptPath: string, scriptName: string): ScriptMeta {
+	const meta: ScriptMeta = { description: "—", useWhen: "", relatedMuscles: [], lastModified: "" };
+
+	// Last modified date
+	try {
+		const stat = statSync(scriptPath);
+		meta.lastModified = stat.mtime.toISOString().slice(0, 10);
+	} catch { /* ignore */ }
+
+	// Check overrides for description
+	if (SCRIPT_DESCRIPTION_OVERRIDES[scriptName]) {
+		meta.description = SCRIPT_DESCRIPTION_OVERRIDES[scriptName];
+	}
+
+	// Parse header comments (first 15 lines)
 	try {
 		const content = readFileSync(scriptPath, "utf-8");
-		const lines = content.split("\n").slice(0, 8);
+		const lines = content.split("\n").slice(0, 15);
 		for (const line of lines) {
-			if (line.startsWith("#!")) continue; // skip shebang
-			// Bash/Python/Ruby comments: # description
-			if (line.startsWith("# ")) {
+			if (line.startsWith("#!")) continue;
+
+			// Description: first comment line (line 2)
+			if (meta.description === "—" && line.startsWith("# ")) {
 				let desc = line.replace(/^#\s*/, "");
-				// Strip "scriptname.ext — " prefix if present
 				desc = desc.replace(/^\S+\.\w+\s*[—–-]\s*/, "");
-				if (desc.length > 0) return desc;
+				if (desc.length > 0) meta.description = desc;
+				continue;
 			}
-			// TypeScript/JavaScript: // description or /** description */
-			if (line.startsWith("// ") && !line.startsWith("// @")) {
+
+			// USE WHEN line
+			if (/^#\s*USE WHEN:/i.test(line)) {
+				meta.useWhen = line.replace(/^#\s*USE WHEN:\s*/i, "").trim();
+				continue;
+			}
+
+			// Related muscles
+			if (/^#\s*Related muscles?:/i.test(line)) {
+				const muscleStr = line.replace(/^#\s*Related muscles?:\s*/i, "");
+				// Extract muscle names (before parenthetical descriptions)
+				const muscleNames = muscleStr.split(",").map(m => {
+					return m.trim().replace(/\s*\(.*\)/, "").replace(/\s*$/, "");
+				}).filter(m => m.length > 0);
+				meta.relatedMuscles.push(...muscleNames);
+				continue;
+			}
+
+			// TypeScript/JavaScript: // description
+			if (meta.description === "—" && line.startsWith("// ") && !line.startsWith("// @")) {
 				let desc = line.replace(/^\/\/\s*/, "");
 				desc = desc.replace(/^\S+\.\w+\s*[—–-]\s*/, "");
-				if (desc.length > 0) return desc;
-			}
-			// Docstring-style: """ or ''' (Python)
-			if (line.startsWith('"""') || line.startsWith("'''")) {
-				let desc = line.replace(/^["']{3}\s*/, "").replace(/["']{3}\s*$/, "");
-				if (desc.length > 0) return desc;
+				if (desc.length > 0) meta.description = desc;
 			}
 		}
-	} catch { /* can't read — fall through */ }
-	return "—";
+	} catch { /* can't read */ }
+
+	return meta;
+}
+
+// Backward-compat wrapper
+function getScriptDescription(scriptPath: string, scriptName: string): string {
+	return getScriptMeta(scriptPath, scriptName).description;
 }
 
 // Resolve agent dir from this module's location (extensions/ → parent)
@@ -401,7 +438,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				}
 
 				const seenScripts = new Set<string>();
-				const allScripts: { name: string; dir: string }[] = [];
+				const allScripts: { name: string; dir: string; meta: ScriptMeta }[] = [];
 				for (const dir of scriptDirs) {
 					if (!existsSync(dir)) continue;
 					try {
@@ -410,25 +447,79 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 						for (const s of scripts) {
 							if (!seenScripts.has(s)) {
 								seenScripts.add(s);
-								allScripts.push({ name: s, dir });
+								const meta = getScriptMeta(join(dir, s), s);
+								allScripts.push({ name: s, dir, meta });
 							}
 						}
 					} catch { /* ignore */ }
 				}
 
 				if (allScripts.length > 0) {
+					// Load script usage from state.json
+					const stateFile = join(soma.path, "state.json");
+					let scriptUsage: Record<string, { count: number; lastUsed: string }> = {};
+					try {
+						const stateData = JSON.parse(readFileSync(stateFile, "utf-8"));
+						scriptUsage = stateData.scripts ?? {};
+					} catch { /* no state or no scripts key */ }
+
+					// Sort: most used first, then alphabetical
+					allScripts.sort((a, b) => {
+						const aCount = scriptUsage[a.name]?.count ?? 0;
+						const bCount = scriptUsage[b.name]?.count ?? 0;
+						if (bCount !== aCount) return bCount - aCount;
+						return a.name.localeCompare(b.name);
+					});
+
+					// Build the table
 					const scriptLines = [
 						"## Available Scripts\n",
-						"| Script | Location | What it does |",
-						"|--------|----------|-------------|",
-						...allScripts.map(({ name, dir }) => {
-							const desc = getScriptDescription(join(dir, name), name);
-							return `| \`${name}\` | \`${dir}/\` | ${desc} |`;
+						"**Before coding, check if a script already handles the task. Read the associated muscle first.**\n",
+						"| Script | What it does | Uses |",
+						"|--------|-------------|------|",
+						...allScripts.map(({ name, dir, meta }) => {
+							const uses = scriptUsage[name]?.count ?? 0;
+							const usesStr = uses > 0 ? `${uses}` : "";
+							return `| \`${name}\` | ${meta.description} | ${usesStr} |`;
 						}),
 						"",
 						"Run with `bash <path>`. Use `--help` for options.",
 						"",
 					];
+
+					// Collect related muscles referenced by scripts (deduplicated)
+					const relatedMuscleNames = new Set<string>();
+					for (const { meta } of allScripts) {
+						for (const m of meta.relatedMuscles) {
+							relatedMuscleNames.add(m);
+						}
+					}
+
+					// Cross-reference: show digest of muscles that scripts reference
+					if (relatedMuscleNames.size > 0 && knownMuscles.length > 0) {
+						const crossRefs: string[] = [];
+						for (const muscleName of relatedMuscleNames) {
+							const muscle = knownMuscles.find(m => m.name === muscleName);
+							if (muscle?.digest) {
+								// Which scripts reference this muscle?
+								const referencingScripts = allScripts
+									.filter(s => s.meta.relatedMuscles.includes(muscleName))
+									.map(s => s.name.replace(/\.sh$/, ""));
+								crossRefs.push(
+									`**${muscleName}** (used by: ${referencingScripts.join(", ")}): ${muscle.digest.trim()}`
+								);
+							}
+						}
+						if (crossRefs.length > 0) {
+							scriptLines.push(
+								"\n### Script ↔ Muscle Reference\n",
+								"Read the full muscle before using its script.\n",
+								...crossRefs,
+								""
+							);
+						}
+					}
+
 					parts.push(`\n---\n${scriptLines.join("\n")}`);
 				}
 				break;
@@ -1424,16 +1515,30 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		}
 
 		// ── Dynamic script execution detection ──
-		// When the agent runs a script via bash, bump it.
-		// Scripts are tracked in state.json (not frontmatter).
+		// When the agent runs a script via bash, bump usage in state.json.
 		if (toolName === "bash" && typeof input?.command === "string") {
 			const cmd = input.command as string;
 			// Match: bash .soma/amps/scripts/NAME or bash /full/path/scripts/NAME
 			const scriptMatch = cmd.match(/(?:bash|sh)\s+(?:.*\/)?scripts\/([\w.-]+\.sh)/);
 			if (scriptMatch) {
 				const scriptName = scriptMatch[1];
-				// Record in debug — state.json tracking deferred to saveAllHeatState
 				debug.heat(`script executed: ${scriptName} (dynamic: bash command)`);
+				// Persist usage to state.json
+				try {
+					const stateFile = join(soma.path, "state.json");
+					const stateData = existsSync(stateFile)
+						? JSON.parse(readFileSync(stateFile, "utf-8"))
+						: {};
+					if (!stateData.scripts) stateData.scripts = {};
+					if (!stateData.scripts[scriptName]) {
+						stateData.scripts[scriptName] = { count: 0, lastUsed: "" };
+					}
+					stateData.scripts[scriptName].count += 1;
+					stateData.scripts[scriptName].lastUsed = new Date().toISOString().slice(0, 10);
+					writeFileSync(stateFile, JSON.stringify(stateData, null, "\t") + "\n");
+				} catch (e) {
+					debug.heat(`failed to persist script usage: ${e}`);
+				}
 			}
 		}
 
@@ -2395,4 +2500,82 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	});
 
 	// /scratch — extracted to soma-scratch.ts (basic) and .soma/extensions/soma-scratch-pro.ts (pro)
+
+	// /scrape — intelligent doc discovery and scraping
+	// Uses router capability so the command logic can be hot-provided without restart.
+	// The capability builds the bash command; the /scrape command calls it.
+	const buildScrapeCmd = (args: string, somaPath: string): { cmd: string; display: string } | { error: string } => {
+		const parts = args.trim().split(/\s+/).filter(Boolean);
+		if (parts.length === 0) {
+			return { error:
+				"Usage:\n" +
+				"  /scrape <name>              Resolve + pull docs for a project\n" +
+				"  /scrape <name> --resolve    Just show what's available (don't pull)\n" +
+				"  /scrape <topic> --discover  Broad search across GitHub, npm, MDN\n" +
+				"  /scrape --list              Show all scraped sources\n" +
+				"  /scrape <name> --show       Show what we have locally\n" +
+				"  /scrape <name> --update     Re-pull latest docs\n" +
+				"\nOptions: --full, --provider <github|npm|mdn|css|skills|code>"
+			};
+		}
+
+		const flags: string[] = [];
+		const words: string[] = [];
+		let provider = "";
+		for (let i = 0; i < parts.length; i++) {
+			if (parts[i] === "--provider" && parts[i + 1]) {
+				provider = parts[++i];
+			} else if (parts[i].startsWith("--")) {
+				flags.push(parts[i].replace(/^--/, ""));
+			} else {
+				words.push(parts[i]);
+			}
+		}
+
+		const name = words.join(" ");
+		const scriptPath = `${somaPath}/amps/scripts/soma-scrape.sh`;
+
+		let subcmd: string;
+		if (flags.includes("list")) {
+			subcmd = `bash "${scriptPath}" list`;
+		} else if (flags.includes("discover")) {
+			subcmd = `bash "${scriptPath}" discover "${name}"`;
+			if (provider) subcmd += ` --provider ${provider}`;
+		} else if (flags.includes("resolve")) {
+			subcmd = `bash "${scriptPath}" resolve "${name}"`;
+		} else if (flags.includes("show")) {
+			subcmd = `bash "${scriptPath}" show "${name}"`;
+		} else if (flags.includes("update")) {
+			subcmd = `bash "${scriptPath}" update "${name}"`;
+		} else {
+			subcmd = `bash "${scriptPath}" pull "${name}"`;
+			if (flags.includes("full")) subcmd += " --full";
+		}
+
+		return { cmd: subcmd, display: subcmd.replace(scriptPath, "soma-scrape.sh") };
+	};
+
+	// Register on router — available to other extensions and hot-swappable
+	route.provide("scrape:build", buildScrapeCmd, {
+		provider: "soma-boot",
+		description: "Build a soma-scrape.sh command from args string",
+	});
+
+	pi.registerCommand("scrape", {
+		description: "Scrape docs for a tool, library, or topic. Usage: /scrape <name|topic> [--discover] [--provider github|npm|mdn|css|skills]",
+		handler: async (args, ctx) => {
+			if (!soma) { ctx.ui.notify("No .soma/ found.", "error"); return; }
+
+			// Use router capability (hot-swappable)
+			const builder = route.get("scrape:build") as typeof buildScrapeCmd | null;
+			const result = builder ? builder(args, soma.path) : buildScrapeCmd(args, soma.path);
+
+			if ("error" in result) {
+				ctx.ui.notify(result.error, "info");
+				return;
+			}
+
+			ctx.ui.notify(`🔍 Running: ${result.display}`, "info");
+		},
+	});
 }
