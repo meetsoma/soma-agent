@@ -368,6 +368,26 @@ function formatConversationTail(messages: ConversationMessage[]): string {
 	return `---\n## Last Conversation (${messages.length} messages)\n\n${lines.join("\n\n")}\n`;
 }
 
+/**
+ * Get behavioral warnings from previous session's tool usage.
+ * Shells out to soma-stats.sh --warnings for the analysis.
+ */
+function getSessionWarnings(somaPath: string): string[] {
+	const statsScript = join(somaPath, "amps", "scripts", "soma-stats.sh");
+	if (!existsSync(statsScript)) return [];
+
+	try {
+		const output = execSync(
+			`bash "${statsScript}" --warnings --cwd "${process.cwd()}"`,
+			{ encoding: "utf-8", timeout: 5000, stdio: ["pipe", "pipe", "pipe"] }
+		).trim();
+		if (!output || output.startsWith("✅")) return [];
+		return output.split("\n").filter(l => l.trim().length > 0);
+	} catch {
+		return [];
+	}
+}
+
 // Resolve agent dir from this module's location (extensions/ → parent)
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const somaAgentDir = resolve(__dirname, "..");
@@ -1036,6 +1056,19 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				} catch (err) {
 					debug.boot(`conversation tail scan failed: ${err}`);
 				}
+			}
+
+			// Inject behavioral warnings from previous session's tool usage
+			try {
+				const warnings = getSessionWarnings(soma.path);
+				if (warnings.length > 0) {
+					const warningBlock = `---\n## Session Warnings (from previous session)\n\n${warnings.join("\n")}\n\n**Tool preference:** script > ls > grep > find (find hangs on large trees)\n`;
+					// Insert at top — warnings should be seen first
+					parts.unshift(warningBlock);
+					debug.boot(`session warnings injected: ${warnings.length}`);
+				}
+			} catch (err) {
+				debug.boot(`session warnings failed: ${err}`);
 			}
 		}
 
@@ -2845,18 +2878,43 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 	pi.registerCommand("scan-logs", {
 		description: "Scan recent conversation logs. Usage: /scan-logs [count]",
 		handler: async (args, ctx) => {
-			const count = parseInt(args?.trim() || "", 10) || 10;
+			const parts = (args?.trim() || "").split(/\s+/).filter(Boolean);
+			let count = 10;
+			let showStats = false;
+
+			for (const part of parts) {
+				if (part === "--stats") showStats = true;
+				else if (/^\d+$/.test(part)) count = parseInt(part, 10);
+			}
+
 			const currentFile = ctx.sessionManager.getSessionFile?.() || undefined;
 
 			try {
+				// Messages
 				const messages = scanSessionLogs(count, currentFile);
-				if (messages.length === 0) {
-					ctx.ui.notify("No recent conversation logs found.", "info");
-					return;
+				let output = "";
+
+				if (messages.length > 0) {
+					output += formatConversationTail(messages);
+				} else {
+					output += "No recent conversation logs found.\n";
 				}
 
-				const formatted = formatConversationTail(messages);
-				ctx.ui.notify(`📜 Last ${messages.length} messages from previous session:\n\n${formatted}`, "info");
+				// Stats (always show, or just when --stats)
+				if (soma) {
+					const statsScript = join(soma.path, "amps", "scripts", "soma-stats.sh");
+					if (existsSync(statsScript)) {
+						try {
+							const statsOut = execSync(
+								`bash "${statsScript}" --cwd "${process.cwd()}"`,
+								{ encoding: "utf-8", timeout: 5000, stdio: ["pipe", "pipe", "pipe"] }
+							).trim();
+							output += `\n${statsOut}\n`;
+						} catch { /* ignore */ }
+					}
+				}
+
+				ctx.ui.notify(`📜 Session Analysis:\n\n${output}`, "info");
 			} catch (err) {
 				ctx.ui.notify(`Failed to scan logs: ${err}`, "error");
 			}
