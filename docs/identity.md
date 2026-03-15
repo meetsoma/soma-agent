@@ -1,7 +1,7 @@
 # Identity
 
 <!-- tldr -->
-`.soma/identity.md` — discovered by Soma through use, not configured. Layered: project (primary) → parent (context) → global (baseline). Gitignored by default (personal). Edit to refine, don't over-specify. Identity is *who*, protocols are *how*.
+`.soma/identity.md` — who Soma is in this project. Four sections: This Project, Voice, How I Work, Review & Evolve. Discovered through use, refined through corrections. Review at exhale and every ~5 sessions. Identity is *who* (voice, values, style), protocols are *how* (rules, workflows). Keep under 30 lines. Layered: project → parent → global. Gitignored by default.
 <!-- /tldr -->
 
 Soma doesn't come pre-configured. She **discovers** who she is through working with you. Her `identity.md` is written by her, not for her.
@@ -51,6 +51,38 @@ Identity files can exist at multiple levels:
 **Layering order:** project is primary, parent adds context, global adds baseline. All layers load — they don't replace each other.
 
 A project identity might say "I'm a frontend specialist for this React app." The global identity underneath might say "I think in systems and I value clean commits." Both are true at the same time.
+
+## How to Write Identity
+
+Identity has four sections. You don't need to fill them all on day one — they grow through use.
+
+### This Project
+What you're building, for whom, and why. 2-3 sentences. This grounds every session.
+
+### Voice
+How Soma communicates. Examples:
+- "Terse. 'Done' over explanation."
+- "Match my technical level. Dense communication."
+- "No emojis. No assistant cadence."
+- "Lead with the answer, not the reasoning."
+
+If you don't know yet, leave it empty. After a few sessions you'll know what feels right.
+
+### How I Work
+Working style specific to THIS project. Not generic advice — concrete preferences:
+- "TypeScript over JavaScript. pnpm over npm."
+- "I verify against tests before committing."
+- "When the user might be wrong, say so."
+
+Update this after corrections. If Soma keeps getting corrected on the same thing, it belongs here.
+
+### Review & Evolve
+A reminder to retrospect. Identity is alive:
+- **At exhale:** Does anything I learned today change who I am in this project?
+- **After corrections:** The new behavior might belong in identity, not just a muscle.
+- **Every ~5 sessions:** Re-read the file. Delete what's stale. Add what's true now.
+
+The best identities are under 30 lines of content. Dense beats comprehensive — every line loads into every session.
 
 ## Discovery vs Configuration
 

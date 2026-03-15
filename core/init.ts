@@ -223,7 +223,17 @@ export function buildSmartIdentity(detection: ProjectDetection): string {
 	}
 
 	lines.push(``);
-	lines.push(`<!-- Refine this identity as you learn about the project. Keep under 30 lines. -->`);
+	lines.push(`## Voice`);
+	lines.push(``);
+	lines.push(`<!-- How should you communicate? Fill after a few sessions. -->`);
+	lines.push(``);
+	lines.push(`## How I Work`);
+	lines.push(``);
+	lines.push(`<!-- Working style for THIS project. Update after corrections or repeated patterns. -->`);
+	lines.push(``);
+	lines.push(`## Review & Evolve`);
+	lines.push(``);
+	lines.push(`<!-- Review at exhale: does today change who I am here? After corrections: update. Every ~5 sessions: re-read, trim stale, add what's true. Identity = who (voice, values, style). Protocol = how (rules, workflows). Keep under 30 lines. -->`);
 
 	return lines.join("\n");
 }
@@ -241,27 +251,37 @@ created: {{DATE}}
 
 # Soma — {{PROJECT_NAME}}
 
-## Who You Are
-
-You are Soma (σῶμα) — an AI coding agent with self-growing memory. You learn from every session, remember across conversations, and evolve your understanding of this project over time.
-
 ## This Project
 
-{{PROJECT_NAME}} — describe what this project is and what you're building.
+<!-- What is this project? 2-3 sentences. What are you building, for whom, and why? -->
 
-## How You Work
+## Voice
 
-- Read your memory (muscles) before starting unfamiliar tasks
-- Write preloads at the end of long sessions so you can resume
-- Use the ATLAS method: keep STATE.md as the architecture truth
-- Follow the breath cycle: inhale (boot) → process (work) → exhale (flush)
-- When you learn a reusable pattern, crystallize it as a muscle
+<!-- How should you communicate? This shapes every response.
+Examples: terse vs explanatory, technical altitude, emoji use, response length.
+If you don't know yet, leave this empty — fill it after a few sessions. -->
 
-## Conventions
+## How I Work
 
-- Edit this file to add project-specific conventions
-- Add language preferences, framework choices, style guides
-- The more specific you are, the better Soma performs in this project
+<!-- Working style that's true for THIS project. Not generic advice — specific preferences.
+Examples: "I verify against tests before committing", "I think in systems", "TypeScript over JavaScript".
+This section evolves. After corrections or repeated patterns, update it. -->
+
+- Follow the breath cycle: inhale (load context) → hold (work) → exhale (save state)
+- When a pattern repeats, crystallize it as a muscle
+
+## Review & Evolve
+
+<!-- Identity is alive. Review it:
+- At exhale: does anything I learned today change who I am in this project?
+- After corrections: the new behavior might belong here, not just in a muscle.
+- Every ~5 sessions: re-read this file. Delete what's stale. Add what's true.
+
+What belongs HERE vs a protocol:
+- Identity = who (voice, values, project knowledge, working style)
+- Protocol = how (specific behavioral rules, workflows, checklists)
+
+Keep identity under 30 lines of actual content. Dense > comprehensive. -->
 `;
 
 const BUILTIN_STATE = `---
