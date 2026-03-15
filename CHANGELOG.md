@@ -9,6 +9,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 ## [Unreleased]
 
 ### Added
+- Identity bootstrap with 4 sections: This Project, Voice, How I Work, Review & Evolve (#c5086ea)
+- "How to Write Identity" guide in docs — what belongs in each section, when to review (#c5086ea)
 - `soma inhale` CLI subcommand — fresh session with preload from last session (#f61064f)
 - `soma` (no args) now starts clean — no preload injection (#f61064f)
 - User interrupt detection during auto-breathe — 1st interrupt resets timer, 2nd cancels (#d530af8)
