@@ -20,11 +20,7 @@ updated: 2026-03-14
 A live kanban board that moves with you across sessions. The board is the single source of truth for what's happening, what's done, and what's waiting. It's updated as you work — not reconstructed after the fact.
 
 ## TL;DR
-
-- **One board, one file:** `.soma/_kanban.md`. Four lanes: Active, In Progress, Done, Parked.
-- **Move cards in real time.** Starting a task → In Progress. Finished → Done. Blocked or deprioritized → Parked. Don't batch updates.
-- **On exhale, verify the board.** Does it match what actually happened this session? If not, fix it before writing your preload.
-- **On inhale, read Active + In Progress.** That's your orientation. Don't read Done unless checking prior work.
+One board: `.soma/_kanban.md`. Four lanes: Active, In Progress, Done, Parked. Move cards in real time. Verify board on exhale.
 
 ## When to Apply
 

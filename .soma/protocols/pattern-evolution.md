@@ -19,10 +19,7 @@ updated: 2026-03-14
 # Pattern Evolution Protocol
 
 ## TL;DR
-- Patterns evolve through **maturation layers**: **Skills** (knowledge) → **Muscles** (learned patterns) → **Protocols** (behavioral rules) → **Automations** (executable)
-- Muscles are born from **gaps** — moments where you notice missing patterns, repeated friction, workflow holes
-- **Burst heat**: 3+ uses in one session → +3 bonus heat (intense repetition accelerates learning)
-- Not every pattern climbs the full ladder. Some stay muscles forever. That's fine.
+Maturation: Skills → Muscles → Protocols → Automations. Born from gaps and repeated friction. Not every pattern climbs the full ladder.
 
 ## The Maturation Layers
 

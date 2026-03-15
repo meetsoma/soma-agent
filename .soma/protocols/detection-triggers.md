@@ -18,10 +18,7 @@ license: MIT
 # Detection Triggers
 
 ## TL;DR
-
-Capture learnings when you see: corrections ("no", "wrong", user edits your output), preferences ("I prefer", "always do X"), repeated patterns (3+ times), knowledge gaps, or environment gotchas. Don't capture one-time instructions or transient state. Bubble-up path: session log → muscle → protocol → core. Each level needs more evidence.
-
-Know when to capture a learning. Don't rely on discipline alone — recognize the moments.
+Capture on: corrections, preferences, 3+ repeated patterns, knowledge gaps. Skip one-time instructions. Bubble-up: session log → muscle → protocol → core.
 
 ## Capture Triggers
 

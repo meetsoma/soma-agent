@@ -4,7 +4,7 @@ name: pre-flight
 status: active
 updated: 2026-03-13
 breadcrumb: "Before building anything: check if it exists. Before accepting a request: verify it's needed. Grep for prior art. Catch user mistakes before executing them."
-heat-default: 8
+heat-default: 5
 scope: bundled
 tier: core
 author: meetsoma

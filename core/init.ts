@@ -690,9 +690,9 @@ export function resolveTemplateDir(
 
 /**
  * Scaffold default protocols into .soma/protocols/.
- * breath-cycle ships by default — it's the meta-protocol that teaches
- * Soma how to be Soma. _template.md gives format reference for new protocols.
- * Template files override built-in if available.
+ * Copies ALL bundled protocols from the agent package. User protocols
+ * are preserved (writeIfMissing). Template overrides are checked first.
+ * _template.md is always written for reference.
  */
 function scaffoldProtocols(
 	somaDir: string,
@@ -701,11 +701,35 @@ function scaffoldProtocols(
 ): void {
 	const protoDir = join(somaDir, "amps", "protocols");
 
-	writeIfMissing(
-		join(protoDir, "breath-cycle.md"),
-		loadTemplate(templateDir, "protocols/breath-cycle.md", vars) || BUILTIN_BREATH_CYCLE
-	);
+	// Resolve bundled protocols: this file is core/init.ts → ../.soma/protocols/
+	const bundledDir = resolve(dirname(new URL(import.meta.url).pathname), "..", ".soma", "protocols");
 
+	if (existsSync(bundledDir)) {
+		try {
+			const files = readdirSync(bundledDir).filter(f =>
+				f.endsWith(".md") && f !== "README.md"
+			);
+			for (const file of files) {
+				const templateContent = loadTemplate(templateDir, `protocols/${file}`, vars);
+				const bundledContent = readFileSync(join(bundledDir, file), "utf-8");
+				writeIfMissing(join(protoDir, file), templateContent || bundledContent);
+			}
+		} catch {
+			// Fallback to built-in breath-cycle if bundled dir scan fails
+			writeIfMissing(
+				join(protoDir, "breath-cycle.md"),
+				loadTemplate(templateDir, "protocols/breath-cycle.md", vars) || BUILTIN_BREATH_CYCLE
+			);
+		}
+	} else {
+		// No bundled dir (e.g., development) — use built-in constants
+		writeIfMissing(
+			join(protoDir, "breath-cycle.md"),
+			loadTemplate(templateDir, "protocols/breath-cycle.md", vars) || BUILTIN_BREATH_CYCLE
+		);
+	}
+
+	// Always write template for reference
 	writeIfMissing(
 		join(protoDir, "_template.md"),
 		loadTemplate(templateDir, "protocols/_template.md", vars) || BUILTIN_PROTOCOL_TEMPLATE
