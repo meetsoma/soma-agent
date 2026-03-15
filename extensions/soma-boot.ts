@@ -1040,8 +1040,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			return;
 		}
 
-		// Auto-inject preload on fresh boot (not resumed sessions — those have full history)
-		if (!isResumed && soma) {
+		// Auto-inject preload on fresh boot — only when `soma inhale` was used (SOMA_INHALE=1).
+		// Plain `soma` starts clean with no preload. Resumed sessions have full history already.
+		const shouldInhale = process.env.SOMA_INHALE === "1";
+		if (!isResumed && soma && shouldInhale) {
 			const preload = findPreload(soma, settings.preload.staleAfterHours, settings);
 			if (preload && !preload.stale) {
 				const staleTag = preload.stale ? " ⚠️stale" : "";

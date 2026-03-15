@@ -1,7 +1,7 @@
 # Commands
 
 <!-- tldr -->
-`/inhale` — load preload into current session. `/breathe` — save + auto-continue. `/exhale` — save + stop. `/rest` — disable keepalive + exhale (going to bed). `/pin <name>` — bump heat +5. `/kill <name>` — drop heat to 0. `/install <type> <name>` — install from hub. `/list local|remote` — browse content. `/soma` — status + management (subcommands: `init`, `prompt`, `preload`, `debug`). `/scratch <note>` — quick notes to scratchpad. `/auto-breathe on|off` — toggle proactive context rotation. `/auto-commit on|off` — toggle .soma/ auto-commit. `/route` — show extension capability router status. CLI: `soma` (fresh), `soma -c` (continue).
+CLI: `soma` (fresh, no preload), `soma inhale` (fresh + preload), `soma -c` (continue), `soma -r` (resume picker). Session: `/inhale` — reset + load preload. `/breathe` — save + rotate. `/exhale` — save + stop. `/rest` — disable keepalive + exhale. `/pin <name>` — bump heat +5. `/kill <name>` — drop to 0. `/soma` — status + management.
 <!-- /tldr -->
 
 Soma registers slash commands that control the breath cycle, heat system, and session management.
@@ -83,13 +83,15 @@ Soma monitors context usage and warns at configurable thresholds:
 
 Override in `settings.json` — see [Configuration](configuration.md#context-warnings).
 
-## CLI Flags
+## CLI Commands
 
-| Flag | Description |
-|------|-------------|
-| `soma` | Fresh session — loads identity, hot protocols, active muscles |
-| `soma -c` | Continue — loads everything above + last session's preload |
-| `soma -r` | Resume — pick from previous sessions to restore |
+| Command | Description |
+|---------|-------------|
+| `soma` | Fresh session — no preload. Clean slate with identity, hot protocols, active muscles. |
+| `soma inhale` | Fresh session with preload from last session. Use when continuing a project across sessions. |
+| `soma -c` | Continue previous session — full history preserved. |
+| `soma -r` | Resume — pick from previous sessions to restore. |
+| `soma --help` | Show formatted help (uses gum when available). |
 
 ## Scripts
 
