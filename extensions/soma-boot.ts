@@ -2884,21 +2884,35 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 	// /scan-logs — scan Pi's conversation JSONL logs
 	pi.registerCommand("scan-logs", {
-		description: "Scan recent conversation logs. Usage: /scan-logs [count]",
+		description: "Scan conversation logs. Usage: /scan-logs [count] | /scan-logs tools <pattern> [--results] [--tool bash|read] [--last N]",
 		handler: async (args, ctx) => {
 			const parts = (args?.trim() || "").split(/\s+/).filter(Boolean);
-			let count = 10;
-			let showStats = false;
 
+			// Subcommand: tools <pattern> — search tool calls in previous sessions
+			if (parts[0] === "tools" && parts.length >= 2) {
+				if (!soma) { ctx.ui.notify("No .soma/ found.", "error"); return; }
+				const statsScript = join(soma.path, "amps", "scripts", "soma-stats.sh");
+				if (!existsSync(statsScript)) {
+					ctx.ui.notify("soma-stats.sh not found.", "error");
+					return;
+				}
+
+				// Pass remaining args directly to soma-stats.sh tools
+				const toolArgs = parts.slice(1).join(" ");
+				const cmd = `bash "${statsScript}" tools ${toolArgs} --cwd "${process.cwd()}"`;
+				ctx.ui.notify(`🔍 Searching tool calls: \`soma-stats.sh tools ${toolArgs}\``, "info");
+				return;
+			}
+
+			// Default: show recent messages + stats
+			let count = 10;
 			for (const part of parts) {
-				if (part === "--stats") showStats = true;
-				else if (/^\d+$/.test(part)) count = parseInt(part, 10);
+				if (/^\d+$/.test(part)) count = parseInt(part, 10);
 			}
 
 			const currentFile = ctx.sessionManager.getSessionFile?.() || undefined;
 
 			try {
-				// Messages
 				const messages = scanSessionLogs(count, currentFile);
 				let output = "";
 
@@ -2908,7 +2922,6 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					output += "No recent conversation logs found.\n";
 				}
 
-				// Stats (always show, or just when --stats)
 				if (soma) {
 					const statsScript = join(soma.path, "amps", "scripts", "soma-stats.sh");
 					if (existsSync(statsScript)) {
