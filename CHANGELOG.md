@@ -13,6 +13,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - `soma` (no args) now starts clean — no preload injection (#f61064f)
 - User interrupt detection during auto-breathe — 1st interrupt resets timer, 2nd cancels (#d530af8)
 - Gum-formatted `--help` output with tables and styled header (cli #e20e6f6)
+- `response-style` protocol — set voice, length, emoji, and format preferences (#50aee8a)
+- Dignity clause in `correction-capture` — acknowledge without over-apologizing (#50aee8a)
 
 ### Fixed
 - Warm protocol TL;DRs shortened from 400-555 to ~150 chars — saves ~1500 tokens per boot (#9008d43)
@@ -20,6 +22,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 - `scaffoldProtocols()` now copies ALL bundled protocols on init, not just breath-cycle (#9008d43)
 - Auto-breathe grace period is now time-based (30s default) instead of turn-based (#8ca5e52)
 - Preload trust hierarchy — boot instructions explicitly require stating resume point (#dfb5ca9)
+- Hub protocol TL;DRs tightened (git-identity, session-checkpoints, tool-discipline) (#dd8c4cf)
+- Breadcrumbs synced from community — consistent cross-repo references (#9461185)
 
 ---
 
