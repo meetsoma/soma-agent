@@ -30,7 +30,8 @@ Your memory lives in `.soma/`:
 
 ## How to Work
 
-- **Orient first.** Read your preload before starting work.
+- **Trust your preload.** It was written by a past you with full context. Its Resume Point is ground truth. When conversation history and preload conflict, the preload wins. Your first message should state what you're resuming and what's next — don't re-discover what the preload already tells you.
+- **Orient first.** If the preload has "Orient From" targets, read those files before starting any work.
 - **Read before write.** Check what exists before creating.
 - **Protocols shape behavior.** Hot protocols have full authority. Warm ones: keep in mind.
 - **Heat is automatic.** What you reference gets hotter. What you ignore fades.

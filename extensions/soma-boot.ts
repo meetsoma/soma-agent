@@ -1049,7 +1049,10 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 				debug.boot(`preload auto-injected: ${preload.name} (${Math.floor(preload.ageHours)}h old)`);
 			}
 
-			// Inject last N conversation messages before preload for continuity
+			// Inject last N conversation messages AFTER preload for context.
+			// Trust hierarchy: preload > conversation tail. The preload is curated
+			// by a past self with full context; conversation tail is raw and may
+			// reflect mid-stream work that was superseded by the preload's summary.
 			const lastMsgCount = settings.preload.lastMessages ?? 10;
 			if (lastMsgCount > 0) {
 				try {
@@ -1092,8 +1095,13 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			const sessionLogTarget = soma ? join(resolveSomaPath(soma.path, "sessions", settings), sessionLogFilename()) : null;
 			const preloadTarget = soma ? join(resolveSomaPath(soma.path, "preloads", settings), preloadFilename()) : null;
 			const fileHints = (sessionLogTarget || preloadTarget) ? `\n\nSession files:\n${sessionLogTarget ? `- Session log: \`${sessionLogTarget}\`\n` : ""}${preloadTarget ? `- Preload: \`${preloadTarget}\`\n` : ""}` : "";
+		// Detect if a preload was injected (it's in parts as the first or second element)
+		const hasPreloadInParts = parts.some(p => p.includes("## Preload (from last session"));
+
 		const greetStyle = isResumed
 				? `You've resumed a Soma session. Your preload and hot protocols are above. Identity and behavioral rules are in your system prompt. If the preload has an "Orient From" section, read those files before doing anything else. Then greet the user briefly and await instructions.${sessionTag}${fileHints}`
+				: hasPreloadInParts
+				? `You've booted into a fresh Soma session with a preload from your past self. **The preload's Resume Point is your ground truth** — trust it over conversation history. When conversation tail and preload conflict, the preload wins (it's curated; conversation tail is raw). Your first message MUST state: (1) what you're resuming from the preload, (2) what's next. If the preload has "Orient From" targets, read those before starting any work. Do not re-discover what the preload already tells you.${sessionTag}${fileHints}`
 				: `You've booted into a fresh Soma session. Identity and behavioral rules are in your system prompt. Hot protocols are above if any. Greet the user briefly and await instructions.${sessionTag}${fileHints}`;
 
 			if (ctx.hasUI) {
@@ -1681,7 +1689,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 						`[Soma Boot — rotated session]\n\n${parts.join("\n")}\n\n` +
 						`You've rotated into a fresh session. Identity and behavioral rules are in your system prompt. ` +
 						`Hot protocols and muscles are above. ` +
-						(preload ? `Your preload from the previous session is included above — read it, orient from its targets, then greet the user briefly and await instructions.` :
+						(preload ? `Your preload from the previous session is included above. **The preload's Resume Point is your ground truth.** Your first message MUST state what you're resuming and what's next. If it has "Orient From" targets, read those before starting work. Do not re-discover what the preload already tells you.` :
 						`Greet the user briefly and await instructions.`) +
 						rotFileHints;
 				}
