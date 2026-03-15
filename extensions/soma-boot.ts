@@ -176,6 +176,198 @@ function getScriptDescription(scriptPath: string, scriptName: string): string {
 	return getScriptMeta(scriptPath, scriptName).description;
 }
 
+// ---------------------------------------------------------------------------
+// Session Log Scanner — reads Pi's JSONL conversation logs
+// ---------------------------------------------------------------------------
+// Pi stores conversations as append-only JSONL in ~/.pi/agent/sessions/<encoded-cwd>/.
+// Each line is a JSON object with type "session" (header), "message", or "custom".
+// Messages have { type: "message", message: { role, content: [{ type: "text", text }] } }.
+// CWD is encoded: /Users/user/Foo → --Users-user-Foo--
+
+interface ConversationMessage {
+	role: "user" | "assistant";
+	text: string;
+	timestamp?: string;
+}
+
+function getAgentSessionDir(): string {
+	const home = process.env.HOME || process.env.USERPROFILE || "";
+	return join(home, ".pi", "agent", "sessions");
+}
+
+function encodeCwdToSessionDir(cwd: string): string {
+	const safePath = `--${cwd.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
+	return join(getAgentSessionDir(), safePath);
+}
+
+/**
+ * Scan Pi's JSONL session logs and extract recent conversation messages.
+ *
+ * @param count - Number of messages to return (default 10)
+ * @param currentSessionFile - Current session file path to exclude (optional)
+ * @param cwd - Working directory to scope sessions (defaults to process.cwd())
+ * @returns Array of recent messages, oldest first
+ */
+function scanSessionLogs(
+	count: number = 10,
+	currentSessionFile?: string,
+	cwd?: string
+): ConversationMessage[] {
+	if (count <= 0) return [];
+
+	const targetCwd = cwd || process.cwd();
+
+	// Try multiple session dirs — Pi may store under CWD or a parent
+	const candidateDirs: string[] = [];
+	candidateDirs.push(encodeCwdToSessionDir(targetCwd));
+
+	// Also check parent dirs (e.g., /Users/user/Gravicity/meetsoma → /Users/user/Gravicity)
+	let parent = dirname(targetCwd);
+	while (parent !== targetCwd && parent !== "/" && parent !== ".") {
+		candidateDirs.push(encodeCwdToSessionDir(parent));
+		targetCwd === parent; // safety
+		const next = dirname(parent);
+		if (next === parent) break;
+		parent = next;
+	}
+
+	// Also check named session dirs (Pi supports project-name aliases like "zenith")
+	const baseSessionDir = getAgentSessionDir();
+	if (existsSync(baseSessionDir)) {
+		try {
+			const dirs = readdirSync(baseSessionDir);
+			for (const d of dirs) {
+				const dirPath = join(baseSessionDir, d);
+				if (!d.startsWith("--") && statSync(dirPath).isDirectory()) {
+					// Named dir — check if sessions inside have matching CWD
+					candidateDirs.push(dirPath);
+				}
+			}
+		} catch { /* ignore */ }
+	}
+
+	// Find all JSONL files across candidate dirs, sorted newest first
+	const allFiles: { path: string; mtime: number }[] = [];
+	const seen = new Set<string>();
+
+	for (const dir of candidateDirs) {
+		if (!existsSync(dir) || seen.has(dir)) continue;
+		seen.add(dir);
+		try {
+			const files = readdirSync(dir).filter(f => f.endsWith(".jsonl"));
+			for (const f of files) {
+				const fullPath = join(dir, f);
+				// Skip current session
+				if (currentSessionFile && fullPath === currentSessionFile) continue;
+				try {
+					const stat = statSync(fullPath);
+					allFiles.push({ path: fullPath, mtime: stat.mtimeMs });
+				} catch { /* skip */ }
+			}
+		} catch { /* skip */ }
+	}
+
+	// Sort newest first
+	allFiles.sort((a, b) => b.mtime - a.mtime);
+
+	// Read messages from most recent files until we have enough
+	const messages: ConversationMessage[] = [];
+
+	for (const file of allFiles) {
+		if (messages.length >= count) break;
+
+		try {
+			const content = readFileSync(file.path, "utf-8");
+			const lines = content.trim().split("\n");
+			const fileMessages: ConversationMessage[] = [];
+
+			// Check the session header — verify CWD matches our project
+			if (lines.length > 0) {
+				try {
+					const header = JSON.parse(lines[0]);
+					if (header.type === "session" && header.cwd) {
+						// Only include sessions from our CWD or parent
+						const sessionCwd = header.cwd;
+						const normalizedTarget = (cwd || process.cwd()).replace(/\/$/, "");
+						if (!normalizedTarget.startsWith(sessionCwd) && !sessionCwd.startsWith(normalizedTarget)) {
+							continue; // Skip sessions from unrelated projects
+						}
+					}
+				} catch { /* skip header parse errors */ }
+			}
+
+			for (const line of lines) {
+				try {
+					const entry = JSON.parse(line);
+					if (entry.type !== "message") continue;
+					const msg = entry.message;
+					if (!msg || !msg.role || !["user", "assistant"].includes(msg.role)) continue;
+
+					// Extract text content
+					let text = "";
+					if (Array.isArray(msg.content)) {
+						for (const block of msg.content) {
+							if (block.type === "text" && block.text) {
+								text = block.text;
+								break;
+							}
+						}
+					} else if (typeof msg.content === "string") {
+						text = msg.content;
+					}
+
+					if (!text) continue;
+
+					// Skip cache keepalives and system injections
+					if (text.startsWith("[cache keepalive")) continue;
+					if (text.startsWith("[Soma Boot")) continue;
+					if (text.startsWith("[Soma ")) continue;
+					if (text.includes("FLUSH COMPLETE")) continue;
+					if (text.includes("BREATHE COMPLETE")) continue;
+
+					fileMessages.push({
+						role: msg.role,
+						text,
+						timestamp: entry.timestamp,
+					});
+				} catch { /* skip malformed lines */ }
+			}
+
+			// Take last N messages from this file (they're in chronological order)
+			const needed = count - messages.length;
+			const tail = fileMessages.slice(-needed);
+			// Prepend (since we're going newest-file-first but want chronological order)
+			messages.unshift(...tail);
+		} catch { /* skip unreadable files */ }
+
+		// Only read from most recent session file
+		break;
+	}
+
+	return messages.slice(-count);
+}
+
+/**
+ * Format scanned messages for injection into boot context.
+ */
+function formatConversationTail(messages: ConversationMessage[]): string {
+	if (messages.length === 0) return "";
+
+	const lines: string[] = [];
+	for (const msg of messages) {
+		const prefix = msg.role === "user" ? "**User:**" : "**Assistant:**";
+		// Truncate long messages to keep injection compact
+		const maxLen = msg.role === "assistant" ? 500 : 300;
+		let text = msg.text;
+		if (text.length > maxLen) {
+			text = text.slice(0, maxLen) + "…";
+		}
+		lines.push(`${prefix} ${text}`);
+	}
+
+	return `---\n## Last Conversation (${messages.length} messages)\n\n${lines.join("\n\n")}\n`;
+}
+
 // Resolve agent dir from this module's location (extensions/ → parent)
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const somaAgentDir = resolve(__dirname, "..");
@@ -827,6 +1019,23 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					`\n---\n## Preload (from last session${staleTag})\n\n${preload.content}\n`
 				);
 				debug.boot(`preload auto-injected: ${preload.name} (${Math.floor(preload.ageHours)}h old)`);
+			}
+
+			// Inject last N conversation messages before preload for continuity
+			const lastMsgCount = settings.preload.lastMessages ?? 10;
+			if (lastMsgCount > 0) {
+				try {
+					const currentFile = ctx.sessionManager.getSessionFile?.() || undefined;
+					const recentMsgs = scanSessionLogs(lastMsgCount, currentFile);
+					if (recentMsgs.length > 0) {
+						const tail = formatConversationTail(recentMsgs);
+						// Insert before preload (preload was unshifted to position 0)
+						parts.unshift(tail);
+						debug.boot(`conversation tail injected: ${recentMsgs.length} messages`);
+					}
+				} catch (err) {
+					debug.boot(`conversation tail scan failed: ${err}`);
+				}
 			}
 		}
 
@@ -2555,6 +2764,56 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		return { cmd: subcmd, display: subcmd.replace(scriptPath, "soma-scrape.sh") };
 	};
 
+	// /code — fast codebase navigator
+	const buildCodeCmd = (args: string, somaPath: string): { cmd: string; display: string } | { error: string } => {
+		const parts = args.trim().split(/\s+/).filter(Boolean);
+		if (parts.length === 0) {
+			return { error:
+				"Usage:\n" +
+				"  /code find <pattern> [path]     — grep with file:line format\n" +
+				"  /code lines <file> <start> [end] — show exact lines\n" +
+				"  /code map <file>                 — function/class index\n" +
+				"  /code refs <symbol> [path]       — all references (def vs use)\n" +
+				"  /code replace <file> <ln> <old> <new>\n" +
+				"  /code structure [path]           — file tree with sizes\n" +
+				"  /code physics [path]             — all motion/animation code\n" +
+				"  /code events [path]              — event listeners/dispatchers\n" +
+				"  /code css-vars [path]            — CSS custom property audit\n" +
+				"  /code config [path]              — config/options objects\n" +
+				"\nDefault target: $SOMA_SHELL_DIR (gravicity-io/shell)"
+			};
+		}
+
+		const scriptPath = `${somaPath}/amps/scripts/soma-code.sh`;
+		const subcmd = `bash "${scriptPath}" ${parts.join(" ")}`;
+		return { cmd: subcmd, display: `soma-code.sh ${parts.join(" ")}` };
+	};
+
+	pi.registerCommand("code", {
+		description: "Fast codebase navigator. Usage: /code <find|lines|map|refs|replace|structure|physics|events|css-vars|config> [args]",
+		handler: async (args, ctx) => {
+			if (!soma) { ctx.ui.notify("No .soma/ found.", "error"); return; }
+
+			const route = getRoute();
+			if (route && !route.get("code:build")) {
+				route.provide("code:build", buildCodeCmd, {
+					provider: "soma-boot",
+					description: "Build a soma-code.sh command from args string",
+				});
+			}
+
+			const builder = route?.get("code:build") as typeof buildCodeCmd | null;
+			const result = builder ? builder(args, soma.path) : buildCodeCmd(args, soma.path);
+
+			if ("error" in result) {
+				ctx.ui.notify(result.error, "info");
+				return;
+			}
+
+			ctx.ui.notify(`🔍 Running: ${result.display}`, "info");
+		},
+	});
+
 	pi.registerCommand("scrape", {
 		description: "Scrape docs for a tool, library, or topic. Usage: /scrape <name|topic> [--discover] [--provider github|npm|mdn|css|skills]",
 		handler: async (args, ctx) => {
@@ -2579,6 +2838,28 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 			}
 
 			ctx.ui.notify(`🔍 Running: ${result.display}`, "info");
+		},
+	});
+
+	// /scan-logs — scan Pi's conversation JSONL logs
+	pi.registerCommand("scan-logs", {
+		description: "Scan recent conversation logs. Usage: /scan-logs [count]",
+		handler: async (args, ctx) => {
+			const count = parseInt(args?.trim() || "", 10) || 10;
+			const currentFile = ctx.sessionManager.getSessionFile?.() || undefined;
+
+			try {
+				const messages = scanSessionLogs(count, currentFile);
+				if (messages.length === 0) {
+					ctx.ui.notify("No recent conversation logs found.", "info");
+					return;
+				}
+
+				const formatted = formatConversationTail(messages);
+				ctx.ui.notify(`📜 Last ${messages.length} messages from previous session:\n\n${formatted}`, "info");
+			} catch (err) {
+				ctx.ui.notify(`Failed to scan logs: ${err}`, "error");
+			}
 		},
 	});
 }
