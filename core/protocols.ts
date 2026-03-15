@@ -335,8 +335,9 @@ export function buildProtocolInjection(
 	if (hot.length > 0) {
 		lines.push("## Active Protocols\n");
 		for (const p of hot) {
-			// Strip frontmatter from content for injection
-			const body = stripFrontmatter(p.content);
+			// Strip frontmatter and h1 title (redundant with ### name) from content for injection
+			let body = stripFrontmatter(p.content);
+			body = body.replace(/^# [^\n]+\n+/, "");
 			lines.push(`### ${p.name}\n${body}\n`);
 		}
 	}

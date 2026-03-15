@@ -191,7 +191,11 @@ export function buildMuscleInjection(
 			if (m.digest) {
 				lines.push(`### ${m.name}\n${m.digest}\n`);
 			} else {
-				const body = stripFrontmatter(m.content);
+				let body = stripFrontmatter(m.content);
+				// Clean up formatting: strip h1 title (redundant with ### name) and digest markers
+				body = body.replace(/^# [^\n]+\n+/, "");
+				body = body.replace(/<!-- digest:start -->\n?/g, "");
+				body = body.replace(/\n?<!-- digest:end -->/g, "");
 				lines.push(`### ${m.name}\n${body}\n`);
 			}
 		}

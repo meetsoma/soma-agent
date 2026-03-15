@@ -578,7 +578,9 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					const injection = buildProtocolInjection(protocols, protocolState, protoThresholds);
 					if (injection.hot.length > 0) {
 						const hotBlock = injection.hot.map(p => {
-							const body = stripFrontmatter(p.content);
+							let body = stripFrontmatter(p.content);
+							// Strip h1 title — redundant with ### Protocol: name
+							body = body.replace(/^# [^\n]+\n+/, "");
 							return `### Protocol: ${p.name}\n${body}`;
 						}).join("\n\n");
 						parts.push(`\n---\n## Hot Protocols (full reference)\n\n${hotBlock}`);
@@ -595,7 +597,12 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					const muscleInjection = buildMuscleInjection(muscles, settings.muscles);
 					if (muscleInjection.hot.length > 0) {
 						const hotBlock = muscleInjection.hot.map(m => {
-							const body = stripFrontmatter(m.content);
+							let body = stripFrontmatter(m.content);
+							// Strip digest markers — they're for extraction, not display
+							body = body.replace(/<!-- digest:start -->\n?/g, "");
+							body = body.replace(/\n?<!-- digest:end -->/g, "");
+							// Strip the h1 title — redundant with ### Muscle: name
+							body = body.replace(/^# [^\n]+\n+/, "");
 							return `### Muscle: ${m.name}\n${body}`;
 						}).join("\n\n");
 						parts.push(`\n---\n## Hot Muscles (full reference)\n\n${hotBlock}`);
@@ -616,7 +623,8 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					const automationInjection = buildAutomationInjection(automations, settings.automations);
 					if (automationInjection.hot.length > 0) {
 						const hotBlock = automationInjection.hot.map(a => {
-							const body = stripFrontmatter(a.content);
+							let body = stripFrontmatter(a.content);
+							body = body.replace(/^# [^\n]+\n+/, "");
 							return `### Automation: ${a.name}\n${body}`;
 						}).join("\n\n");
 						parts.push(`\n---\n## Hot Automations (full reference)\n\n${hotBlock}`);
