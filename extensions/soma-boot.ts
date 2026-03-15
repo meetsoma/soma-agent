@@ -2941,12 +2941,25 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 
 	// /scan-logs — scan Pi's conversation JSONL logs
 	pi.registerCommand("scan-logs", {
-		description: "Scan conversation logs. Usage: /scan-logs [count] | /scan-logs tools <pattern> [--results] [--tool bash|read] [--last N]",
+		description: "Scan conversation logs. Usage: /scan-logs [count] [--send] | /scan-logs tools <pattern> [--results] [--tool bash|read] [--last N] [--send]",
 		handler: async (args, ctx) => {
 			const parts = (args?.trim() || "").split(/\s+/).filter(Boolean);
 
+			// --send flag: inject results as user message so the agent can see and discuss them
+			const sendToAgent = parts.includes("--send");
+			const filteredParts = parts.filter(p => p !== "--send");
+
+			// Helper: output to notification (default) or to agent conversation (--send)
+			const deliver = (output: string) => {
+				if (sendToAgent) {
+					pi.sendUserMessage(`[scan-logs results]\n\n${output}`);
+				} else {
+					ctx.ui.notify(`📜 Session Analysis:\n\n${output}`, "info");
+				}
+			};
+
 			// Subcommand: tools <pattern> — search tool calls in previous sessions
-			if (parts[0] === "tools" && parts.length >= 2) {
+			if (filteredParts[0] === "tools" && filteredParts.length >= 2) {
 				if (!soma) { ctx.ui.notify("No .soma/ found.", "error"); return; }
 				const statsScript = join(soma.path, "amps", "scripts", "soma-stats.sh");
 				if (!existsSync(statsScript)) {
@@ -2954,16 +2967,26 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					return;
 				}
 
-				// Pass remaining args directly to soma-stats.sh tools
-				const toolArgs = parts.slice(1).join(" ");
+				// Run soma-stats.sh tools and capture output
+				const toolArgs = filteredParts.slice(1).join(" ");
 				const cmd = `bash "${statsScript}" tools ${toolArgs} --cwd "${process.cwd()}"`;
-				ctx.ui.notify(`🔍 Searching tool calls: \`soma-stats.sh tools ${toolArgs}\``, "info");
+
+				if (sendToAgent) {
+					try {
+						const result = execSync(cmd, { encoding: "utf-8", timeout: 15000, stdio: ["pipe", "pipe", "pipe"] }).trim();
+						deliver(result || "No matching tool calls found.");
+					} catch (err: any) {
+						deliver(err.stdout?.trim() || "No matching tool calls found.");
+					}
+				} else {
+					ctx.ui.notify(`🔍 Searching tool calls: \`soma-stats.sh tools ${toolArgs}\``, "info");
+				}
 				return;
 			}
 
 			// Default: show recent messages + stats
 			let count = 10;
-			for (const part of parts) {
+			for (const part of filteredParts) {
 				if (/^\d+$/.test(part)) count = parseInt(part, 10);
 			}
 
@@ -2992,7 +3015,7 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 					}
 				}
 
-				ctx.ui.notify(`📜 Session Analysis:\n\n${output}`, "info");
+				deliver(output);
 			} catch (err) {
 				ctx.ui.notify(`Failed to scan logs: ${err}`, "error");
 			}
