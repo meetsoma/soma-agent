@@ -19,10 +19,7 @@ updated: 2026-03-14
 # Git Identity Protocol
 
 ## TL;DR
-- Define identity zones: **personal**, **business**, **agent** — each maps to a name/email
-- Check `git config user.email` before first commit in any repo
-- Human drives → human identity. Agent acts alone → agent identity with `Co-authored-by`
-- Fix before push: `git commit --amend --author="Name <email>" --no-edit`
+Identity zones: personal, business, agent — each maps to name/email. Check `git config user.email` before first commit. Fix: `git commit --amend --author`.
 
 ## Rule
 
