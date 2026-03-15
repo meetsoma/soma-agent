@@ -2555,19 +2555,22 @@ export default function somaBootExtension(pi: ExtensionAPI) {
 		return { cmd: subcmd, display: subcmd.replace(scriptPath, "soma-scrape.sh") };
 	};
 
-	// Register on router — available to other extensions and hot-swappable
-	route.provide("scrape:build", buildScrapeCmd, {
-		provider: "soma-boot",
-		description: "Build a soma-scrape.sh command from args string",
-	});
-
 	pi.registerCommand("scrape", {
 		description: "Scrape docs for a tool, library, or topic. Usage: /scrape <name|topic> [--discover] [--provider github|npm|mdn|css|skills]",
 		handler: async (args, ctx) => {
 			if (!soma) { ctx.ui.notify("No .soma/ found.", "error"); return; }
 
-			// Use router capability (hot-swappable)
-			const builder = route.get("scrape:build") as typeof buildScrapeCmd | null;
+			// Register on router if not yet done (lazy — first invocation)
+			const route = getRoute();
+			if (route && !route.get("scrape:build")) {
+				route.provide("scrape:build", buildScrapeCmd, {
+					provider: "soma-boot",
+					description: "Build a soma-scrape.sh command from args string",
+				});
+			}
+
+			// Use router capability (hot-swappable) with direct fallback
+			const builder = route?.get("scrape:build") as typeof buildScrapeCmd | null;
 			const result = builder ? builder(args, soma.path) : buildScrapeCmd(args, soma.path);
 
 			if ("error" in result) {
